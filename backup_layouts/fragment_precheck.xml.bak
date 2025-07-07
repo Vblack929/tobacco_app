@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light"
+    android:padding="24dp"
+    tools:context=".ui.precheck.PrecheckFragment">
+
+    <!-- 顶部标题栏 -->
+    <LinearLayout
+        android:id="@+id/header_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_card_background"
+        android:elevation="4dp"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_precheck"
+            android:contentDescription="预检码图标"
+            app:tint="@color/primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="预检码管理"
+            android:textColor="@color/text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="返回"
+            android:textSize="16sp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+    </LinearLayout>
+
+    <!-- 搜索区域 -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/search_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_layout">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="搜索预检码"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <!-- 搜索输入框 - 绑定searchQuery LiveData -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/et_search"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/search_edittext_background"
+                    android:drawableStart="@drawable/ic_search"
+                    android:drawablePadding="12dp"
+                    android:hint="输入批次号、调拨信息或预检码"
+                    android:inputType="text"
+                    android:padding="16dp"
+                    android:textSize="16sp"
+                    android:textColorHint="@color/text_hint" />
+
+                <Button
+                    android:id="@+id/btn_search"
+                    android:layout_width="120dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="12dp"
+                    android:text="搜索"
+                    android:textSize="16sp"
+                    style="@style/Widget.Material3.Button" />
+
+                <Button
+                    android:id="@+id/btn_clear_search"
+                    android:layout_width="80dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp"
+                    android:text="清空"
+                    android:textSize="16sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </LinearLayout>
+
+            <!-- 搜索选项 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="搜索范围："
+                    android:textColor="@color/text_secondary"
+                    android:textSize="16sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_search_batch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="批次号"
+                    android:textSize="16sp"
+                    android:checked="true" />
+
+                <CheckBox
+                    android:id="@+id/cb_search_transfer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:text="调拨信息"
+                    android:textSize="16sp"
+                    android:checked="true" />
+
+                <CheckBox
+                    android:id="@+id/cb_search_code"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="24dp"
+                    android:text="预检码"
+                    android:textSize="16sp"
+                    android:checked="true" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 统计信息栏 -->
+    <LinearLayout
+        android:id="@+id/stats_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/stats_background"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/search_card">
+
+        <TextView
+            android:id="@+id/tv_total_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="共找到 0 条记录"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            tools:text="共找到 25 条记录" />
+
+        <TextView
+            android:id="@+id/tv_selected_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="请选择预检码"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            tools:text="已选择: PC20240101001" />
+    </LinearLayout>
+
+    <!-- 预检码列表 - 绑定precheckList LiveData -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_precheck_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/recyclerview_background"
+        android:clipToPadding="false"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_action_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/stats_layout"
+        tools:listitem="@layout/item_precheck" />
+
+    <!-- 空状态显示 -->
+    <LinearLayout
+        android:id="@+id/empty_state_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/rv_precheck_list"
+        app:layout_constraintEnd_toEndOf="@+id/rv_precheck_list"
+        app:layout_constraintStart_toStartOf="@+id/rv_precheck_list"
+        app:layout_constraintTop_toTopOf="@+id/rv_precheck_list">
+
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:src="@drawable/ic_empty_list"
+            android:alpha="0.5"
+            app:tint="@color/text_hint" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="暂无匹配的预检码"
+            android:textColor="@color/text_hint"
+            android:textSize="18sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="请尝试修改搜索条件"
+            android:textColor="@color/text_hint"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 底部操作区域 -->
+    <LinearLayout
+        android:id="@+id/bottom_action_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/rounded_card_background"
+        android:elevation="4dp"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tv_selection_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="未选择预检码"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            tools:text="已选择: 批次PC001 - 上级分配" />
+
+        <!-- 刷新按钮 -->
+        <Button
+            android:id="@+id/btn_refresh"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="12dp"
+            android:text="刷新"
+            android:textSize="16sp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+        <!-- 确认选择按钮 - 绑定selectPrecheckCode() -->
+        <Button
+            android:id="@+id/btn_confirm_select"
+            android:layout_width="160dp"
+            android:layout_height="56dp"
+            android:enabled="false"
+            android:text="确认选择"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            style="@style/Widget.Material3.Button" />
+    </LinearLayout>
+
+    <!-- 加载状态指示器 -->
+    <ProgressBar
+        android:id="@+id/progress_loading"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/rv_precheck_list"
+        app:layout_constraintEnd_toEndOf="@+id/rv_precheck_list"
+        app:layout_constraintStart_toStartOf="@+id/rv_precheck_list"
+        app:layout_constraintTop_toTopOf="@+id/rv_precheck_list" />
+
+</androidx.constraintlayout.widget.ConstraintLayout> 

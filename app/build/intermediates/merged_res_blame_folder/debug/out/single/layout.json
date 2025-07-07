@@ -1,0 +1,30 @@
+[
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\fragment_records.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_records.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\activity_admin.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_admin.xml"
+    },
+    {
+        "merged": "com.tobacco.weight.app-mergeDebugResources-61:/layout/fragment_weighing.xml",
+        "source": "com.tobacco.weight.app-main-64:/layout/fragment_weighing.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\fragment_precheck.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_precheck.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\fragment_weighing.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_weighing.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-mergeDebugResources-61:\\layout\\activity_settings.xml",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_settings.xml"
+    }
+]

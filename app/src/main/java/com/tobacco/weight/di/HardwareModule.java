@@ -1,8 +1,9 @@
 package com.tobacco.weight.di;
 
-import com.tobacco.weight.hardware.idcard.IdCardManager;
-import com.tobacco.weight.hardware.printer.PrinterManager;
+import com.tobacco.weight.hardware.simulator.HardwareSimulator;
 import com.tobacco.weight.hardware.scale.ScaleManager;
+import com.tobacco.weight.hardware.printer.PrinterManager;
+import com.tobacco.weight.hardware.idcard.IdCardManager;
 
 import javax.inject.Singleton;
 
@@ -12,20 +13,28 @@ import dagger.hilt.InstallIn;
 import dagger.hilt.components.SingletonComponent;
 
 /**
- * 硬件模块依赖注入
- * 提供硬件管理器的单例实例
+ * 硬件模块依赖注入配置
  */
 @Module
 @InstallIn(SingletonComponent.class)
 public class HardwareModule {
     
     /**
+     * 提供硬件模拟器单例
+     */
+    @Provides
+    @Singleton
+    public HardwareSimulator provideHardwareSimulator() {
+        return new HardwareSimulator();
+    }
+    
+    /**
      * 提供电子秤管理器
      */
     @Provides
     @Singleton
-    public ScaleManager provideScaleManager() {
-        return new ScaleManager();
+    public ScaleManager provideScaleManager(HardwareSimulator simulator) {
+        return new ScaleManager(simulator);
     }
     
     /**
@@ -33,8 +42,8 @@ public class HardwareModule {
      */
     @Provides
     @Singleton
-    public PrinterManager providePrinterManager() {
-        return new PrinterManager();
+    public PrinterManager providePrinterManager(HardwareSimulator simulator) {
+        return new PrinterManager(simulator);
     }
     
     /**
@@ -42,7 +51,7 @@ public class HardwareModule {
      */
     @Provides
     @Singleton
-    public IdCardManager provideIdCardManager() {
-        return new IdCardManager();
+    public IdCardManager provideIdCardManager(HardwareSimulator simulator) {
+        return new IdCardManager(simulator);
     }
 } 

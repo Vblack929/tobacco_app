@@ -1,0 +1,146 @@
+[
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\menu_menu_main.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\menu\\menu_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_export.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_export.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_print.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_print.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\xml_file_paths.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\xml\\file_paths.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\xml_device_filter.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\xml\\device_filter.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_rounded_card_background.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\rounded_card_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_disconnected.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_disconnected.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_search_edittext_background.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\search_edittext_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_activity_settings.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_settings.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_scale.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_scale.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\xml_backup_rules.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\xml\\backup_rules.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\menu_bottom_nav_menu.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\menu\\bottom_nav_menu.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\mipmap-xxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_recyclerview_background.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\recyclerview_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_empty_list.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_empty_list.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\navigation_nav_graph.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\navigation\\nav_graph.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_fragment_records.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_records.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_connected.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_connected.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_list.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_list.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_fragment_precheck.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_precheck.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_settings.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_settings.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_splash_background.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\splash_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\menu_main_menu.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\menu\\main_menu.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_check.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_check.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_fragment_weighing.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\fragment_weighing.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\layout_activity_admin.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\layout\\activity_admin.xml"
+    },
+    {
+        "merged": "com.tobacco.weight.app-merged_res-62:/layout_fragment_weighing.xml.flat",
+        "source": "com.tobacco.weight.app-main-64:/layout/fragment_weighing.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_stats_background.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\stats_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_precheck.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_precheck.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_sync.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_sync.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\xml_data_extraction_rules.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\xml\\data_extraction_rules.xml"
+    },
+    {
+        "merged": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-merged_res-62:\\drawable_ic_search.xml.flat",
+        "source": "C:\\Users\\fzhiy\\.gradle\\daemon\\8.5\\com.tobacco.weight.app-main-64:\\drawable\\ic_search.xml"
+    }
+]
