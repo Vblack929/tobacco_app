@@ -13,12 +13,14 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.tobacco.weight.data.model.WeightRecord;
 import com.tobacco.weight.hardware.serial.SerialPortManager;
+import com.tobacco.weight.hardware.simulator.HardwareSimulator;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import javax.inject.Inject;
 
 /**
  * 打印机管理器
@@ -53,10 +55,11 @@ public class PrinterManager {
     // 打印模板配置
     private PrintTemplate currentTemplate;
     
-    /**
-     * 构造函数
-     */
-    public PrinterManager() {
+    private final HardwareSimulator simulator;
+    
+    @Inject
+    public PrinterManager(HardwareSimulator simulator) {
+        this.simulator = simulator;
         this.serialPortManager = new SerialPortManager();
         this.printResultSubject = PublishSubject.create();
         this.currentTemplate = createDefaultTemplate();
@@ -434,5 +437,9 @@ public class PrinterManager {
         public String getMessage() { return message; }
         public String getRecordNumber() { return recordNumber; }
         public long getTimestamp() { return timestamp; }
+    }
+    
+    public HardwareSimulator getSimulator() {
+        return simulator;
     }
 } 

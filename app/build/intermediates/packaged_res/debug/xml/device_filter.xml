@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- USB Scale Device Filter -->
+    <usb-device vendor-id="1659" product-id="8963" />
+    
+    <!-- Generic Serial Device Filter -->
+    <usb-device class="2" />
+    
+    <!-- Printer Device Filter -->
+    <usb-device vendor-id="1155" product-id="22608" />
+    <usb-device vendor-id="1046" product-id="20497" />
+    
+    <!-- Add more vendor/product IDs as needed -->
+</resources> 

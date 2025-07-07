@@ -1,0 +1,166 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "0a0491409de211561bfc73d974363a35",
+    "entities": [
+      {
+        "tableName": "weight_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_number` TEXT, `weight` REAL NOT NULL, `id_card_number` TEXT, `farmer_name` TEXT, `farmer_address` TEXT, `tobacco_bundles` INTEGER NOT NULL, `tobacco_part` TEXT, `pre_check_number` TEXT, `tobacco_grade` TEXT, `purchase_price` REAL NOT NULL, `total_amount` REAL NOT NULL, `moisture_content` REAL NOT NULL, `impurity_rate` REAL NOT NULL, `warehouse_number` TEXT, `operator_name` TEXT, `remark` TEXT, `create_time` INTEGER, `update_time` INTEGER, `is_printed` INTEGER NOT NULL, `print_count` INTEGER NOT NULL, `is_exported` INTEGER NOT NULL, `qr_code` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordNumber",
+            "columnName": "record_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idCardNumber",
+            "columnName": "id_card_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "farmerName",
+            "columnName": "farmer_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "farmerAddress",
+            "columnName": "farmer_address",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tobaccoBundles",
+            "columnName": "tobacco_bundles",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tobaccoPart",
+            "columnName": "tobacco_part",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "preCheckNumber",
+            "columnName": "pre_check_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tobaccoGrade",
+            "columnName": "tobacco_grade",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchase_price",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "total_amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moistureContent",
+            "columnName": "moisture_content",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impurityRate",
+            "columnName": "impurity_rate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "warehouseNumber",
+            "columnName": "warehouse_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "operatorName",
+            "columnName": "operator_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "remark",
+            "columnName": "remark",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "create_time",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updateTime",
+            "columnName": "update_time",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isPrinted",
+            "columnName": "is_printed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "printCount",
+            "columnName": "print_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isExported",
+            "columnName": "is_exported",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qrCode",
+            "columnName": "qr_code",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0a0491409de211561bfc73d974363a35')"
+    ]
+  }
+}
