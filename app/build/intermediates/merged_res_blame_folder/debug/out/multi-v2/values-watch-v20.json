@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.tobacco.weight.app-mergeDebugResources-60:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\fzhiy\\.gradle\\caches\\transforms-3\\0e15586ff829c21fa8c78d32532a3aba\\transformed\\appcompat-1.6.1\\res\\values-watch-v20\\values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}

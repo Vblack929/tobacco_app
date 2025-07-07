@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="accent">#FF8F00</color>
+    <color name="background_color">#FAFAFA</color>
+    <color name="background_light">#F5F5F5</color>
+    <color name="black">#000000</color>
+    <color name="button_disabled">#E0E0E0</color>
+    <color name="button_text_disabled">#9E9E9E</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_shadow">#1F000000</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="divider_color">#E0E0E0</color>
+    <color name="error_color">#F44336</color>
+    <color name="hint_text_color">#BDBDBD</color>
+    <color name="info_color">#2196F3</color>
+    <color name="nav_selected">#2E7D32</color>
+    <color name="nav_unselected">#757575</color>
+    <color name="on_surface_color">#212121</color>
+    <color name="primary">#2E7D32</color>
+    <color name="primary_color">#2E7D32</color>
+    <color name="primary_dark_color">#1B5E20</color>
+    <color name="primary_light_color">#4CAF50</color>
+    <color name="primary_text_color">#212121</color>
+    <color name="secondary_color">#FF8F00</color>
+    <color name="secondary_dark_color">#FF6F00</color>
+    <color name="secondary_light_color">#FFB74D</color>
+    <color name="secondary_text_color">#757575</color>
+    <color name="simulate_heavy_color">#795548</color>
+    <color name="simulate_light_color">#607D8B</color>
+    <color name="success">#4CAF50</color>
+    <color name="success_color">#4CAF50</color>
+    <color name="surface_color">#FFFFFF</color>
+    <color name="text_hint">#BDBDBD</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="transparent">#00000000</color>
+    <color name="warning">#FF9800</color>
+    <color name="warning_color">#FF9800</color>
+    <color name="weight_error">#F44336</color>
+    <color name="weight_normal">#2E7D32</color>
+    <color name="weight_text">#FF5722</color>
+    <color name="weight_warning">#FF8F00</color>
+    <color name="white">#FFFFFF</color>
+    <string name="about">关于</string>
+    <string name="action_export">导出</string>
+    <string name="action_print">打印</string>
+    <string name="action_settings">设置</string>
+    <string name="action_sync">同步</string>
+    <string name="app_name">烟叶称重</string>
+    <string name="cancel">取消</string>
+    <string name="clear_weight">清零</string>
+    <string name="connecting">连接中...</string>
+    <string name="connection_failed">连接失败</string>
+    <string name="current_weight">当前重量</string>
+    <string name="delete">删除</string>
+    <string name="delete_records">删除记录</string>
+    <string name="device_connected">设备已连接</string>
+    <string name="device_disconnected">设备未连接</string>
+    <string name="device_settings">设备设置</string>
+    <string name="edit">编辑</string>
+    <string name="error">错误</string>
+    <string name="error_data_load">数据加载失败</string>
+    <string name="error_data_save">数据保存失败</string>
+    <string name="error_device">设备连接错误</string>
+    <string name="error_network">网络连接错误</string>
+    <string name="error_print">打印失败</string>
+    <string name="export_records">导出记录</string>
+    <string name="fail">不合格</string>
+    <string name="loading">加载中...</string>
+    <string name="moisture_content">含水率</string>
+    <string name="msg_data_exported">数据导出成功</string>
+    <string name="msg_device_connected">设备连接成功</string>
+    <string name="msg_print_success">打印成功</string>
+    <string name="msg_weight_saved">称重记录已保存</string>
+    <string name="network_settings">网络设置</string>
+    <string name="no_data">暂无数据</string>
+    <string name="ok">确定</string>
+    <string name="pass">合格</string>
+    <string name="printer_settings">打印机设置</string>
+    <string name="quality_check">质量检查</string>
+    <string name="records_list">称重记录</string>
+    <string name="save">保存</string>
+    <string name="save_record">保存记录</string>
+    <string name="scale_settings">电子秤设置</string>
+    <string name="search_records">搜索记录</string>
+    <string name="start_weighing">开始称重</string>
+    <string name="stop_weighing">停止称重</string>
+    <string name="success">成功</string>
+    <string name="title_precheck">预检</string>
+    <string name="title_records">记录</string>
+    <string name="title_settings">设置</string>
+    <string name="title_weighing">称重</string>
+    <string name="tobacco_grade">烟叶等级</string>
+    <string name="tobacco_type">烟叶类型</string>
+    <string name="weight_unit">kg</string>
+    <style name="TextAppearance.TobaccoWeight.Body" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textColor">@color/secondary_text_color</item>
+    </style>
+    <style name="TextAppearance.TobaccoWeight.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textColor">@color/hint_text_color</item>
+    </style>
+    <style name="TextAppearance.TobaccoWeight.Headline" parent="TextAppearance.MaterialComponents.Headline4">
+        <item name="android:textColor">@color/primary_text_color</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.TobaccoWeight.WeightDisplay" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="android:textColor">@color/primary_color</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+    <style name="Theme.TobaccoWeight" parent="Theme.MaterialComponents.DayNight">
+        
+        <item name="colorPrimary">@color/primary_color</item>
+        <item name="colorPrimaryVariant">@color/primary_dark_color</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        
+        <item name="colorSecondary">@color/secondary_color</item>
+        <item name="colorSecondaryVariant">@color/secondary_dark_color</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        
+        <item name="android:statusBarColor" ns1:targetApi="l">?attr/colorPrimaryVariant</item>
+        
+        
+        <item name="android:windowBackground">@color/background_color</item>
+        <item name="colorSurface">@color/surface_color</item>
+        <item name="colorOnSurface">@color/on_surface_color</item>
+        
+        
+        <item name="actionBarTheme">@style/ThemeOverlay.TobaccoWeight.ActionBar</item>
+        <item name="actionBarStyle">@style/Widget.TobaccoWeight.ActionBar</item>
+    </style>
+    <style name="Theme.TobaccoWeight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.TobaccoWeight.Splash" parent="Theme.TobaccoWeight.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="ThemeOverlay.TobaccoWeight.ActionBar" parent="ThemeOverlay.MaterialComponents.ActionBar">
+        <item name="colorPrimary">@color/primary_color</item>
+        <item name="colorOnPrimary">@color/white</item>
+    </style>
+    <style name="Widget.TobaccoWeight.ActionBar" parent="Widget.MaterialComponents.ActionBar.Solid">
+        <item name="background">@color/primary_color</item>
+        <item name="titleTextColor">@color/white</item>
+        <item name="subtitleTextColor">@color/white</item>
+    </style>
+    <style name="Widget.TobaccoWeight.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:textColor">@color/white</item>
+        <item name="backgroundTint">@color/primary_color</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+    <style name="Widget.TobaccoWeight.Button.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textColor">@color/primary_color</item>
+        <item name="strokeColor">@color/primary_color</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+    <style name="Widget.TobaccoWeight.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="android:layout_margin">8dp</item>
+    </style>
+</resources>

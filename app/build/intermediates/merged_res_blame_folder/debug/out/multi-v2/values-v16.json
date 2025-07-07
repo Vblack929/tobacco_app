@@ -1,0 +1,38 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.tobacco.weight.app-mergeDebugResources-60:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\fzhiy\\.gradle\\caches\\transforms-3\\441af8d935be7872f737062abf8518fa\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\fzhiy\\.gradle\\caches\\transforms-3\\0e15586ff829c21fa8c78d32532a3aba\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "223"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "121",
+                        "endLines": "6",
+                        "endColumns": "12",
+                        "endOffsets": "289"
+                    }
+                }
+            ]
+        }
+    ]
+}

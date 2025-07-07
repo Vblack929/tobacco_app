@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用名称 -->
+    <string name="app_name">烟叶称重</string>
+    
+    <!-- 主界面 -->
+    <string name="title_weighing">称重</string>
+    <string name="title_precheck">预检</string>
+    <string name="title_records">记录</string>
+    <string name="title_settings">设置</string>
+    
+    <!-- 称重界面 -->
+    <string name="current_weight">当前重量</string>
+    <string name="weight_unit">kg</string>
+    <string name="start_weighing">开始称重</string>
+    <string name="stop_weighing">停止称重</string>
+    <string name="save_record">保存记录</string>
+    <string name="clear_weight">清零</string>
+    
+    <!-- 预检界面 -->
+    <string name="tobacco_type">烟叶类型</string>
+    <string name="tobacco_grade">烟叶等级</string>
+    <string name="moisture_content">含水率</string>
+    <string name="quality_check">质量检查</string>
+    <string name="pass">合格</string>
+    <string name="fail">不合格</string>
+    
+    <!-- 记录界面 -->
+    <string name="records_list">称重记录</string>
+    <string name="export_records">导出记录</string>
+    <string name="delete_records">删除记录</string>
+    <string name="search_records">搜索记录</string>
+    
+    <!-- 设置界面 -->
+    <string name="device_settings">设备设置</string>
+    <string name="scale_settings">电子秤设置</string>
+    <string name="printer_settings">打印机设置</string>
+    <string name="network_settings">网络设置</string>
+    <string name="about">关于</string>
+    
+    <!-- 连接状态 -->
+    <string name="device_connected">设备已连接</string>
+    <string name="device_disconnected">设备未连接</string>
+    <string name="connecting">连接中...</string>
+    <string name="connection_failed">连接失败</string>
+    
+    <!-- 菜单 -->
+    <string name="action_settings">设置</string>
+    <string name="action_sync">同步</string>
+    <string name="action_print">打印</string>
+    <string name="action_export">导出</string>
+    
+    <!-- 通用 -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="loading">加载中...</string>
+    <string name="no_data">暂无数据</string>
+    <string name="error">错误</string>
+    <string name="success">成功</string>
+    
+    <!-- 错误消息 -->
+    <string name="error_network">网络连接错误</string>
+    <string name="error_device">设备连接错误</string>
+    <string name="error_data_save">数据保存失败</string>
+    <string name="error_data_load">数据加载失败</string>
+    <string name="error_print">打印失败</string>
+    
+    <!-- 提示消息 -->
+    <string name="msg_weight_saved">称重记录已保存</string>
+    <string name="msg_data_exported">数据导出成功</string>
+    <string name="msg_device_connected">设备连接成功</string>
+    <string name="msg_print_success">打印成功</string>
+</resources> 

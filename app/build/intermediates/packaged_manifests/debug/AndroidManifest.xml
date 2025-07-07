@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.tobacco.weight.debug"
+    android:versionCode="1"
+    android:versionName="1.0.0-debug" >
+
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="34" />
+
+    <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 存储权限 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- USB设备权限 -->
+    <uses-permission android:name="android.permission.USB_PERMISSION" />
+
+    <!-- 串口权限 -->
+    <uses-permission android:name="android.permission.SERIAL_PORT" />
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
+
+    <!-- 设备特性声明 -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="true" />
+
+    <queries>
+
+        <!-- Query Camera Packages -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <!-- Query Open Document -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+    </queries>
+
+    <permission
+        android:name="com.tobacco.weight.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="com.tobacco.weight.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+    <uses-permission android:name="android.permission.CAMERA" /> <!-- Don't require camera, as this requires a rear camera. This allows it to work on the Nexus 7 -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false" /> <!-- TODO replace above two with next line after Android 4.2 -->
+    <!-- <uses-feature android:name="android.hardware.camera.any"/> -->
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.flash"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.screen.landscape"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false" />
+
+    <application
+        android:name="com.tobacco.weight.TobaccoApplication"
+        android:allowBackup="true"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:debuggable="true"
+        android:extractNativeLibs="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:testOnly="true"
+        android:theme="@style/Theme.TobaccoWeight" >
+
+        <!-- 主活动 -->
+        <activity
+            android:name="com.tobacco.weight.ui.main.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TobaccoWeight.NoActionBar" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+        </activity>
+
+        <!-- 启动画面 -->
+        <activity
+            android:name="com.tobacco.weight.ui.splash.SplashActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TobaccoWeight.Splash" />
+
+        <!-- 设置活动 -->
+        <activity
+            android:name="com.tobacco.weight.ui.settings.SettingsActivity"
+            android:exported="false"
+            android:parentActivityName="com.tobacco.weight.ui.main.MainActivity"
+            android:screenOrientation="landscape" />
+
+        <!-- 管理员界面 -->
+        <activity
+            android:name="com.tobacco.weight.ui.admin.AdminActivity"
+            android:exported="false"
+            android:parentActivityName="com.tobacco.weight.ui.main.MainActivity"
+            android:screenOrientation="landscape" />
+
+        <!-- 后台服务 -->
+        <service
+            android:name="com.tobacco.weight.service.WeightService"
+            android:enabled="true"
+            android:exported="false" />
+        <service
+            android:name="com.tobacco.weight.service.PrintService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- 文件提供者 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.tobacco.weight.debug.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name="com.github.dhaval2404.imagepicker.ImagePickerActivity"
+            android:screenOrientation="unspecified"
+            android:theme="@style/Theme.Transparent.ImagePicker" />
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <provider
+            android:name="com.github.dhaval2404.imagepicker.ImagePickerFileProvider"
+            android:authorities="com.tobacco.weight.debug.imagepicker.provider"
+            android:exported="false"
+            android:grantUriPermissions="true" >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/image_picker_provider_paths" />
+        </provider>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="com.tobacco.weight.debug.androidx-startup"
+            android:exported="false" >
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+        <uses-library
+            android:name="androidx.window.extensions"
+            android:required="false" />
+        <uses-library
+            android:name="androidx.window.sidecar"
+            android:required="false" />
+
+        <service
+            android:name="androidx.room.MultiInstanceInvalidationService"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:clearTaskOnLaunch="true"
+            android:screenOrientation="sensorLandscape"
+            android:stateNotNeeded="true"
+            android:theme="@style/zxing_CaptureTheme"
+            android:windowSoftInputMode="stateAlwaysHidden" />
+
+        <receiver
+            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+            android:directBootAware="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.DUMP" >
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>
