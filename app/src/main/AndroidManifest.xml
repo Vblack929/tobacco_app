@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.tobacco.weight">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -32,7 +31,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.TobaccoWeight"
         tools:targetApi="31">
@@ -42,11 +41,18 @@
             android:name=".ui.main.MainActivity"
             android:exported="true"
             android:screenOrientation="landscape"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.TobaccoWeight.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
 
         <!-- 启动画面 -->
@@ -63,17 +69,12 @@
             android:screenOrientation="landscape"
             android:parentActivityName=".ui.main.MainActivity" />
 
-        <!-- USB设备过滤器 -->
+        <!-- 管理员界面 -->
         <activity
-            android:name=".ui.main.MainActivity"
-            android:launchMode="singleTop">
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-            <meta-data
-                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
-        </activity>
+            android:name=".ui.admin.AdminActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:parentActivityName=".ui.main.MainActivity" />
 
         <!-- 后台服务 -->
         <service
