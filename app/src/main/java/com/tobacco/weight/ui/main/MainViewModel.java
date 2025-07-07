@@ -149,6 +149,9 @@ public class MainViewModel extends ViewModel {
      * 初始化身份证读卡器
      */
     private void initializeIdCardReader() {
+        // 初始化身份证读卡器
+        idCardManager.initialize(TobaccoApplication.getAppContext());
+        
         // 监听身份证数据
         disposables.add(
             idCardManager.getIdCardObservable()
@@ -216,7 +219,10 @@ public class MainViewModel extends ViewModel {
      */
     public void connectIdCardReader() {
         disposables.add(
-            Observable.fromCallable(() -> idCardManager.connect())
+            Observable.fromCallable(() -> {
+                idCardManager.connect(TobaccoApplication.getAppContext());
+                return true;
+            })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(success -> {
@@ -483,8 +489,14 @@ public class MainViewModel extends ViewModel {
         disposables.dispose();
         
         // 释放硬件资源
-        scaleManager.release();
-        printerManager.release();
-        idCardManager.release();
+        if (scaleManager != null) {
+            scaleManager.release();
+        }
+        if (printerManager != null) {
+            printerManager.release();
+        }
+        if (idCardManager != null) {
+            idCardManager.release();
+        }
     }
 } 
