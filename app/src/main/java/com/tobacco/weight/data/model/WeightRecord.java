@@ -5,12 +5,15 @@ import java.util.Date;
 /**
  * 称重记录数据模型
  * 用于存储烟叶收购称重相关的所有信息
+ * 包含完整的身份证信息，便于保存和显示
  */
 public class WeightRecord {
 
     private String recordNumber; // 记录编号
     private String farmerName; // 农户姓名
     private String idCardNumber; // 身份证号
+    private String farmerAddress; // 农户地址（新增）
+    private String farmerGender; // 农户性别（新增）
     private String tobaccoPart; // 烟叶部位
     private int tobaccoBundles; // 捆数
     private double weight; // 重量(kg)
@@ -44,6 +47,17 @@ public class WeightRecord {
         this.warehouseNumber = warehouseNumber;
     }
 
+    // 完整构造函数（包含ID card信息）
+    public WeightRecord(String recordNumber, String farmerName, String idCardNumber, 
+            String farmerAddress, String farmerGender, String tobaccoPart, 
+            int tobaccoBundles, double weight, double totalAmount, 
+            String operatorName, String warehouseNumber) {
+        this(recordNumber, farmerName, idCardNumber, tobaccoPart, tobaccoBundles, 
+             weight, totalAmount, operatorName, warehouseNumber);
+        this.farmerAddress = farmerAddress;
+        this.farmerGender = farmerGender;
+    }
+
     // Getter 和 Setter 方法
     public String getRecordNumber() {
         return recordNumber;
@@ -67,6 +81,22 @@ public class WeightRecord {
 
     public void setIdCardNumber(String idCardNumber) {
         this.idCardNumber = idCardNumber;
+    }
+
+    public String getFarmerAddress() {
+        return farmerAddress;
+    }
+
+    public void setFarmerAddress(String farmerAddress) {
+        this.farmerAddress = farmerAddress;
+    }
+
+    public String getFarmerGender() {
+        return farmerGender;
+    }
+
+    public void setFarmerGender(String farmerGender) {
+        this.farmerGender = farmerGender;
     }
 
     public String getTobaccoPart() {
@@ -161,12 +191,47 @@ public class WeightRecord {
         this.status = status;
     }
 
+    /**
+     * 检查ID card信息是否完整
+     */
+    public boolean hasCompleteIdCardInfo() {
+        return farmerName != null && !farmerName.trim().isEmpty() &&
+               idCardNumber != null && !idCardNumber.trim().isEmpty() &&
+               farmerAddress != null && !farmerAddress.trim().isEmpty() &&
+               farmerGender != null && !farmerGender.trim().isEmpty();
+    }
+
+    /**
+     * 获取格式化的农户信息
+     */
+    public String getFormattedFarmerInfo() {
+        StringBuilder sb = new StringBuilder();
+        if (farmerName != null) sb.append("姓名: ").append(farmerName);
+        if (farmerGender != null) sb.append(" | 性别: ").append(farmerGender);
+        if (idCardNumber != null) sb.append(" | 身份证: ").append(formatIdCard(idCardNumber));
+        if (farmerAddress != null) sb.append(" | 地址: ").append(farmerAddress);
+        return sb.toString();
+    }
+
+    /**
+     * 格式化身份证号显示
+     */
+    private String formatIdCard(String idCard) {
+        if (idCard == null || idCard.length() < 18) {
+            return idCard;
+        }
+        return idCard.substring(0, 6) + "****" + idCard.substring(14);
+    }
+
     // 工具方法
     @Override
     public String toString() {
         return "WeightRecord{" +
                 "recordNumber='" + recordNumber + '\'' +
                 ", farmerName='" + farmerName + '\'' +
+                ", idCardNumber='" + (idCardNumber != null ? formatIdCard(idCardNumber) : null) + '\'' +
+                ", farmerAddress='" + farmerAddress + '\'' +
+                ", farmerGender='" + farmerGender + '\'' +
                 ", tobaccoPart='" + tobaccoPart + '\'' +
                 ", weight=" + weight +
                 ", totalAmount=" + totalAmount +
