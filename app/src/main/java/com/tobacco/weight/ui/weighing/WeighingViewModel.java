@@ -108,6 +108,73 @@ public class WeighingViewModel extends ViewModel {
         }
     }
 
+    /**
+     * 创建完整的重量记录（包含ID card信息）
+     * @param farmerName 农户姓名
+     * @param idCardNumber 身份证号
+     * @param farmerAddress 农户地址
+     * @param farmerGender 农户性别
+     * @param tobaccoPart 烟叶部位
+     * @param tobaccoBundles 捆数
+     * @param pricePerKg 单价
+     * @return 完整的WeightRecord对象
+     */
+    public WeightRecord createCompleteRecord(String farmerName, String idCardNumber, 
+            String farmerAddress, String farmerGender, String tobaccoPart, 
+            int tobaccoBundles, double pricePerKg) {
+        
+        Double weight = currentWeight.getValue();
+        if (weight == null || weight <= 0) {
+            return null;
+        }
+
+        // 生成记录编号
+        String recordNumber = generateRecordNumber();
+        
+        // 计算总金额
+        double totalAmount = weight * pricePerKg;
+
+        // 创建完整记录
+        WeightRecord record = new WeightRecord(
+            recordNumber, farmerName, idCardNumber, farmerAddress, farmerGender,
+            tobaccoPart, tobaccoBundles, weight, totalAmount, 
+            "系统操作员", "WH001" // 默认操作员和仓库
+        );
+        
+        record.setStatus("已完成");
+        return record;
+    }
+
+    /**
+     * 保存完整记录（包含ID card信息）
+     */
+    public void saveCompleteRecord(String farmerName, String idCardNumber, 
+            String farmerAddress, String farmerGender, String tobaccoPart, 
+            int tobaccoBundles, double pricePerKg) {
+        
+        WeightRecord record = createCompleteRecord(farmerName, idCardNumber, 
+            farmerAddress, farmerGender, tobaccoPart, tobaccoBundles, pricePerKg);
+        
+        if (record != null) {
+            // TODO: 保存到数据库
+            statusMessage.setValue("完整记录已保存: " + record.getRecordNumber());
+            weighingState.setValue(WeighingState.IDLE);
+        } else {
+            statusMessage.setValue("无效重量，无法保存记录");
+        }
+    }
+
+    /**
+     * 生成记录编号
+     */
+    private String generateRecordNumber() {
+        long timestamp = System.currentTimeMillis();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault());
+        String dateStr = sdf.format(new java.util.Date(timestamp));
+        int randomNum = (int)(Math.random() * 1000);
+        return "WR" + dateStr + String.format("%03d", randomNum);
+    }
+
     public void clearWeight() {
         scaleManager.clearWeight();
         currentWeight.setValue(0.0);

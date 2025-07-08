@@ -51,7 +51,7 @@ public class HardwareModule {
      */
     @Provides
     @Singleton
-    public IdCardManager provideIdCardManager(HardwareSimulator simulator) {
-        return new IdCardManager(simulator);
+    public IdCardManager provideIdCardManager() {
+        return new IdCardManager();
     }
 } 

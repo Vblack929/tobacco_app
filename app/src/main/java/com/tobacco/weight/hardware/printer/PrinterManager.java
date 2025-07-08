@@ -207,15 +207,17 @@ public class PrinterManager {
         
         canvas.drawText("记录编号: " + record.getRecordNumber(), 20, startY, paint);
         canvas.drawText("农户姓名: " + record.getFarmerName(), 20, startY + lineHeight, paint);
+        canvas.drawText("性别: " + (record.getFarmerGender() != null ? record.getFarmerGender() : "未填"), 300, startY + lineHeight, paint);
         canvas.drawText("身份证号: " + formatIdCard(record.getIdCardNumber()), 20, startY + lineHeight * 2, paint);
-        canvas.drawText("烟叶部位: " + record.getTobaccoPart(), 20, startY + lineHeight * 3, paint);
-        canvas.drawText("捆数: " + record.getTobaccoBundles() + "捆", 300, startY + lineHeight * 3, paint);
+        canvas.drawText("地址: " + (record.getFarmerAddress() != null ? record.getFarmerAddress() : "未填"), 20, startY + lineHeight * 3, paint);
+        canvas.drawText("烟叶部位: " + record.getTobaccoPart(), 20, startY + lineHeight * 4, paint);
+        canvas.drawText("捆数: " + record.getTobaccoBundles() + "捆", 300, startY + lineHeight * 4, paint);
         
         // 重量和金额（重点显示）
         paint.setTextSize(28);
         paint.setTypeface(Typeface.DEFAULT_BOLD);
-        canvas.drawText("重量: " + String.format("%.3f", record.getWeight()) + " kg", 20, startY + lineHeight * 4 + 10, paint);
-        canvas.drawText("金额: ¥" + String.format("%.2f", record.getTotalAmount()), 20, startY + lineHeight * 5 + 10, paint);
+        canvas.drawText("重量: " + String.format("%.3f", record.getWeight()) + " kg", 20, startY + lineHeight * 5 + 10, paint);
+        canvas.drawText("金额: ¥" + String.format("%.2f", record.getTotalAmount()), 20, startY + lineHeight * 6 + 10, paint);
         
         // 时间
         paint.setTextSize(20);

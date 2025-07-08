@@ -28,6 +28,7 @@ import dagger.hilt.android.AndroidEntryPoint;
 public class WeightingFragment extends Fragment {
     
     private WeightingViewModel viewModel;
+    private MainViewModel mainViewModel; // 添加MainViewModel用于ID card功能
     
     // UI控件
     private TextView tvFarmerName;
@@ -82,8 +83,9 @@ public class WeightingFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         
-        // 初始化ViewModel
+        // 初始化ViewModels
         viewModel = new ViewModelProvider(this).get(WeightingViewModel.class);
+        mainViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class); // Activity-scoped for ID card data
         
         // 初始化UI控件
         initializeViews(view);
@@ -96,6 +98,9 @@ public class WeightingFragment extends Fragment {
         
         // 观察ViewModel数据
         observeViewModel();
+        
+        // 观察ID card数据 - 仅显示姓名
+        observeIdCardData();
     }
     
     /**
@@ -149,10 +154,10 @@ public class WeightingFragment extends Fragment {
      * 设置点击监听器
      */
     private void setupClickListeners() {
-        // 读取身份证
+        // 读取身份证 - 使用MainViewModel的真实方法
         btnReadIdCard.setOnClickListener(v -> {
-            showToast("正在读取身份证...");
-            viewModel.readIdCard();
+            showToast("正在连接身份证读卡器...");
+            mainViewModel.connectIdCardReader(); // 使用真实的ID card功能
         });
         
         // 去皮重
@@ -259,10 +264,8 @@ public class WeightingFragment extends Fragment {
      * 观察ViewModel数据变化
      */
     private void observeViewModel() {
-        // 农户姓名
-        viewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
-            tvFarmerName.setText(name);
-        });
+        // 农户姓名 - 现在使用MainViewModel的真实ID card数据
+        // (移除WeightingViewModel的模拟数据，使用真实数据)
         
         // 合同号
         viewModel.getContractNumber().observe(getViewLifecycleOwner(), contractNumber -> {
@@ -340,6 +343,31 @@ public class WeightingFragment extends Fragment {
     }
     
     /**
+     * 观察ID card数据 - 仅显示姓名
+     */
+    private void observeIdCardData() {
+        // 农户姓名 - 从MainViewModel的真实ID card数据获取
+        mainViewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
+            if (name != null && !name.trim().isEmpty()) {
+                tvFarmerName.setText(name);
+                showToast("✅ 身份证读取成功: " + name);
+            } else {
+                tvFarmerName.setText("未读取");
+            }
+        });
+        
+        // ID card连接状态 - 更新按钮状态
+        mainViewModel.getIdCardConnected().observe(getViewLifecycleOwner(), connected -> {
+            btnReadIdCard.setEnabled(connected);
+            if (connected) {
+                btnReadIdCard.setText("读取身份证");
+            } else {
+                btnReadIdCard.setText("读卡器未连接");
+            }
+        });
+    }
+    
+    /**
      * 选择等级按钮
      */
     private void selectLevelButton(Button selectedButton, String level) {
@@ -375,9 +403,9 @@ public class WeightingFragment extends Fragment {
         btnMiddleLevel.setSelected(false);
         btnLowerLevel.setSelected(false);
         
-        btnUpperLevel.setBackgroundColor(getResources().getColor(android.R.color.holo_green_light));
-        btnMiddleLevel.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_light));
-        btnLowerLevel.setBackgroundColor(getResources().getColor(android.R.color.holo_orange_light));
+        btnUpperLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        btnMiddleLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        btnLowerLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
     }
     
     /**
@@ -389,19 +417,17 @@ public class WeightingFragment extends Fragment {
         btnSelectC.setSelected(false);
         btnSelectD.setSelected(false);
         
-        btnSelectA.setBackgroundColor(getResources().getColor(android.R.color.holo_green_light));
-        btnSelectB.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_light));
-        btnSelectC.setBackgroundColor(getResources().getColor(android.R.color.holo_orange_light));
-        btnSelectD.setBackgroundColor(getResources().getColor(android.R.color.holo_red_light));
+        btnSelectA.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        btnSelectB.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        btnSelectC.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        btnSelectD.setBackgroundColor(getResources().getColor(android.R.color.transparent));
     }
     
     /**
      * 显示Toast消息
      */
     private void showToast(String message) {
-        if (getContext() != null) {
-            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-        }
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
     
     /**

@@ -1,20 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- USB Scale Device Filter -->
-    <usb-device vendor-id="1659" product-id="8963" />
+    <!-- 身份证读卡器设备过滤器 - 基于演示代码的实际VID/PID -->
     
-    <!-- Generic Serial Device Filter -->
-    <usb-device class="2" />
+    <!-- HID接口型号读卡器 -->
+    <usb-device vendor-id="258" product-id="1" />      <!-- 0x0102, 0x1 -->
+    <usb-device vendor-id="258" product-id="2" />      <!-- 0x0102, 0x2 -->
+    <usb-device vendor-id="258" product-id="257" />    <!-- 0x0102, 0x101 -->
     
-    <!-- Printer Device Filter -->
-    <usb-device vendor-id="1155" product-id="22608" />
-    <usb-device vendor-id="1046" product-id="20497" />
+    <!-- SDT接口型号读卡器 -->
+    <usb-device vendor-id="1024" product-id="50266" /> <!-- 0x0400, 0xc35a -->
     
-    <!-- ID Card Reader Device Filter -->
-    <usb-device vendor-id="102" product-id="1" />
-    <usb-device vendor-id="102" product-id="2" />
-    <usb-device vendor-id="102" product-id="257" />
-    <usb-device vendor-id="1024" product-id="50010" />
-    
-    <!-- Add more vendor/product IDs as needed -->
 </resources> 
