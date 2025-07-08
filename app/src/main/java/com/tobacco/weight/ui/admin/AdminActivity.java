@@ -72,31 +72,31 @@ public class AdminActivity extends AppCompatActivity {
             binding.tvAverageWeight.setText(String.format("%.2f kg", weight));
         });
 
-        // 观察烟叶分类数据
-        viewModel.getGradeAData().observe(this, data -> updateGradeData(data, "A"));
-        viewModel.getGradeBData().observe(this, data -> updateGradeData(data, "B"));
-        viewModel.getGradeCData().observe(this, data -> updateGradeData(data, "C"));
-        viewModel.getGradeDData().observe(this, data -> updateGradeData(data, "D"));
+        // 观察烟农数据
+        viewModel.getFarmerAData().observe(this, data -> updateFarmerData(data, "A"));
+        viewModel.getFarmerBData().observe(this, data -> updateFarmerData(data, "B"));
+        viewModel.getFarmerCData().observe(this, data -> updateFarmerData(data, "C"));
+        viewModel.getFarmerDData().observe(this, data -> updateFarmerData(data, "D"));
     }
 
-    private void updateGradeData(AdminViewModel.GradeData data, String grade) {
+    private void updateFarmerData(AdminViewModel.FarmerData data, String farmer) {
         if (data != null) {
-            switch (grade) {
-                case "A":
-                    binding.tvGradeAPrecheckWeight.setText(String.format("%.2f", data.getPrecheckWeight()));
-                    binding.tvGradeAActualWeight.setText(String.format("%.2f", data.getActualWeight()));
+            switch (farmer) {
+                case "A": // 张三
+                    binding.tvFarmerABundleCount.setText(String.valueOf(data.getBundleCount()));
+                    binding.tvFarmerATotalWeight.setText(String.format("%.2f kg", data.getTotalWeight()));
                     break;
-                case "B":
-                    binding.tvGradeBPrecheckWeight.setText(String.format("%.2f", data.getPrecheckWeight()));
-                    binding.tvGradeBActualWeight.setText(String.format("%.2f", data.getActualWeight()));
+                case "B": // 李四
+                    binding.tvFarmerBBundleCount.setText(String.valueOf(data.getBundleCount()));
+                    binding.tvFarmerBTotalWeight.setText(String.format("%.2f kg", data.getTotalWeight()));
                     break;
-                case "C":
-                    binding.tvGradeCPrecheckWeight.setText(String.format("%.2f", data.getPrecheckWeight()));
-                    binding.tvGradeCActualWeight.setText(String.format("%.2f", data.getActualWeight()));
+                case "C": // 王五
+                    binding.tvFarmerCBundleCount.setText(String.valueOf(data.getBundleCount()));
+                    binding.tvFarmerCTotalWeight.setText(String.format("%.2f kg", data.getTotalWeight()));
                     break;
-                case "D":
-                    binding.tvGradeDPrecheckWeight.setText(String.format("%.2f", data.getPrecheckWeight()));
-                    binding.tvGradeDActualWeight.setText(String.format("%.2f", data.getActualWeight()));
+                case "D": // 赵六
+                    binding.tvFarmerDBundleCount.setText(String.valueOf(data.getBundleCount()));
+                    binding.tvFarmerDTotalWeight.setText(String.format("%.2f kg", data.getTotalWeight()));
                     break;
             }
         }

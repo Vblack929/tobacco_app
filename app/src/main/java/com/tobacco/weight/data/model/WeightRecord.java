@@ -1,5 +1,9 @@
 package com.tobacco.weight.data.model;
 
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+
 import java.util.Date;
 
 /**
@@ -7,24 +11,87 @@ import java.util.Date;
  * 用于存储烟叶收购称重相关的所有信息
  * 包含完整的身份证信息，便于保存和显示
  */
+@Entity(tableName = "weight_records")
 public class WeightRecord {
 
+    @PrimaryKey(autoGenerate = true)
+    private long id;
+
+    @ColumnInfo(name = "record_number")
     private String recordNumber; // 记录编号
+
+    @ColumnInfo(name = "farmer_name")
     private String farmerName; // 农户姓名
+
+    @ColumnInfo(name = "id_card_number")
     private String idCardNumber; // 身份证号
+
+    @ColumnInfo(name = "farmer_address")
     private String farmerAddress; // 农户地址（新增）
+
+    @ColumnInfo(name = "farmer_gender")
     private String farmerGender; // 农户性别（新增）
+
+    @ColumnInfo(name = "tobacco_part")
     private String tobaccoPart; // 烟叶部位
+
+    @ColumnInfo(name = "tobacco_bundles")
     private int tobaccoBundles; // 捆数
+
+    @ColumnInfo(name = "weight")
     private double weight; // 重量(kg)
+
+    @ColumnInfo(name = "total_amount")
     private double totalAmount; // 总金额
+
+    @ColumnInfo(name = "create_time")
     private Date createTime; // 创建时间
+
+    @ColumnInfo(name = "timestamp")
     private long timestamp; // 时间戳
+
+    @ColumnInfo(name = "qr_code")
     private String qrCode; // 二维码内容
+
+    @ColumnInfo(name = "operator_name")
     private String operatorName; // 操作员姓名
+
+    @ColumnInfo(name = "warehouse_number")
     private String warehouseNumber; // 仓库编号
+
+    @ColumnInfo(name = "pre_check_number")
     private String preCheckNumber; // 预检编号
+
+    @ColumnInfo(name = "status")
     private String status; // 状态
+
+    // 新增字段以匹配数据库schema
+    @ColumnInfo(name = "tobacco_grade")
+    private String tobaccoGrade; // 烟叶等级
+
+    @ColumnInfo(name = "purchase_price")
+    private double purchasePrice; // 收购价格
+
+    @ColumnInfo(name = "moisture_content")
+    private double moistureContent; // 水分含量
+
+    @ColumnInfo(name = "impurity_rate")
+    private double impurityRate; // 杂质率
+
+    @ColumnInfo(name = "remark")
+    private String remark; // 备注
+
+    @ColumnInfo(name = "update_time")
+    private Date updateTime; // 更新时间
+
+    @ColumnInfo(name = "is_printed")
+    private boolean isPrinted; // 是否已打印
+
+    @ColumnInfo(name = "print_count")
+    private int printCount; // 打印次数
+
+    @ColumnInfo(name = "is_exported")
+    private boolean isExported; // 是否已导出
 
     // 构造函数
     public WeightRecord() {
@@ -48,12 +115,12 @@ public class WeightRecord {
     }
 
     // 完整构造函数（包含ID card信息）
-    public WeightRecord(String recordNumber, String farmerName, String idCardNumber, 
-            String farmerAddress, String farmerGender, String tobaccoPart, 
-            int tobaccoBundles, double weight, double totalAmount, 
+    public WeightRecord(String recordNumber, String farmerName, String idCardNumber,
+            String farmerAddress, String farmerGender, String tobaccoPart,
+            int tobaccoBundles, double weight, double totalAmount,
             String operatorName, String warehouseNumber) {
-        this(recordNumber, farmerName, idCardNumber, tobaccoPart, tobaccoBundles, 
-             weight, totalAmount, operatorName, warehouseNumber);
+        this(recordNumber, farmerName, idCardNumber, tobaccoPart, tobaccoBundles,
+                weight, totalAmount, operatorName, warehouseNumber);
         this.farmerAddress = farmerAddress;
         this.farmerGender = farmerGender;
     }
@@ -191,14 +258,96 @@ public class WeightRecord {
         this.status = status;
     }
 
+    // ID字段的getter和setter
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    // 新增字段的getter和setter方法
+    public String getTobaccoGrade() {
+        return tobaccoGrade;
+    }
+
+    public void setTobaccoGrade(String tobaccoGrade) {
+        this.tobaccoGrade = tobaccoGrade;
+    }
+
+    public double getPurchasePrice() {
+        return purchasePrice;
+    }
+
+    public void setPurchasePrice(double purchasePrice) {
+        this.purchasePrice = purchasePrice;
+    }
+
+    public double getMoistureContent() {
+        return moistureContent;
+    }
+
+    public void setMoistureContent(double moistureContent) {
+        this.moistureContent = moistureContent;
+    }
+
+    public double getImpurityRate() {
+        return impurityRate;
+    }
+
+    public void setImpurityRate(double impurityRate) {
+        this.impurityRate = impurityRate;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    public boolean isPrinted() {
+        return isPrinted;
+    }
+
+    public void setPrinted(boolean printed) {
+        isPrinted = printed;
+    }
+
+    public int getPrintCount() {
+        return printCount;
+    }
+
+    public void setPrintCount(int printCount) {
+        this.printCount = printCount;
+    }
+
+    public boolean isExported() {
+        return isExported;
+    }
+
+    public void setExported(boolean exported) {
+        isExported = exported;
+    }
+
     /**
      * 检查ID card信息是否完整
      */
     public boolean hasCompleteIdCardInfo() {
         return farmerName != null && !farmerName.trim().isEmpty() &&
-               idCardNumber != null && !idCardNumber.trim().isEmpty() &&
-               farmerAddress != null && !farmerAddress.trim().isEmpty() &&
-               farmerGender != null && !farmerGender.trim().isEmpty();
+                idCardNumber != null && !idCardNumber.trim().isEmpty() &&
+                farmerAddress != null && !farmerAddress.trim().isEmpty() &&
+                farmerGender != null && !farmerGender.trim().isEmpty();
     }
 
     /**
@@ -206,10 +355,14 @@ public class WeightRecord {
      */
     public String getFormattedFarmerInfo() {
         StringBuilder sb = new StringBuilder();
-        if (farmerName != null) sb.append("姓名: ").append(farmerName);
-        if (farmerGender != null) sb.append(" | 性别: ").append(farmerGender);
-        if (idCardNumber != null) sb.append(" | 身份证: ").append(formatIdCard(idCardNumber));
-        if (farmerAddress != null) sb.append(" | 地址: ").append(farmerAddress);
+        if (farmerName != null)
+            sb.append("姓名: ").append(farmerName);
+        if (farmerGender != null)
+            sb.append(" | 性别: ").append(farmerGender);
+        if (idCardNumber != null)
+            sb.append(" | 身份证: ").append(formatIdCard(idCardNumber));
+        if (farmerAddress != null)
+            sb.append(" | 地址: ").append(farmerAddress);
         return sb.toString();
     }
 

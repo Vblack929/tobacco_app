@@ -1,3 +1,7 @@
+# ===============================================================
+# Android Studio & Gradle 生成文件
+# ===============================================================
+
 # Built application files
 *.apk
 *.aar
@@ -18,6 +22,7 @@ out/
 # Gradle files
 .gradle/
 build/
+**/build/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -34,8 +39,13 @@ proguard/
 # Android Studio captures folder
 captures/
 
-# IntelliJ
+# ===============================================================
+# IntelliJ IDEA / Android Studio
+# ===============================================================
 *.iml
+*.iws
+*.ipr
+.idea/
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/gradle.xml
@@ -56,8 +66,86 @@ captures/
 .idea/vcs.xml
 .idea/inspectionProfiles/
 .idea/shelf/
+.idea/navEditor.xml
+.idea/deploymentTargetDropDown.xml
 
+# ===============================================================
+# Android 构建 & 编译生成文件
+# ===============================================================
+
+# Android Studio build outputs
+**/build/outputs/
+**/build/intermediates/
+**/build/generated/
+**/build/tmp/
+
+# Hilt generated files
+**/build/generated/hilt/
+**/build/generated/source/kapt/
+**/build/generated/data_binding_base_class_source_out/
+
+# Data Binding
+**/build/generated/ap_generated_sources/
+**/build/generated/source/buildConfig/
+**/build/generated/res/
+
+# Annotation Processing
+**/build/generated/source/apt/
+**/build/generated/source/kapt/
+
+# DEX files
+**/build/intermediates/dex/
+**/build/intermediates/project_dex_archive/
+
+# Merged resources
+**/build/intermediates/merged_res/
+**/build/intermediates/merged_res_blame_folder/
+**/build/intermediates/merged_manifests/
+**/build/intermediates/merged_manifest/
+
+# Compiled resources
+**/build/intermediates/compiled_res/
+**/build/intermediates/packaged_res/
+
+# Incremental compilation
+**/build/intermediates/incremental/
+
+# Java compilation
+**/build/intermediates/javac/
+**/build/intermediates/classes/
+
+# Transform
+**/build/intermediates/transforms/
+
+# Lint
+**/build/reports/
+**/build/outputs/lint-results*
+
+# Tests
+**/build/test-results/
+**/build/outputs/androidTest-results/
+
+# ===============================================================
+# Gradle Wrapper & Daemon
+# ===============================================================
+.gradle/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Gradle daemon log
+gradle-daemon-log*
+
+# ===============================================================
+# Keystore files
+# ===============================================================
+*.jks
+*.keystore
+key.properties
+
+# ===============================================================
 # OS-specific files
+# ===============================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -66,16 +154,56 @@ captures/
 ehthumbs.db
 Thumbs.db
 
-# Android Profiling
+# ===============================================================
+# Android Profiling & Debugging
+# ===============================================================
 *.hprof
+memory-dumps/
 
-# CMake
-cmake-build-*/
-
-# NDK
+# ===============================================================
+# NDK & CMake
+# ===============================================================
 obj/
 .externalNativeBuild/
 .cxx/
+cmake-build-*/
+
+# ===============================================================
+# External Tools
+# ===============================================================
 
 # VS Code
-.vscode/ 
+.vscode/
+
+# SonarLint
+.sonarlint/
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+
+# ===============================================================
+# Version Control & Backup
+# ===============================================================
+*.orig
+*.rej
+*~
+
+# ===============================================================
+# Temporary files
+# ===============================================================
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# ===============================================================
+# Libraries & Dependencies (Optional - uncomment if needed)
+# ===============================================================
+# libs/
+# !libs/your-important-library.jar
+
+# ===============================================================
+# Custom project-specific ignores (add as needed)
+# ===============================================================
+# Add any project-specific files or patterns here 

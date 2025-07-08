@@ -1,13 +1,14 @@
 package com.tobacco.weight.ui.main;
 
+import android.app.Dialog;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,430 +18,728 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.tobacco.weight.R;
+import com.tobacco.weight.data.FarmerStatistics;
+import com.tobacco.weight.data.WeighingRecord;
+import com.tobacco.weight.utils.DataExportUtils;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
 /**
- * 称重界面Fragment
- * 负责UI展示和用户交互
+ * 称重界面Fragment - 测试版本
+ * 逐步恢复功能
  */
 @AndroidEntryPoint
 public class WeightingFragment extends Fragment {
-    
+
     private WeightingViewModel viewModel;
-    private MainViewModel mainViewModel; // 添加MainViewModel用于ID card功能
-    
-    // UI控件
-    private TextView tvFarmerName;
+    private MainViewModel mainViewModel;
+
+    // 基本UI控件
+    private EditText etFarmerName;
     private TextView tvContractNumber;
     private TextView tvCurrentWeight;
-    private TextView tvDeviceStatus;
-    private TextView tvPrecheckLevel;
-    private TextView tvCurrentTime;
-    private TextView tvStatusMessage;
-    
-    // 操作按钮
-    private Button btnReadIdCard;
-    private Button btnTare;
-    private Button btnPrint;
     private Button btnUpperLevel;
     private Button btnMiddleLevel;
     private Button btnLowerLevel;
-    
-    // 等级选择按钮
-    private Button btnSelectA;
-    private Button btnSelectB;
-    private Button btnSelectC;
-    private Button btnSelectD;
-    
-    // 价格输入
-    private EditText etPriceA;
-    private EditText etPriceB;
-    private EditText etPriceC;
-    private EditText etPriceD;
-    private EditText etActualPriceA;
-    private EditText etActualPriceB;
-    private EditText etActualPriceC;
-    private EditText etActualPriceD;
-    
-    // 测试按钮
-    private Button btnTest5kg;
-    private Button btnTest10kg;
-    private Button btnTest20kg;
-    
-    // 其他控件
-    private EditText etContractNumber;
-    private EditText etPrice;
-    private TextView tvSettlementInfo;
-    
+    private Button btnConfirm;
+    private Button btnReadIdCard;
+
+    // 预检比例控件
+    private EditText etPrecheckRatio;
+    private EditText etUpperRatio;
+    private EditText etMiddleRatio;
+    private EditText etLowerRatio;
+
+    // 预检信息控件
+    private TextView tvPrecheckId;
+    private TextView tvPrecheckDate;
+
+    // 数据库状态控件
+    private TextView tvDatabaseCount;
+
+    // 管理员界面动态容器
+    private LinearLayout layoutFarmerDataContainer;
+
+    // 导出按钮
+    private Button btnExportAllData;
+    private Button btnOpenExportFolder;
+
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_weighing, container, false);
     }
-    
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        
-        // 初始化ViewModels
-        viewModel = new ViewModelProvider(this).get(WeightingViewModel.class);
-        mainViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class); // Activity-scoped for ID card data
-        
-        // 初始化UI控件
-        initializeViews(view);
-        
-        // 设置监听器
-        setupClickListeners();
-        
-        // 设置文本变化监听
-        setupTextWatchers();
-        
-        // 观察ViewModel数据
-        observeViewModel();
-        
-        // 观察ID card数据 - 仅显示姓名
-        observeIdCardData();
+
+        // 尝试初始化ViewModels
+        try {
+            viewModel = new ViewModelProvider(this).get(WeightingViewModel.class);
+            mainViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
+            Toast.makeText(getContext(), "ViewModel初始化成功！", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "ViewModel初始化失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+
+        // 初始化基本UI控件（不依赖ViewModel）
+        initializeBasicViews(view);
+
+        // 设置基本的点击监听器
+        setupBasicClickListeners();
+
+        // 尝试添加简化的观察者逻辑
+        try {
+            observeBasicViewModel();
+            Toast.makeText(getContext(), "基础观察者设置成功！", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "观察者设置失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+
+        // 尝试添加MainViewModel观察者逻辑
+        try {
+            observeIdCardData();
+            Toast.makeText(getContext(), "身份证观察者设置成功！", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "身份证观察者设置失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+
+        // 显示成功消息
+        Toast.makeText(getContext(), "所有功能加载成功！", Toast.LENGTH_LONG).show();
     }
-    
+
     /**
-     * 初始化UI控件
+     * 观察身份证数据
      */
-    private void initializeViews(View view) {
-        // 信息显示
-        tvFarmerName = view.findViewById(R.id.tv_farmer_name);
+    private void observeIdCardData() {
+        if (mainViewModel == null)
+            return;
+
+        // 烟农姓名 - 从MainViewModel的身份证数据获取
+        mainViewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
+            if (name != null && !name.trim().isEmpty() && etFarmerName != null) {
+                etFarmerName.setText(name);
+                Toast.makeText(getContext(), "✅ 身份证读取成功: " + name, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ID card连接状态 - 更新按钮状态
+        mainViewModel.getIdCardConnected().observe(getViewLifecycleOwner(), connected -> {
+            if (btnReadIdCard != null) {
+                btnReadIdCard.setEnabled(connected);
+                if (connected) {
+                    btnReadIdCard.setText("读取身份证");
+                } else {
+                    btnReadIdCard.setText("读卡器未连接");
+                }
+            }
+        });
+    }
+
+    /**
+     * 观察基本的ViewModel数据
+     */
+    private void observeBasicViewModel() {
+        if (viewModel == null)
+            return;
+
+        // 只观察最基本的几个LiveData
+        viewModel.getFarmerName().observe(getViewLifecycleOwner(), farmerName -> {
+            if (etFarmerName != null && farmerName != null) {
+                etFarmerName.setText(farmerName);
+            }
+        });
+
+        viewModel.getContractNumber().observe(getViewLifecycleOwner(), contractNumber -> {
+            if (tvContractNumber != null && contractNumber != null) {
+                tvContractNumber.setText(contractNumber);
+            }
+        });
+
+        viewModel.getCurrentWeight().observe(getViewLifecycleOwner(), weight -> {
+            if (tvCurrentWeight != null && weight != null) {
+                tvCurrentWeight.setText(weight);
+            }
+        });
+
+        viewModel.getSelectedLevel().observe(getViewLifecycleOwner(), level -> {
+            // 可以在这里更新UI显示选中的等级
+            if (level != null && !level.equals("未选择")) {
+                Toast.makeText(getContext(), "当前选择: " + level, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 观察预检比例数据
+        viewModel.getPrecheckRatio().observe(getViewLifecycleOwner(), ratio -> {
+            if (etPrecheckRatio != null && ratio != null) {
+                etPrecheckRatio.setText(ratio);
+            }
+        });
+
+        viewModel.getUpperRatio().observe(getViewLifecycleOwner(), ratio -> {
+            if (etUpperRatio != null && ratio != null) {
+                etUpperRatio.setText(ratio);
+            }
+        });
+
+        viewModel.getMiddleRatio().observe(getViewLifecycleOwner(), ratio -> {
+            if (etMiddleRatio != null && ratio != null) {
+                etMiddleRatio.setText(ratio);
+            }
+        });
+
+        viewModel.getLowerRatio().observe(getViewLifecycleOwner(), ratio -> {
+            if (etLowerRatio != null && ratio != null) {
+                etLowerRatio.setText(ratio);
+            }
+        });
+
+        // 观察预检编号和日期数据
+        viewModel.getCurrentPrecheckId().observe(getViewLifecycleOwner(), precheckId -> {
+            if (tvPrecheckId != null && precheckId != null) {
+                tvPrecheckId.setText(precheckId);
+            }
+        });
+
+        viewModel.getCurrentPrecheckDate().observe(getViewLifecycleOwner(), precheckDate -> {
+            if (tvPrecheckDate != null && precheckDate != null) {
+                tvPrecheckDate.setText(precheckDate);
+            }
+        });
+
+        // 观察数据库记录数量（通过Repository获取）
+        if (viewModel.getRepository() != null) {
+            viewModel.getRepository().getAllRecords().observe(getViewLifecycleOwner(), records -> {
+                if (tvDatabaseCount != null && records != null) {
+                    tvDatabaseCount.setText(records.size() + "条记录");
+
+                    // 根据记录数量改变颜色
+                    if (records.size() > 0) {
+                        tvDatabaseCount.setTextColor(0xFF4CAF50); // 绿色
+                    } else {
+                        tvDatabaseCount.setTextColor(0xFF757575); // 灰色
+                    }
+                }
+            });
+        }
+
+        // 观察烟农数据变化，实时更新管理员界面
+        viewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
+            updateAdminInterface();
+        });
+    }
+
+    /**
+     * 初始化基本UI控件
+     */
+    private void initializeBasicViews(View view) {
+        // 尝试找到基本控件
+        etFarmerName = view.findViewById(R.id.et_farmer_name);
         tvContractNumber = view.findViewById(R.id.tv_contract_number);
         tvCurrentWeight = view.findViewById(R.id.tv_current_weight);
-        tvDeviceStatus = view.findViewById(R.id.tv_device_status);
-        tvPrecheckLevel = view.findViewById(R.id.tv_precheck_level);
-        tvCurrentTime = view.findViewById(R.id.tv_current_time);
-        tvSettlementInfo = view.findViewById(R.id.tv_settlement_info);
-        
-        // 操作按钮
-        btnReadIdCard = view.findViewById(R.id.btn_read_id_card);
-        btnTare = view.findViewById(R.id.btn_tare);
-        btnPrint = view.findViewById(R.id.btn_print);
         btnUpperLevel = view.findViewById(R.id.btn_upper_level);
         btnMiddleLevel = view.findViewById(R.id.btn_middle_level);
         btnLowerLevel = view.findViewById(R.id.btn_lower_level);
-        
-        // 等级选择按钮
-        btnSelectA = view.findViewById(R.id.btn_select_a);
-        btnSelectB = view.findViewById(R.id.btn_select_b);
-        btnSelectC = view.findViewById(R.id.btn_select_c);
-        btnSelectD = view.findViewById(R.id.btn_select_d);
-        
-        // 价格输入
-        etPriceA = view.findViewById(R.id.et_price_a);
-        etPriceB = view.findViewById(R.id.et_price_b);
-        etPriceC = view.findViewById(R.id.et_price_c);
-        etPriceD = view.findViewById(R.id.et_price_d);
-        etActualPriceA = view.findViewById(R.id.et_actual_price_a);
-        etActualPriceB = view.findViewById(R.id.et_actual_price_b);
-        etActualPriceC = view.findViewById(R.id.et_actual_price_c);
-        etActualPriceD = view.findViewById(R.id.et_actual_price_d);
-        
-        // 测试按钮
-        btnTest5kg = view.findViewById(R.id.btn_test_weight_5kg);
-        btnTest10kg = view.findViewById(R.id.btn_test_weight_10kg);
-        btnTest20kg = view.findViewById(R.id.btn_test_weight_20kg);
-        
-        // 其他控件
-        etContractNumber = view.findViewById(R.id.et_contract_number);
-        etPrice = view.findViewById(R.id.et_price);
+        btnConfirm = view.findViewById(R.id.btn_confirm);
+        btnReadIdCard = view.findViewById(R.id.btn_read_id_card);
+
+        // 初始化预检比例控件
+        etPrecheckRatio = view.findViewById(R.id.et_precheck_ratio);
+        etUpperRatio = view.findViewById(R.id.et_upper_ratio);
+        etMiddleRatio = view.findViewById(R.id.et_middle_ratio);
+        etLowerRatio = view.findViewById(R.id.et_lower_ratio);
+
+        // 初始化预检信息控件
+        tvPrecheckId = view.findViewById(R.id.tv_precheck_id);
+        tvPrecheckDate = view.findViewById(R.id.tv_precheck_date);
+
+        // 设置预检比例控件为只读（用于显示自动计算结果）
+        if (etPrecheckRatio != null) {
+            etPrecheckRatio.setFocusable(false);
+            etPrecheckRatio.setClickable(false);
+            etPrecheckRatio.setText("0.0%");
+        }
+        if (etUpperRatio != null) {
+            etUpperRatio.setFocusable(false);
+            etUpperRatio.setClickable(false);
+            etUpperRatio.setText("0.0%");
+        }
+        if (etMiddleRatio != null) {
+            etMiddleRatio.setFocusable(false);
+            etMiddleRatio.setClickable(false);
+            etMiddleRatio.setText("0.0%");
+        }
+        if (etLowerRatio != null) {
+            etLowerRatio.setFocusable(false);
+            etLowerRatio.setClickable(false);
+            etLowerRatio.setText("0.0%");
+        }
+
+        // 初始化数据库状态控件
+        tvDatabaseCount = view.findViewById(R.id.tv_database_count);
+
+        // 初始化管理员界面动态容器
+        layoutFarmerDataContainer = view.findViewById(R.id.layout_farmer_data_container);
+
+        // 初始化导出按钮
+        btnExportAllData = view.findViewById(R.id.btn_export_all_data);
+        btnOpenExportFolder = view.findViewById(R.id.btn_open_export_folder);
+
+        // 设置一些测试数据（会被ViewModel数据覆盖）
+        if (etFarmerName != null) {
+            etFarmerName.setText("张三");
+        }
+        if (tvContractNumber != null) {
+            tvContractNumber.setText("HT10000001");
+        }
+        if (tvCurrentWeight != null) {
+            tvCurrentWeight.setText("5.00 kg");
+        }
     }
-    
+
     /**
-     * 设置点击监听器
+     * 设置基本的点击监听器
      */
-    private void setupClickListeners() {
-        // 读取身份证 - 使用MainViewModel的真实方法
-        btnReadIdCard.setOnClickListener(v -> {
-            showToast("正在连接身份证读卡器...");
-            mainViewModel.connectIdCardReader(); // 使用真实的ID card功能
-        });
-        
-        // 去皮重
-        btnTare.setOnClickListener(v -> {
-            showToast("执行去皮重操作");
-            viewModel.performTare();
-        });
-        
-        // 打印标签
-        btnPrint.setOnClickListener(v -> {
-            showToast("开始打印标签");
-            viewModel.printLabel();
-        });
-        
-        // 烟叶等级选择
-        btnUpperLevel.setOnClickListener(v -> {
-            selectLevelButton(btnUpperLevel, "上等烟");
-            viewModel.selectLevel("上等烟");
-        });
-        
-        btnMiddleLevel.setOnClickListener(v -> {
-            selectLevelButton(btnMiddleLevel, "中等烟");
-            viewModel.selectLevel("中等烟");
-        });
-        
-        btnLowerLevel.setOnClickListener(v -> {
-            selectLevelButton(btnLowerLevel, "下等烟");
-            viewModel.selectLevel("下等烟");
-        });
-        
-        // 等级选择按钮
-        btnSelectA.setOnClickListener(v -> {
-            selectGradeButton(btnSelectA, "A");
-            viewModel.selectLevel("A级");
-        });
-        
-        btnSelectB.setOnClickListener(v -> {
-            selectGradeButton(btnSelectB, "B");
-            viewModel.selectLevel("B级");
-        });
-        
-        btnSelectC.setOnClickListener(v -> {
-            selectGradeButton(btnSelectC, "C");
-            viewModel.selectLevel("C级");
-        });
-        
-        btnSelectD.setOnClickListener(v -> {
-            selectGradeButton(btnSelectD, "D");
-            viewModel.selectLevel("D级");
-        });
-        
-        // 测试按钮
-        btnTest5kg.setOnClickListener(v -> {
-            showToast("模拟5kg重量");
-            viewModel.simulateWeight(5.0);
-        });
-        
-        btnTest10kg.setOnClickListener(v -> {
-            showToast("模拟10kg重量");
-            viewModel.simulateWeight(10.0);
-        });
-        
-        btnTest20kg.setOnClickListener(v -> {
-            showToast("模拟20kg重量");
-            viewModel.simulateWeight(20.0);
-        });
+    private void setupBasicClickListeners() {
+        if (btnUpperLevel != null) {
+            btnUpperLevel.setOnClickListener(v -> {
+                selectLevelButton(btnUpperLevel, "上部叶");
+                if (viewModel != null) {
+                    viewModel.selectLevel("上部叶");
+                }
+            });
+        }
+
+        if (btnMiddleLevel != null) {
+            btnMiddleLevel.setOnClickListener(v -> {
+                selectLevelButton(btnMiddleLevel, "中部叶");
+                if (viewModel != null) {
+                    viewModel.selectLevel("中部叶");
+                }
+            });
+        }
+
+        if (btnLowerLevel != null) {
+            btnLowerLevel.setOnClickListener(v -> {
+                selectLevelButton(btnLowerLevel, "下部叶");
+                if (viewModel != null) {
+                    viewModel.selectLevel("下部叶");
+                }
+            });
+        }
+
+        if (btnConfirm != null) {
+            btnConfirm.setOnClickListener(v -> {
+                String farmerName = etFarmerName != null ? etFarmerName.getText().toString().trim() : "";
+
+                if (farmerName.isEmpty()) {
+                    Toast.makeText(getContext(), "请输入烟农姓名", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (viewModel != null) {
+                    // 先同步姓名到ViewModel
+                    viewModel.setFarmerName(farmerName);
+
+                    // 然后确认称重
+                    viewModel.confirmWeighing();
+
+                    // 重置按钮状态
+                    resetLevelButtons();
+
+                    // 立即更新管理员界面
+                    updateAdminInterface();
+
+                    Toast.makeText(getContext(), "✅ 称重记录已保存", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        if (btnReadIdCard != null) {
+            btnReadIdCard.setOnClickListener(v -> {
+                Toast.makeText(getContext(), "正在连接身份证读卡器...", Toast.LENGTH_SHORT).show();
+                if (mainViewModel != null) {
+                    mainViewModel.connectIdCardReader();
+                }
+                if (viewModel != null) {
+                    viewModel.generateNewContractNumber();
+                }
+            });
+        }
+
+        // 导出按钮点击事件
+        if (btnExportAllData != null) {
+            btnExportAllData.setOnClickListener(v -> {
+                exportAllRecords();
+            });
+        }
+
+        // 打开导出文件夹按钮点击事件
+        if (btnOpenExportFolder != null) {
+            btnOpenExportFolder.setOnClickListener(v -> {
+                DataExportUtils.openExportFolder(getContext());
+            });
+        }
     }
-    
+
     /**
-     * 设置文本变化监听
+     * 更新管理员界面数据（动态创建行）
      */
-    private void setupTextWatchers() {
-        // 价格输入监听
-        etPriceA.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void afterTextChanged(Editable s) {
-                viewModel.setPriceA(s.toString());
+    private void updateAdminInterface() {
+        if (viewModel == null || layoutFarmerDataContainer == null)
+            return;
+
+        // 清除现有的行
+        layoutFarmerDataContainer.removeAllViews();
+
+        // 获取所有烟农统计数据
+        java.util.Map<String, FarmerStatistics> allStatistics = viewModel.getAllFarmerStatistics();
+
+        // 获取烟农名称列表（按添加顺序）
+        java.util.List<String> farmerNames = new java.util.ArrayList<>();
+        for (FarmerStatistics stats : allStatistics.values()) {
+            if (!farmerNames.contains(stats.getFarmerName())) {
+                farmerNames.add(stats.getFarmerName());
             }
-        });
-        
-        etPriceB.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void afterTextChanged(Editable s) {
-                viewModel.setPriceB(s.toString());
+        }
+
+        // 动态创建每个烟农的行（显示所有数据，支持滚动）
+        for (int i = 0; i < farmerNames.size(); i++) {
+            String farmerName = farmerNames.get(i);
+            FarmerStatistics stats = allStatistics.get(farmerName);
+
+            if (stats != null) {
+                LinearLayout farmerRow = createFarmerRow(farmerName, stats, i);
+                layoutFarmerDataContainer.addView(farmerRow);
             }
-        });
-        
-        etPriceC.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void afterTextChanged(Editable s) {
-                viewModel.setPriceC(s.toString());
-            }
-        });
-        
-        etPriceD.addTextChangedListener(new SimpleTextWatcher() {
-            @Override
-            public void afterTextChanged(Editable s) {
-                viewModel.setPriceD(s.toString());
-            }
-        });
+        }
     }
-    
+
     /**
-     * 观察ViewModel数据变化
+     * 创建单个烟农数据行
      */
-    private void observeViewModel() {
-        // 农户姓名 - 现在使用MainViewModel的真实ID card数据
-        // (移除WeightingViewModel的模拟数据，使用真实数据)
-        
-        // 合同号
-        viewModel.getContractNumber().observe(getViewLifecycleOwner(), contractNumber -> {
-            tvContractNumber.setText(contractNumber);
+    private LinearLayout createFarmerRow(String farmerName, FarmerStatistics stats, int index) {
+        LinearLayout row = new LinearLayout(getContext());
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        row.setLayoutParams(rowParams);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        // 交替背景色
+        int backgroundColor = (index % 2 == 0) ? 0xFFFFFFFF : 0xFFF5F5F5;
+        row.setBackgroundColor(backgroundColor);
+
+        // 姓名
+        TextView nameView = createTableCell(farmerName, 2);
+        row.addView(nameView);
+
+        // 预检捆数
+        TextView bundleView = createTableCell(String.valueOf(stats.getTotalBundles()), 2);
+        row.addView(bundleView);
+
+        // 预检重量
+        TextView weightView = createTableCell(String.format("%.2f kg", stats.getTotalWeight()), 2);
+        row.addView(weightView);
+
+        // 查看按钮
+        Button viewButton = createViewButton(farmerName);
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                0, 72, 1);
+        buttonParams.setMargins(4, 4, 4, 4);
+        viewButton.setLayoutParams(buttonParams);
+        row.addView(viewButton);
+
+        return row;
+    }
+
+    /**
+     * 创建表格单元格
+     */
+    private TextView createTableCell(String text, int weight) {
+        TextView textView = new TextView(getContext());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, 72, weight);
+        textView.setLayoutParams(params);
+        textView.setText(text);
+        textView.setTextSize(11);
+        textView.setTextColor(0xFF212121);
+        textView.setGravity(android.view.Gravity.CENTER);
+        return textView;
+    }
+
+    /**
+     * 创建查看按钮
+     */
+    private Button createViewButton(String farmerName) {
+        Button button = new Button(getContext());
+        button.setText("查看");
+        button.setTextSize(10);
+        button.setTextColor(0xFFFFFFFF);
+        button.setBackgroundColor(0xFF2196F3);
+
+        // 设置点击监听器
+        button.setOnClickListener(v -> {
+            showFarmerDetailDialog(farmerName);
         });
-        
-        // 当前重量
-        viewModel.getCurrentWeight().observe(getViewLifecycleOwner(), weight -> {
-            tvCurrentWeight.setText(weight);
-        });
-        
-        // 设备状态
-        viewModel.getDeviceStatus().observe(getViewLifecycleOwner(), status -> {
-            tvDeviceStatus.setText(status);
-        });
-        
-        // 预检码等级
-        viewModel.getPrecheckLevel().observe(getViewLifecycleOwner(), level -> {
-            tvPrecheckLevel.setText(level);
-        });
-        
-        // 当前时间
-        viewModel.getCurrentTime().observe(getViewLifecycleOwner(), time -> {
-            tvCurrentTime.setText(time);
-        });
-        
-        // 状态消息
-        viewModel.getStatusMessage().observe(getViewLifecycleOwner(), message -> {
-            showToast(message);
-        });
-        
-        // 重量稳定性
-        viewModel.getIsWeightStable().observe(getViewLifecycleOwner(), isStable -> {
-            // 更新重量显示的背景色
-            if (isStable) {
-                tvCurrentWeight.setBackgroundColor(getResources().getColor(android.R.color.holo_green_light));
+
+        return button;
+    }
+
+    /**
+     * 导出所有记录
+     */
+    private void exportAllRecords() {
+        if (viewModel == null || viewModel.getRepository() == null) {
+            Toast.makeText(getContext(), "数据服务未初始化", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 显示加载提示
+        Toast.makeText(getContext(), "正在准备导出数据...", Toast.LENGTH_SHORT).show();
+
+        // 获取数据库中的所有记录
+        viewModel.getRepository().getAllRecords().observe(getViewLifecycleOwner(), records -> {
+            if (records != null && !records.isEmpty()) {
+                // 使用导出工具导出数据
+                DataExportUtils.exportAllRecordsToCSV(getContext(), records, new DataExportUtils.ExportCallback() {
+                    @Override
+                    public void onSuccess(String message, String filePath, File file) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                showExportSuccessDialog(message, file);
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                            });
+                        }
+                    }
+                });
             } else {
-                tvCurrentWeight.setBackgroundColor(getResources().getColor(android.R.color.holo_orange_light));
+                Toast.makeText(getContext(), "没有数据可导出", Toast.LENGTH_SHORT).show();
             }
-        });
-        
-        // 价格数据
-        viewModel.getPriceA().observe(getViewLifecycleOwner(), price -> {
-            if (!etPriceA.getText().toString().equals(price)) {
-                etPriceA.setText(price);
-            }
-        });
-        
-        viewModel.getPriceB().observe(getViewLifecycleOwner(), price -> {
-            if (!etPriceB.getText().toString().equals(price)) {
-                etPriceB.setText(price);
-            }
-        });
-        
-        viewModel.getPriceC().observe(getViewLifecycleOwner(), price -> {
-            if (!etPriceC.getText().toString().equals(price)) {
-                etPriceC.setText(price);
-            }
-        });
-        
-        viewModel.getPriceD().observe(getViewLifecycleOwner(), price -> {
-            if (!etPriceD.getText().toString().equals(price)) {
-                etPriceD.setText(price);
-            }
-        });
-        
-        // 设备连接状态
-        viewModel.getScaleConnected().observe(getViewLifecycleOwner(), connected -> {
-            // 可以根据连接状态更新UI
-        });
-        
-        viewModel.getPrinterConnected().observe(getViewLifecycleOwner(), connected -> {
-            btnPrint.setEnabled(connected);
         });
     }
-    
+
     /**
-     * 观察ID card数据 - 仅显示姓名
+     * 导出指定烟农的记录
      */
-    private void observeIdCardData() {
-        // 农户姓名 - 从MainViewModel的真实ID card数据获取
-        mainViewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
-            if (name != null && !name.trim().isEmpty()) {
-                tvFarmerName.setText(name);
-                showToast("✅ 身份证读取成功: " + name);
+    private void exportFarmerRecords(String farmerName) {
+        if (viewModel == null || viewModel.getRepository() == null) {
+            Toast.makeText(getContext(), "数据服务未初始化", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 显示加载提示
+        Toast.makeText(getContext(), "正在准备导出" + farmerName + "的数据...", Toast.LENGTH_SHORT).show();
+
+        // 获取指定烟农的记录
+        viewModel.getRepository().getRecordsByFarmerName(farmerName).observe(getViewLifecycleOwner(), records -> {
+            if (records != null && !records.isEmpty()) {
+                // 使用导出工具导出数据
+                DataExportUtils.exportFarmerRecordsToCSV(getContext(), records, farmerName,
+                        new DataExportUtils.ExportCallback() {
+                            @Override
+                            public void onSuccess(String message, String filePath, File file) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        showExportSuccessDialog(message, file);
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                                    });
+                                }
+                            }
+                        });
             } else {
-                tvFarmerName.setText("未读取");
-            }
-        });
-        
-        // ID card连接状态 - 更新按钮状态
-        mainViewModel.getIdCardConnected().observe(getViewLifecycleOwner(), connected -> {
-            btnReadIdCard.setEnabled(connected);
-            if (connected) {
-                btnReadIdCard.setText("读取身份证");
-            } else {
-                btnReadIdCard.setText("读卡器未连接");
+                Toast.makeText(getContext(), farmerName + "没有预检记录", Toast.LENGTH_SHORT).show();
             }
         });
     }
-    
+
     /**
-     * 选择等级按钮
+     * 显示导出成功的Dialog，提供打开文件选项
+     */
+    private void showExportSuccessDialog(String message, File file) {
+        if (getContext() == null)
+            return;
+
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(
+                getContext());
+        builder.setTitle("导出成功");
+        builder.setMessage(message + "\n\n您希望：");
+
+        // 打开文件
+        builder.setPositiveButton("打开文件", (dialog, which) -> {
+            DataExportUtils.openCsvFile(getContext(), file);
+        });
+
+        // 打开文件夹
+        builder.setNeutralButton("打开文件夹", (dialog, which) -> {
+            DataExportUtils.openExportFolder(getContext());
+        });
+
+        // 仅关闭
+        builder.setNegativeButton("关闭", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        // 显示路径信息
+        builder.setIcon(android.R.drawable.ic_dialog_info);
+
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    /**
+     * 显示烟农详细信息Dialog
+     */
+    private void showFarmerDetailDialog(String farmerName) {
+        if (getContext() == null || viewModel == null)
+            return;
+
+        // 获取烟农统计数据
+        java.util.Map<String, FarmerStatistics> allStatistics = viewModel.getAllFarmerStatistics();
+        FarmerStatistics stats = allStatistics.get(farmerName);
+
+        if (stats == null) {
+            Toast.makeText(getContext(), "未找到该烟农的详细信息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 创建Dialog
+        Dialog dialog = new Dialog(getContext());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_farmer_detail);
+        dialog.setCancelable(true);
+
+        // 获取Dialog中的控件
+        TextView tvFarmerName = dialog.findViewById(R.id.tv_detail_farmer_name);
+        TextView tvContractAmount = dialog.findViewById(R.id.tv_detail_contract_amount);
+        TextView tvBundleCount = dialog.findViewById(R.id.tv_detail_bundle_count);
+        TextView tvTotalWeight = dialog.findViewById(R.id.tv_detail_total_weight);
+        TextView tvUpperRatio = dialog.findViewById(R.id.tv_detail_upper_ratio);
+        TextView tvMiddleRatio = dialog.findViewById(R.id.tv_detail_middle_ratio);
+        TextView tvLowerRatio = dialog.findViewById(R.id.tv_detail_lower_ratio);
+        TextView tvTime = dialog.findViewById(R.id.tv_detail_time);
+        Button btnExportFarmer = dialog.findViewById(R.id.btn_export_farmer_data);
+        Button btnClose = dialog.findViewById(R.id.btn_close_dialog);
+
+        // 设置基本数据
+        tvFarmerName.setText(farmerName);
+        tvContractAmount.setText("100.0 kg"); // 可以从数据库获取实际合同量
+        tvBundleCount.setText(String.valueOf(stats.getTotalBundles()));
+        tvTotalWeight.setText(String.format("%.2f kg", stats.getTotalWeight()));
+
+        // 获取该烟农的各部叶比例（从个人统计数据获取）
+        double upperPercentage = stats.getLeafTypePercentage("上部叶");
+        double middlePercentage = stats.getLeafTypePercentage("中部叶");
+        double lowerPercentage = stats.getLeafTypePercentage("下部叶");
+
+        tvUpperRatio.setText(String.format("%.1f%%", upperPercentage));
+        tvMiddleRatio.setText(String.format("%.1f%%", middlePercentage));
+        tvLowerRatio.setText(String.format("%.1f%%", lowerPercentage));
+
+        // 获取该烟农最近一次预检时间（从称重记录获取）
+        String latestTime = getLatestWeighingTime(stats);
+        tvTime.setText(latestTime);
+
+        // 设置导出按钮点击事件
+        btnExportFarmer.setOnClickListener(v -> {
+            exportFarmerRecords(farmerName);
+            dialog.dismiss();
+        });
+
+        // 设置关闭按钮点击事件
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // 显示Dialog
+        dialog.show();
+
+        // 设置Dialog窗口大小
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setLayout(
+                    (int) (getResources().getDisplayMetrics().widthPixels * 0.8),
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    /**
+     * 获取烟农最近一次预检时间
+     */
+    private String getLatestWeighingTime(FarmerStatistics stats) {
+        if (stats.getRecords() == null || stats.getRecords().isEmpty()) {
+            return "暂无记录";
+        }
+
+        // 找到最新的称重记录
+        Date latestDate = null;
+        for (WeighingRecord record : stats.getRecords()) {
+            if (record.getTimestamp() != null) {
+                if (latestDate == null || record.getTimestamp().after(latestDate)) {
+                    latestDate = record.getTimestamp();
+                }
+            }
+        }
+
+        if (latestDate != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            return sdf.format(latestDate);
+        } else {
+            return "暂无记录";
+        }
+    }
+
+    /**
+     * 选择等级按钮并更新视觉状态
      */
     private void selectLevelButton(Button selectedButton, String level) {
         // 重置所有按钮状态
         resetLevelButtons();
-        
+
         // 设置选中状态
-        selectedButton.setSelected(true);
-        selectedButton.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_dark));
-        
-        showToast("已选择: " + level);
+        if (selectedButton != null) {
+            selectedButton.setSelected(true);
+            selectedButton.setAlpha(0.8f); // 视觉反馈
+        }
+
+        Toast.makeText(getContext(), "✅ 已选择: " + level, Toast.LENGTH_SHORT).show();
     }
-    
-    /**
-     * 选择等级按钮
-     */
-    private void selectGradeButton(Button selectedButton, String grade) {
-        // 重置所有等级按钮状态
-        resetGradeButtons();
-        
-        // 设置选中状态
-        selectedButton.setSelected(true);
-        selectedButton.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_dark));
-        
-        showToast("已选择等级: " + grade);
-    }
-    
+
     /**
      * 重置等级按钮状态
      */
     private void resetLevelButtons() {
-        btnUpperLevel.setSelected(false);
-        btnMiddleLevel.setSelected(false);
-        btnLowerLevel.setSelected(false);
-        
-        btnUpperLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-        btnMiddleLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-        btnLowerLevel.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+        if (btnUpperLevel != null) {
+            btnUpperLevel.setSelected(false);
+            btnUpperLevel.setAlpha(1.0f);
+        }
+        if (btnMiddleLevel != null) {
+            btnMiddleLevel.setSelected(false);
+            btnMiddleLevel.setAlpha(1.0f);
+        }
+        if (btnLowerLevel != null) {
+            btnLowerLevel.setSelected(false);
+            btnLowerLevel.setAlpha(1.0f);
+        }
     }
-    
-    /**
-     * 重置等级按钮状态
-     */
-    private void resetGradeButtons() {
-        btnSelectA.setSelected(false);
-        btnSelectB.setSelected(false);
-        btnSelectC.setSelected(false);
-        btnSelectD.setSelected(false);
-        
-        btnSelectA.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-        btnSelectB.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-        btnSelectC.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-        btnSelectD.setBackgroundColor(getResources().getColor(android.R.color.transparent));
-    }
-    
-    /**
-     * 显示Toast消息
-     */
-    private void showToast(String message) {
-        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-    }
-    
-    /**
-     * 简化的TextWatcher
-     */
-    private static abstract class SimpleTextWatcher implements TextWatcher {
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {}
-        
-        @Override
-        public void afterTextChanged(Editable s) {}
-    }
-} 
+}
