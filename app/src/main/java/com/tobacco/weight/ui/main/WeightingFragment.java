@@ -1,9 +1,11 @@
 package com.tobacco.weight.ui.main;
 
+import android.app.Dialog;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -17,6 +19,10 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.tobacco.weight.R;
 import com.tobacco.weight.data.FarmerStatistics;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
@@ -434,11 +440,76 @@ public class WeightingFragment extends Fragment {
 
         // 设置点击监听器
         button.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "查看 " + farmerName + " 的详细记录", Toast.LENGTH_SHORT).show();
-            // 这里可以添加跳转到详细页面的逻辑
+            showFarmerDetailDialog(farmerName);
         });
 
         return button;
+    }
+
+    /**
+     * 显示烟农详细信息Dialog
+     */
+    private void showFarmerDetailDialog(String farmerName) {
+        if (getContext() == null || viewModel == null)
+            return;
+
+        // 获取烟农统计数据
+        java.util.Map<String, FarmerStatistics> allStatistics = viewModel.getAllFarmerStatistics();
+        FarmerStatistics stats = allStatistics.get(farmerName);
+
+        if (stats == null) {
+            Toast.makeText(getContext(), "未找到该烟农的详细信息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 创建Dialog
+        Dialog dialog = new Dialog(getContext());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_farmer_detail);
+        dialog.setCancelable(true);
+
+        // 获取Dialog中的控件
+        TextView tvFarmerName = dialog.findViewById(R.id.tv_detail_farmer_name);
+        TextView tvContractAmount = dialog.findViewById(R.id.tv_detail_contract_amount);
+        TextView tvBundleCount = dialog.findViewById(R.id.tv_detail_bundle_count);
+        TextView tvTotalWeight = dialog.findViewById(R.id.tv_detail_total_weight);
+        TextView tvUpperRatio = dialog.findViewById(R.id.tv_detail_upper_ratio);
+        TextView tvMiddleRatio = dialog.findViewById(R.id.tv_detail_middle_ratio);
+        TextView tvLowerRatio = dialog.findViewById(R.id.tv_detail_lower_ratio);
+        TextView tvTime = dialog.findViewById(R.id.tv_detail_time);
+        Button btnClose = dialog.findViewById(R.id.btn_close_dialog);
+
+        // 设置数据
+        tvFarmerName.setText(farmerName);
+        tvContractAmount.setText("100.0 kg"); // 可以从ViewModel获取实际合同量
+        tvBundleCount.setText(String.valueOf(stats.getTotalBundles()));
+        tvTotalWeight.setText(String.format("%.2f kg", stats.getTotalWeight()));
+
+        // 获取各部叶比例（从ViewModel获取）
+        String upperRatio = viewModel.getUpperRatio().getValue();
+        String middleRatio = viewModel.getMiddleRatio().getValue();
+        String lowerRatio = viewModel.getLowerRatio().getValue();
+
+        tvUpperRatio.setText(upperRatio != null ? upperRatio : "0.0%");
+        tvMiddleRatio.setText(middleRatio != null ? middleRatio : "0.0%");
+        tvLowerRatio.setText(lowerRatio != null ? lowerRatio : "0.0%");
+
+        // 设置当前时间
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        tvTime.setText(sdf.format(new Date()));
+
+        // 设置关闭按钮点击事件
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // 显示Dialog
+        dialog.show();
+
+        // 设置Dialog窗口大小
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setLayout(
+                    (int) (getResources().getDisplayMetrics().widthPixels * 0.8),
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
     /**

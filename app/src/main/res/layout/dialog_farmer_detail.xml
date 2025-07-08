@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@android:color/white">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="管理员界面（二级）"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:gravity="center"
+        android:paddingBottom="16dp" />
+
+    <!-- 烟农姓名 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="姓名："
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_farmer_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="16sp"
+            android:textColor="#212121"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- 合同量 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="合同量："
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_contract_amount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="16sp"
+            android:textColor="#212121" />
+
+    </LinearLayout>
+
+    <!-- 捆数 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="捆数："
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_bundle_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="16sp"
+            android:textColor="#212121" />
+
+    </LinearLayout>
+
+    <!-- 重量 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="重量："
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_total_weight"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="16sp"
+            android:textColor="#212121" />
+
+    </LinearLayout>
+
+    <!-- 部叶比例分组 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="各部叶比例"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 上部叶比例 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="上部叶："
+            android:textSize="14sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_upper_ratio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="14sp"
+            android:textColor="#4CAF50" />
+
+    </LinearLayout>
+
+    <!-- 中部叶比例 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="中部叶："
+            android:textSize="14sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_middle_ratio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="14sp"
+            android:textColor="#2196F3" />
+
+    </LinearLayout>
+
+    <!-- 下部叶比例 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="下部叶："
+            android:textSize="14sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_lower_ratio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="14sp"
+            android:textColor="#FF9800" />
+
+    </LinearLayout>
+
+    <!-- 时间 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:text="时间："
+            android:textSize="16sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tv_detail_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="--"
+            android:textSize="16sp"
+            android:textColor="#212121" />
+
+    </LinearLayout>
+
+    <!-- 关闭按钮 -->
+    <Button
+        android:id="@+id/btn_close_dialog"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="关闭"
+        android:textSize="16sp"
+        android:backgroundTint="#757575"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout> 
