@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "0a0491409de211561bfc73d974363a35",
+    "identityHash": "41188d322bac7a59578db0a815cff7ce",
     "entities": [
       {
         "tableName": "weight_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_number` TEXT, `weight` REAL NOT NULL, `id_card_number` TEXT, `farmer_name` TEXT, `farmer_address` TEXT, `tobacco_bundles` INTEGER NOT NULL, `tobacco_part` TEXT, `pre_check_number` TEXT, `tobacco_grade` TEXT, `purchase_price` REAL NOT NULL, `total_amount` REAL NOT NULL, `moisture_content` REAL NOT NULL, `impurity_rate` REAL NOT NULL, `warehouse_number` TEXT, `operator_name` TEXT, `remark` TEXT, `create_time` INTEGER, `update_time` INTEGER, `is_printed` INTEGER NOT NULL, `print_count` INTEGER NOT NULL, `is_exported` INTEGER NOT NULL, `qr_code` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_number` TEXT, `farmer_name` TEXT, `id_card_number` TEXT, `farmer_address` TEXT, `farmer_gender` TEXT, `tobacco_part` TEXT, `tobacco_bundles` INTEGER NOT NULL, `weight` REAL NOT NULL, `total_amount` REAL NOT NULL, `create_time` INTEGER, `timestamp` INTEGER NOT NULL, `qr_code` TEXT, `operator_name` TEXT, `warehouse_number` TEXT, `pre_check_number` TEXT, `status` TEXT, `tobacco_grade` TEXT, `purchase_price` REAL NOT NULL, `moisture_content` REAL NOT NULL, `impurity_rate` REAL NOT NULL, `remark` TEXT, `update_time` INTEGER, `is_printed` INTEGER NOT NULL, `print_count` INTEGER NOT NULL, `is_exported` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -21,20 +21,14 @@
             "notNull": false
           },
           {
-            "fieldPath": "weight",
-            "columnName": "weight",
-            "affinity": "REAL",
-            "notNull": true
-          },
-          {
-            "fieldPath": "idCardNumber",
-            "columnName": "id_card_number",
+            "fieldPath": "farmerName",
+            "columnName": "farmer_name",
             "affinity": "TEXT",
             "notNull": false
           },
           {
-            "fieldPath": "farmerName",
-            "columnName": "farmer_name",
+            "fieldPath": "idCardNumber",
+            "columnName": "id_card_number",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -45,10 +39,10 @@
             "notNull": false
           },
           {
-            "fieldPath": "tobaccoBundles",
-            "columnName": "tobacco_bundles",
-            "affinity": "INTEGER",
-            "notNull": true
+            "fieldPath": "farmerGender",
+            "columnName": "farmer_gender",
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "tobaccoPart",
@@ -57,8 +51,62 @@
             "notNull": false
           },
           {
+            "fieldPath": "tobaccoBundles",
+            "columnName": "tobacco_bundles",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "total_amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "create_time",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qrCode",
+            "columnName": "qr_code",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "operatorName",
+            "columnName": "operator_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "warehouseNumber",
+            "columnName": "warehouse_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
             "fieldPath": "preCheckNumber",
             "columnName": "pre_check_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -75,12 +123,6 @@
             "notNull": true
           },
           {
-            "fieldPath": "totalAmount",
-            "columnName": "total_amount",
-            "affinity": "REAL",
-            "notNull": true
-          },
-          {
             "fieldPath": "moistureContent",
             "columnName": "moisture_content",
             "affinity": "REAL",
@@ -93,27 +135,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "warehouseNumber",
-            "columnName": "warehouse_number",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "operatorName",
-            "columnName": "operator_name",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
             "fieldPath": "remark",
             "columnName": "remark",
             "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "createTime",
-            "columnName": "create_time",
-            "affinity": "INTEGER",
             "notNull": false
           },
           {
@@ -139,12 +163,6 @@
             "columnName": "is_exported",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "qrCode",
-            "columnName": "qr_code",
-            "affinity": "TEXT",
-            "notNull": false
           }
         ],
         "primaryKey": {
@@ -160,7 +178,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0a0491409de211561bfc73d974363a35')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '41188d322bac7a59578db0a815cff7ce')"
     ]
   }
 }

@@ -229,15 +229,34 @@
 
     </LinearLayout>
 
-    <!-- 关闭按钮 -->
-    <Button
-        android:id="@+id/btn_close_dialog"
+    <!-- 按钮区域 -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="关闭"
-        android:textSize="16sp"
-        android:backgroundTint="#757575"
-        android:textColor="@android:color/white"
-        android:layout_marginTop="8dp" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btn_export_farmer_data"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="导出该烟农记录"
+            android:textSize="14sp"
+            android:backgroundTint="#4CAF50"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_close_dialog"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="关闭"
+            android:textSize="16sp"
+            android:backgroundTint="#757575"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
 
 </LinearLayout> 

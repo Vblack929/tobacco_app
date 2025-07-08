@@ -509,6 +509,24 @@
                 android:textColor="#212121"
                 android:layout_marginTop="2dp" />
 
+            <!-- 数据库状态 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="数据库记录"
+                android:textSize="14sp"
+                android:textColor="#757575"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tv_database_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0条记录"
+                android:textSize="14sp"
+                android:textColor="#4CAF50"
+                android:layout_marginTop="2dp" />
+
             <Button
                 android:id="@+id/btn_read_id_card"
                 android:layout_width="match_parent"
@@ -580,13 +598,51 @@
                 android:textStyle="bold"
                 android:textColor="#212121" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="烟农信息表"
-                android:textSize="14sp"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="烟农信息表"
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+
+                <Button
+                    android:id="@+id/btn_export_all_data"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="导出所有记录"
+                    android:textSize="10sp"
+                    android:backgroundTint="#2196F3"
+                    android:textColor="@android:color/white"
+                    android:layout_marginStart="8dp" />
+
+                <Button
+                    android:id="@+id/btn_open_export_folder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="打开导出文件夹"
+                    android:textSize="10sp"
+                    android:backgroundTint="#FF9800"
+                    android:textColor="@android:color/white"
+                    android:layout_marginStart="4dp" />
+
+            </LinearLayout>
+
+            <!-- 导出路径提示 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="导出路径: 内部存储/Documents/TobaccoWeightExports/"
+                android:textSize="10sp"
                 android:textColor="#757575"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="2dp"
+                android:gravity="center_horizontal" />
 
             <!-- 固定表头 -->
             <LinearLayout

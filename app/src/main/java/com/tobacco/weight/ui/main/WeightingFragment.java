@@ -20,7 +20,9 @@ import androidx.lifecycle.ViewModelProvider;
 import com.tobacco.weight.R;
 import com.tobacco.weight.data.FarmerStatistics;
 import com.tobacco.weight.data.WeighingRecord;
+import com.tobacco.weight.utils.DataExportUtils;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -57,8 +59,15 @@ public class WeightingFragment extends Fragment {
     private TextView tvPrecheckId;
     private TextView tvPrecheckDate;
 
+    // 数据库状态控件
+    private TextView tvDatabaseCount;
+
     // 管理员界面动态容器
     private LinearLayout layoutFarmerDataContainer;
+
+    // 导出按钮
+    private Button btnExportAllData;
+    private Button btnOpenExportFolder;
 
     @Nullable
     @Override
@@ -205,6 +214,22 @@ public class WeightingFragment extends Fragment {
             }
         });
 
+        // 观察数据库记录数量（通过Repository获取）
+        if (viewModel.getRepository() != null) {
+            viewModel.getRepository().getAllRecords().observe(getViewLifecycleOwner(), records -> {
+                if (tvDatabaseCount != null && records != null) {
+                    tvDatabaseCount.setText(records.size() + "条记录");
+
+                    // 根据记录数量改变颜色
+                    if (records.size() > 0) {
+                        tvDatabaseCount.setTextColor(0xFF4CAF50); // 绿色
+                    } else {
+                        tvDatabaseCount.setTextColor(0xFF757575); // 灰色
+                    }
+                }
+            });
+        }
+
         // 观察烟农数据变化，实时更新管理员界面
         viewModel.getFarmerName().observe(getViewLifecycleOwner(), name -> {
             updateAdminInterface();
@@ -257,8 +282,15 @@ public class WeightingFragment extends Fragment {
             etLowerRatio.setText("0.0%");
         }
 
+        // 初始化数据库状态控件
+        tvDatabaseCount = view.findViewById(R.id.tv_database_count);
+
         // 初始化管理员界面动态容器
         layoutFarmerDataContainer = view.findViewById(R.id.layout_farmer_data_container);
+
+        // 初始化导出按钮
+        btnExportAllData = view.findViewById(R.id.btn_export_all_data);
+        btnOpenExportFolder = view.findViewById(R.id.btn_open_export_folder);
 
         // 设置一些测试数据（会被ViewModel数据覆盖）
         if (etFarmerName != null) {
@@ -339,6 +371,20 @@ public class WeightingFragment extends Fragment {
                 if (viewModel != null) {
                     viewModel.generateNewContractNumber();
                 }
+            });
+        }
+
+        // 导出按钮点击事件
+        if (btnExportAllData != null) {
+            btnExportAllData.setOnClickListener(v -> {
+                exportAllRecords();
+            });
+        }
+
+        // 打开导出文件夹按钮点击事件
+        if (btnOpenExportFolder != null) {
+            btnOpenExportFolder.setOnClickListener(v -> {
+                DataExportUtils.openExportFolder(getContext());
             });
         }
     }
@@ -448,6 +494,123 @@ public class WeightingFragment extends Fragment {
     }
 
     /**
+     * 导出所有记录
+     */
+    private void exportAllRecords() {
+        if (viewModel == null || viewModel.getRepository() == null) {
+            Toast.makeText(getContext(), "数据服务未初始化", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 显示加载提示
+        Toast.makeText(getContext(), "正在准备导出数据...", Toast.LENGTH_SHORT).show();
+
+        // 获取数据库中的所有记录
+        viewModel.getRepository().getAllRecords().observe(getViewLifecycleOwner(), records -> {
+            if (records != null && !records.isEmpty()) {
+                // 使用导出工具导出数据
+                DataExportUtils.exportAllRecordsToCSV(getContext(), records, new DataExportUtils.ExportCallback() {
+                    @Override
+                    public void onSuccess(String message, String filePath, File file) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                showExportSuccessDialog(message, file);
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                            });
+                        }
+                    }
+                });
+            } else {
+                Toast.makeText(getContext(), "没有数据可导出", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * 导出指定烟农的记录
+     */
+    private void exportFarmerRecords(String farmerName) {
+        if (viewModel == null || viewModel.getRepository() == null) {
+            Toast.makeText(getContext(), "数据服务未初始化", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 显示加载提示
+        Toast.makeText(getContext(), "正在准备导出" + farmerName + "的数据...", Toast.LENGTH_SHORT).show();
+
+        // 获取指定烟农的记录
+        viewModel.getRepository().getRecordsByFarmerName(farmerName).observe(getViewLifecycleOwner(), records -> {
+            if (records != null && !records.isEmpty()) {
+                // 使用导出工具导出数据
+                DataExportUtils.exportFarmerRecordsToCSV(getContext(), records, farmerName,
+                        new DataExportUtils.ExportCallback() {
+                            @Override
+                            public void onSuccess(String message, String filePath, File file) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        showExportSuccessDialog(message, file);
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
+                                    });
+                                }
+                            }
+                        });
+            } else {
+                Toast.makeText(getContext(), farmerName + "没有预检记录", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * 显示导出成功的Dialog，提供打开文件选项
+     */
+    private void showExportSuccessDialog(String message, File file) {
+        if (getContext() == null)
+            return;
+
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(
+                getContext());
+        builder.setTitle("导出成功");
+        builder.setMessage(message + "\n\n您希望：");
+
+        // 打开文件
+        builder.setPositiveButton("打开文件", (dialog, which) -> {
+            DataExportUtils.openCsvFile(getContext(), file);
+        });
+
+        // 打开文件夹
+        builder.setNeutralButton("打开文件夹", (dialog, which) -> {
+            DataExportUtils.openExportFolder(getContext());
+        });
+
+        // 仅关闭
+        builder.setNegativeButton("关闭", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        // 显示路径信息
+        builder.setIcon(android.R.drawable.ic_dialog_info);
+
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    /**
      * 显示烟农详细信息Dialog
      */
     private void showFarmerDetailDialog(String farmerName) {
@@ -478,6 +641,7 @@ public class WeightingFragment extends Fragment {
         TextView tvMiddleRatio = dialog.findViewById(R.id.tv_detail_middle_ratio);
         TextView tvLowerRatio = dialog.findViewById(R.id.tv_detail_lower_ratio);
         TextView tvTime = dialog.findViewById(R.id.tv_detail_time);
+        Button btnExportFarmer = dialog.findViewById(R.id.btn_export_farmer_data);
         Button btnClose = dialog.findViewById(R.id.btn_close_dialog);
 
         // 设置基本数据
@@ -498,6 +662,12 @@ public class WeightingFragment extends Fragment {
         // 获取该烟农最近一次预检时间（从称重记录获取）
         String latestTime = getLatestWeighingTime(stats);
         tvTime.setText(latestTime);
+
+        // 设置导出按钮点击事件
+        btnExportFarmer.setOnClickListener(v -> {
+            exportFarmerRecords(farmerName);
+            dialog.dismiss();
+        });
 
         // 设置关闭按钮点击事件
         btnClose.setOnClickListener(v -> dialog.dismiss());
