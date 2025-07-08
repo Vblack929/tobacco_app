@@ -57,6 +57,17 @@ public class SerialPortManager {
      * @return 是否成功打开
      */
     public boolean openSerialPort(String path, int baudRate) {
+        // 检查原生库是否可用
+        if (!nativeLibraryAvailable) {
+            Log.w(TAG, "原生串口库不可用，使用模拟模式");
+            // 在模拟模式下，假装打开成功
+            this.portPath = path;
+            this.baudRate = baudRate;
+            this.isOpen = true;
+            Log.i(TAG, "串口模拟模式打开成功: " + path + ", 波特率: " + baudRate);
+            return true;
+        }
+        
         try {
             File device = new File(path);
             if (!device.exists()) {
@@ -99,6 +110,13 @@ public class SerialPortManager {
             return;
         }
         
+        // 在模拟模式下简单处理
+        if (!nativeLibraryAvailable) {
+            isOpen = false;
+            Log.i(TAG, "串口模拟模式关闭成功: " + portPath);
+            return;
+        }
+        
         try {
             stopReading();
             
@@ -131,8 +149,19 @@ public class SerialPortManager {
      * @return 是否发送成功
      */
     public boolean sendData(byte[] data) {
-        if (!isOpen || outputStream == null) {
+        if (!isOpen) {
             Log.e(TAG, "串口未打开，无法发送数据");
+            return false;
+        }
+        
+        // 在模拟模式下模拟发送
+        if (!nativeLibraryAvailable) {
+            Log.d(TAG, "模拟发送数据成功: " + bytesToHex(data));
+            return true;
+        }
+        
+        if (outputStream == null) {
+            Log.e(TAG, "输出流为空，无法发送数据");
             return false;
         }
         
@@ -161,8 +190,19 @@ public class SerialPortManager {
      * @return 数据流的Observable
      */
     public Observable<byte[]> startReading() {
-        if (!isOpen || inputStream == null) {
+        if (!isOpen) {
             Log.e(TAG, "串口未打开，无法读取数据");
+            return Observable.empty();
+        }
+        
+        // 在模拟模式下返回空的Observable
+        if (!nativeLibraryAvailable) {
+            Log.i(TAG, "模拟模式下开始读取串口数据");
+            return dataSubject;
+        }
+        
+        if (inputStream == null) {
+            Log.e(TAG, "输入流为空，无法读取数据");
             return Observable.empty();
         }
         
@@ -258,12 +298,29 @@ public class SerialPortManager {
         }
     }
     
+    // 是否支持原生串口功能
+    private static boolean nativeLibraryAvailable = false;
+    
     // Native方法声明
     private native FileDescriptor nativeOpen(String path, int baudrate, int flags, int databits, int stopbits, int parity);
     private native void nativeClose();
     
     // 加载串口库
     static {
-        System.loadLibrary("serialport");
+        try {
+            System.loadLibrary("serialport");
+            nativeLibraryAvailable = true;
+            Log.i("SerialPortManager", "串口原生库加载成功");
+        } catch (UnsatisfiedLinkError e) {
+            nativeLibraryAvailable = false;
+            Log.w("SerialPortManager", "串口原生库未找到，将使用模拟模式: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 检查是否支持原生串口功能
+     */
+    public static boolean isNativeLibraryAvailable() {
+        return nativeLibraryAvailable;
     }
 } 
