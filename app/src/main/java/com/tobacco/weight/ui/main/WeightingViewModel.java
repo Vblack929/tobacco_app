@@ -1,5 +1,8 @@
 package com.tobacco.weight.ui.main;
 
+import com.tobacco.weight.data.model.WeightRecord;
+import com.tobacco.weight.data.repository.WeightRecordRepository;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -87,9 +90,13 @@ public class WeightingViewModel extends ViewModel {
     private final Map<String, FarmerStatistics> farmerStatisticsMap = new HashMap<>();
     private final List<WeighingRecord> allWeighingRecords = new ArrayList<>();
 
+    // 数据库Repository（需要添加导入）
+    private final WeightRecordRepository repository;
+
     @Inject
-    public WeightingViewModel(HardwareSimulator hardwareSimulator) {
+    public WeightingViewModel(HardwareSimulator hardwareSimulator, WeightRecordRepository repository) {
         this.hardwareSimulator = hardwareSimulator;
+        this.repository = repository;
         initializeData();
         subscribeToHardwareData();
     }
@@ -282,16 +289,136 @@ public class WeightingViewModel extends ViewModel {
     }
 
     /**
-     * 保存称重记录
+     * 保存称重记录到数据库
      */
     public void saveWeightRecord() {
         if (Boolean.TRUE.equals(isWeightStable.getValue())) {
-            // 这里应该保存到数据库
-            statusMessage.setValue("称重记录已保存");
-            updateCurrentTime();
+            // 创建WeightRecord对象并保存到数据库
+            WeightRecord dbRecord = createWeightRecordFromCurrentData();
+            if (dbRecord != null) {
+                repository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
+                    @Override
+                    public void onSuccess(Long recordId) {
+                        statusMessage.postValue("称重记录已保存到数据库，ID: " + recordId);
+                        updateCurrentTime();
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        statusMessage.postValue("保存失败: " + e.getMessage());
+                    }
+                });
+            } else {
+                statusMessage.setValue("数据不完整，无法保存");
+            }
         } else {
             statusMessage.setValue("重量不稳定，无法保存");
         }
+    }
+
+    /**
+     * 从当前数据创建WeightRecord对象
+     */
+    private WeightRecord createWeightRecordFromCurrentData() {
+        String farmer = farmerName.getValue();
+        String contract = contractNumber.getValue();
+        String level = selectedLevel.getValue();
+        String weight = currentWeight.getValue();
+        String precheckId = currentPrecheckId.getValue();
+
+        if (farmer == null || farmer.equals("未读取") ||
+                level == null || level.equals("未选择") ||
+                weight == null) {
+            return null;
+        }
+
+        WeightRecord record = new WeightRecord();
+        record.setFarmerName(farmer);
+        record.setIdCardNumber(contract); // 临时使用合同号作为身份证号
+        record.setTobaccoPart(level);
+        record.setTobaccoBundles(1); // 默认1捆
+
+        // 解析重量（移除"kg"后缀）
+        try {
+            double weightValue = Double.parseDouble(weight.replace(" kg", ""));
+            record.setWeight(weightValue);
+        } catch (NumberFormatException e) {
+            record.setWeight(5.0); // 默认5kg
+        }
+
+        record.setPreCheckNumber(precheckId);
+        record.setOperatorName("操作员"); // 可以从系统获取
+        record.setWarehouseNumber("WH001"); // 可以从设置获取
+        record.setTotalAmount(0.0); // 需要计算
+        record.setPurchasePrice(0.0); // 需要从等级获取价格
+
+        // 设置时间
+        record.setCreateTime(new Date());
+        record.setUpdateTime(new Date());
+
+        // 设置状态
+        record.setStatus("已确认");
+        record.setPrinted(false);
+        record.setPrintCount(0);
+        record.setExported(false);
+
+        return record;
+    }
+
+    /**
+     * 将WeighingRecord保存到数据库
+     */
+    private void saveRecordToDatabase(WeighingRecord weighingRecord) {
+        WeightRecord dbRecord = convertToWeightRecord(weighingRecord);
+        repository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
+            @Override
+            public void onSuccess(Long recordId) {
+                // 成功保存到数据库，可以记录日志或更新UI
+                System.out.println("数据库保存成功，记录ID: " + recordId);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // 保存失败，可以记录日志或提示用户
+                System.err.println("数据库保存失败: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 将WeighingRecord转换为WeightRecord
+     */
+    private WeightRecord convertToWeightRecord(WeighingRecord weighingRecord) {
+        WeightRecord record = new WeightRecord();
+
+        // 基本信息
+        record.setRecordNumber(weighingRecord.getPrecheckId());
+        record.setFarmerName(weighingRecord.getFarmerName());
+        record.setIdCardNumber(weighingRecord.getContractNumber()); // 暂时使用合同号
+        record.setTobaccoPart(weighingRecord.getLeafType());
+        record.setTobaccoBundles(1); // 默认1捆
+        record.setWeight(weighingRecord.getWeight());
+        record.setPreCheckNumber(weighingRecord.getPrecheckId());
+
+        // 时间信息
+        record.setCreateTime(weighingRecord.getTimestamp());
+        record.setUpdateTime(weighingRecord.getTimestamp());
+
+        // 操作信息
+        record.setOperatorName("系统操作员");
+        record.setWarehouseNumber("WH001");
+        record.setStatus("已确认");
+
+        // 默认值
+        record.setTotalAmount(0.0);
+        record.setPurchasePrice(0.0);
+        record.setMoistureContent(0.0);
+        record.setImpurityRate(0.0);
+        record.setPrinted(false);
+        record.setPrintCount(0);
+        record.setExported(false);
+
+        return record;
     }
 
     // Getters for LiveData
@@ -553,6 +680,9 @@ public class WeightingViewModel extends ViewModel {
         // 保存到全局记录列表
         allWeighingRecords.add(record);
 
+        // 同时保存到数据库
+        saveRecordToDatabase(record);
+
         // 更新烟农统计数据
         updateFarmerStatistics(record);
 
@@ -692,6 +822,13 @@ public class WeightingViewModel extends ViewModel {
      */
     public List<WeighingRecord> getAllWeighingRecords() {
         return new ArrayList<>(allWeighingRecords);
+    }
+
+    /**
+     * 获取数据库Repository（供Fragment观察数据库状态使用）
+     */
+    public WeightRecordRepository getRepository() {
+        return repository;
     }
 
     /**
