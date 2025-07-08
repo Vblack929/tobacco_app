@@ -11,7 +11,6 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.tobacco.weight.R;
 import com.tobacco.weight.ui.admin.AdminActivity;
-import com.tobacco.weight.ui.main.WeightingFragment;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
@@ -26,9 +25,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 设置全屏和保持屏幕常亮
-        setupScreenSettings();
-
         setContentView(R.layout.activity_main);
 
         // 设置ActionBar
@@ -37,23 +33,13 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayShowTitleEnabled(true);
         }
 
-        // 加载称重界面Fragment
-        if (savedInstanceState == null) {
-            loadWeightingFragment();
-        }
-    }
-
-    /**
-     * 配置屏幕设置
-     */
-    private void setupScreenSettings() {
         // 保持屏幕常亮
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 设置全屏
-        getWindow().setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // 加载简化版的称重界面Fragment
+        if (savedInstanceState == null) {
+            loadWeightingFragment();
+        }
     }
 
     /**
