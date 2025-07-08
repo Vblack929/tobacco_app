@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.tobacco.weight.R;
 import com.tobacco.weight.data.FarmerStatistics;
+import com.tobacco.weight.data.WeighingRecord;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -479,24 +480,24 @@ public class WeightingFragment extends Fragment {
         TextView tvTime = dialog.findViewById(R.id.tv_detail_time);
         Button btnClose = dialog.findViewById(R.id.btn_close_dialog);
 
-        // 设置数据
+        // 设置基本数据
         tvFarmerName.setText(farmerName);
-        tvContractAmount.setText("100.0 kg"); // 可以从ViewModel获取实际合同量
+        tvContractAmount.setText("100.0 kg"); // 可以从数据库获取实际合同量
         tvBundleCount.setText(String.valueOf(stats.getTotalBundles()));
         tvTotalWeight.setText(String.format("%.2f kg", stats.getTotalWeight()));
 
-        // 获取各部叶比例（从ViewModel获取）
-        String upperRatio = viewModel.getUpperRatio().getValue();
-        String middleRatio = viewModel.getMiddleRatio().getValue();
-        String lowerRatio = viewModel.getLowerRatio().getValue();
+        // 获取该烟农的各部叶比例（从个人统计数据获取）
+        double upperPercentage = stats.getLeafTypePercentage("上部叶");
+        double middlePercentage = stats.getLeafTypePercentage("中部叶");
+        double lowerPercentage = stats.getLeafTypePercentage("下部叶");
 
-        tvUpperRatio.setText(upperRatio != null ? upperRatio : "0.0%");
-        tvMiddleRatio.setText(middleRatio != null ? middleRatio : "0.0%");
-        tvLowerRatio.setText(lowerRatio != null ? lowerRatio : "0.0%");
+        tvUpperRatio.setText(String.format("%.1f%%", upperPercentage));
+        tvMiddleRatio.setText(String.format("%.1f%%", middlePercentage));
+        tvLowerRatio.setText(String.format("%.1f%%", lowerPercentage));
 
-        // 设置当前时间
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        tvTime.setText(sdf.format(new Date()));
+        // 获取该烟农最近一次预检时间（从称重记录获取）
+        String latestTime = getLatestWeighingTime(stats);
+        tvTime.setText(latestTime);
 
         // 设置关闭按钮点击事件
         btnClose.setOnClickListener(v -> dialog.dismiss());
@@ -509,6 +510,32 @@ public class WeightingFragment extends Fragment {
             dialog.getWindow().setLayout(
                     (int) (getResources().getDisplayMetrics().widthPixels * 0.8),
                     ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    /**
+     * 获取烟农最近一次预检时间
+     */
+    private String getLatestWeighingTime(FarmerStatistics stats) {
+        if (stats.getRecords() == null || stats.getRecords().isEmpty()) {
+            return "暂无记录";
+        }
+
+        // 找到最新的称重记录
+        Date latestDate = null;
+        for (WeighingRecord record : stats.getRecords()) {
+            if (record.getTimestamp() != null) {
+                if (latestDate == null || record.getTimestamp().after(latestDate)) {
+                    latestDate = record.getTimestamp();
+                }
+            }
+        }
+
+        if (latestDate != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            return sdf.format(latestDate);
+        } else {
+            return "暂无记录";
         }
     }
 
