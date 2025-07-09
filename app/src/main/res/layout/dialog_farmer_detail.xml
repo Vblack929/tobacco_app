@@ -25,7 +25,7 @@
         android:layout_marginBottom="12dp">
 
         <TextView
-            android:layout_width="80dp"
+            android:layout_width="100dp"
             android:layout_height="wrap_content"
             android:text="姓名："
             android:textSize="16sp"
@@ -43,7 +43,7 @@
 
     </LinearLayout>
 
-    <!-- 合同量 -->
+    <!-- 身份证号 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -51,14 +51,14 @@
         android:layout_marginBottom="12dp">
 
         <TextView
-            android:layout_width="80dp"
+            android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:text="合同量："
+            android:text="身份证号："
             android:textSize="16sp"
             android:textColor="#757575" />
 
         <TextView
-            android:id="@+id/tv_detail_contract_amount"
+            android:id="@+id/tv_detail_id_number"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -68,7 +68,7 @@
 
     </LinearLayout>
 
-    <!-- 捆数 -->
+    <!-- 总重量 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -76,34 +76,9 @@
         android:layout_marginBottom="12dp">
 
         <TextView
-            android:layout_width="80dp"
+            android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:text="捆数："
-            android:textSize="16sp"
-            android:textColor="#757575" />
-
-        <TextView
-            android:id="@+id/tv_detail_bundle_count"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="--"
-            android:textSize="16sp"
-            android:textColor="#212121" />
-
-    </LinearLayout>
-
-    <!-- 重量 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
-
-        <TextView
-            android:layout_width="80dp"
-            android:layout_height="wrap_content"
-            android:text="重量："
+            android:text="总重量："
             android:textSize="16sp"
             android:textColor="#757575" />
 
@@ -118,68 +93,7 @@
 
     </LinearLayout>
 
-    <!-- 部叶比例分组 -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="各部叶比例"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#212121"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp" />
-
-    <!-- 上部叶比例 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
-
-        <TextView
-            android:layout_width="80dp"
-            android:layout_height="wrap_content"
-            android:text="上部叶："
-            android:textSize="14sp"
-            android:textColor="#757575" />
-
-        <TextView
-            android:id="@+id/tv_detail_upper_ratio"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="--"
-            android:textSize="14sp"
-            android:textColor="#4CAF50" />
-
-    </LinearLayout>
-
-    <!-- 中部叶比例 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
-
-        <TextView
-            android:layout_width="80dp"
-            android:layout_height="wrap_content"
-            android:text="中部叶："
-            android:textSize="14sp"
-            android:textColor="#757575" />
-
-        <TextView
-            android:id="@+id/tv_detail_middle_ratio"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="--"
-            android:textSize="14sp"
-            android:textColor="#2196F3" />
-
-    </LinearLayout>
-
-    <!-- 下部叶比例 -->
+    <!-- 记录总数 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -187,39 +101,14 @@
         android:layout_marginBottom="16dp">
 
         <TextView
-            android:layout_width="80dp"
+            android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:text="下部叶："
-            android:textSize="14sp"
-            android:textColor="#757575" />
-
-        <TextView
-            android:id="@+id/tv_detail_lower_ratio"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="--"
-            android:textSize="14sp"
-            android:textColor="#FF9800" />
-
-    </LinearLayout>
-
-    <!-- 时间 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
-
-        <TextView
-            android:layout_width="80dp"
-            android:layout_height="wrap_content"
-            android:text="时间："
+            android:text="记录总数："
             android:textSize="16sp"
             android:textColor="#757575" />
 
         <TextView
-            android:id="@+id/tv_detail_time"
+            android:id="@+id/tv_detail_record_count"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -228,6 +117,83 @@
             android:textColor="#212121" />
 
     </LinearLayout>
+
+    <!-- 个人记录明细分组 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="个人记录明细"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 记录列表表头 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#E0E0E0"
+        android:padding="8dp"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:text="时间"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:text="捆数"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:text="合同编号"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="操作"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- 滚动容器用于显示记录 -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginBottom="16dp"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/layout_records_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
 
     <!-- 按钮区域 -->
     <LinearLayout

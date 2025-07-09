@@ -1,15 +1,19 @@
 package com.tobacco.weight.di;
 
+import android.content.Context;
+
 import com.tobacco.weight.hardware.simulator.HardwareSimulator;
 import com.tobacco.weight.hardware.scale.ScaleManager;
 import com.tobacco.weight.hardware.printer.PrinterManager;
 import com.tobacco.weight.hardware.idcard.IdCardManager;
+import com.tobacco.weight.hardware.serial.SerialPortManager;
 
 import javax.inject.Singleton;
 
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
+import dagger.hilt.android.qualifiers.ApplicationContext;
 import dagger.hilt.components.SingletonComponent;
 
 /**
@@ -42,10 +46,16 @@ public class HardwareModule {
      */
     @Provides
     @Singleton
-    public PrinterManager providePrinterManager(HardwareSimulator simulator) {
-        return new PrinterManager(simulator);
+    public PrinterManager providePrinterManager(@ApplicationContext Context context) {
+        return new PrinterManager(context);
     }
     
+    @Provides
+    @Singleton
+    public SerialPortManager provideSerialPortManager() {
+        return new SerialPortManager();
+    }
+
     /**
      * 提供身份证读卡器管理器
      */

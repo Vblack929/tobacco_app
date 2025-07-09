@@ -2,6 +2,7 @@ package com.tobacco.weight.ui.main;
 
 import com.tobacco.weight.data.model.WeightRecord;
 import com.tobacco.weight.data.repository.WeightRecordRepository;
+import com.tobacco.weight.data.repository.FarmerInfoRepository;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -10,6 +11,7 @@ import androidx.lifecycle.ViewModel;
 import com.tobacco.weight.hardware.simulator.HardwareSimulator;
 import com.tobacco.weight.data.WeighingRecord;
 import com.tobacco.weight.data.FarmerStatistics;
+import com.tobacco.weight.data.FarmerInfo;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -90,13 +92,78 @@ public class WeightingViewModel extends ViewModel {
     private final Map<String, FarmerStatistics> farmerStatisticsMap = new HashMap<>();
     private final List<WeighingRecord> allWeighingRecords = new ArrayList<>();
 
-    // 数据库Repository（需要添加导入）
-    private final WeightRecordRepository repository;
+    // 身份证相关数据存储
+    private String currentIdCardNumber = ""; // 当前身份证号
+    private String currentGender = ""; // 当前性别
+    private String currentNationality = ""; // 当前民族
+    private String currentBirthDate = ""; // 当前出生日期
+    private String currentAddress = ""; // 当前地址
+    private String currentDepartment = ""; // 当前签发机关
+    private String currentStartDate = ""; // 当前有效期开始
+    private String currentEndDate = ""; // 当前有效期结束
+    private byte[] currentPhoto = null; // 当前照片
+
+    // 数据库Repository
+    private final WeightRecordRepository weightRecordRepository;
+    private final FarmerInfoRepository farmerInfoRepository;
+
+    // Print-related LiveData
+    private final MutableLiveData<PrintEvent> printEvent = new MutableLiveData<>();
+    private final MutableLiveData<String> printStatus = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isTestMode = new MutableLiveData<>(true); // Track test mode state
+
+    // Print event class for communication with Fragment
+    public static class PrintEvent {
+        public enum Type {
+            PRINT_SUCCESS, PRINT_FAILURE, CONNECTION_SUCCESS, CONNECTION_FAILED, STATUS_UPDATE
+        }
+        
+        private final Type type;
+        private final String message;
+        private final String details;
+        private final PrintData printData;
+        
+        public PrintEvent(Type type, String message, String details, PrintData printData) {
+            this.type = type;
+            this.message = message;
+            this.details = details;
+            this.printData = printData;
+        }
+        
+        public Type getType() { return type; }
+        public String getMessage() { return message; }
+        public String getDetails() { return details; }
+        public PrintData getPrintData() { return printData; }
+    }
+    
+    // Print data class
+    public static class PrintData {
+        private final String farmerName;
+        private final String tobaccoLevel;
+        private final String precheckId;
+        private final String printDate;
+        private final String contractNumber;
+        
+        public PrintData(String farmerName, String tobaccoLevel, String precheckId, String printDate, String contractNumber) {
+            this.farmerName = farmerName;
+            this.tobaccoLevel = tobaccoLevel;
+            this.precheckId = precheckId;
+            this.printDate = printDate;
+            this.contractNumber = contractNumber;
+        }
+        
+        public String getFarmerName() { return farmerName; }
+        public String getTobaccoLevel() { return tobaccoLevel; }
+        public String getPrecheckId() { return precheckId; }
+        public String getPrintDate() { return printDate; }
+        public String getContractNumber() { return contractNumber; }
+    }
 
     @Inject
-    public WeightingViewModel(HardwareSimulator hardwareSimulator, WeightRecordRepository repository) {
+    public WeightingViewModel(HardwareSimulator hardwareSimulator, WeightRecordRepository weightRecordRepository, FarmerInfoRepository farmerInfoRepository) {
         this.hardwareSimulator = hardwareSimulator;
-        this.repository = repository;
+        this.weightRecordRepository = weightRecordRepository;
+        this.farmerInfoRepository = farmerInfoRepository;
         initializeData();
         subscribeToHardwareData();
     }
@@ -194,16 +261,116 @@ public class WeightingViewModel extends ViewModel {
      * 处理身份证数据
      */
     private void onIdCardDataReceived(HardwareSimulator.IdCardData idCardData) {
-        farmerName.setValue(idCardData.getName());
-        statusMessage.setValue("身份证读取成功：" + idCardData.getName());
+        String readName = idCardData.getName();
+        String readIdNumber = idCardData.getIdNumber();
+        
+        // 验证烟农身份一致性（模拟器也需要验证）
+        if (!validateFarmerIdentity(readName, readIdNumber)) {
+            String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
+            statusMessage.setValue("身份验证失败：" + validationMessage);
+            return;
+        }
+        
+        // 存储完整身份证信息（从模拟器）
+        farmerName.setValue(readName);
+        currentIdCardNumber = readIdNumber != null ? readIdNumber : "";
+        currentAddress = idCardData.getAddress() != null ? idCardData.getAddress() : "";
+        currentGender = ""; // 模拟器数据中没有性别字段
+        currentNationality = "";
+        currentBirthDate = "";
+        currentDepartment = "";
+        currentStartDate = idCardData.getIssueDate() != null ? idCardData.getIssueDate() : "";
+        currentEndDate = idCardData.getExpiryDate() != null ? idCardData.getExpiryDate() : "";
+        currentPhoto = idCardData.getPhoto();
+        
+        // 显示验证结果
+        String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
+        statusMessage.setValue("身份证读取成功：" + readName + " - " + validationMessage);
 
-        // 自动生成合同号
-        String newContractNumber = generateContractNumber();
-        contractNumber.setValue(newContractNumber);
+        // 为新烟农生成合同号，已存在的烟农保持原合同号
+        FarmerStatistics existing = findFarmerByIdCard(currentIdCardNumber);
+        if (existing != null) {
+            contractNumber.setValue(existing.getFarmerInfo().getContractNumber());
+        } else {
+            String newContractNumber = generateContractNumber();
+            contractNumber.setValue(newContractNumber);
+        }
 
         // 更新预检比例显示
         updateGlobalPrecheckRatios();
-        updateCurrentFarmerPrecheckRatio(idCardData.getName());
+        updateCurrentFarmerPrecheckRatio(readName);
+    }
+    
+    /**
+     * 处理真实身份证数据（从真实硬件）
+     */
+    public void onRealIdCardDataReceived(com.tobacco.weight.hardware.idcard.IdCardData realIdCardData) {
+        if (realIdCardData == null || !realIdCardData.isValid()) {
+            statusMessage.setValue("身份证读取失败：数据无效");
+            return;
+        }
+        
+        String readName = realIdCardData.getName();
+        String readIdNumber = realIdCardData.getIdNumber();
+        
+        // 验证烟农身份一致性
+        if (!validateFarmerIdentity(readName, readIdNumber)) {
+            String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
+            statusMessage.setValue("身份验证失败：" + validationMessage);
+            return;
+        }
+        
+        // 存储完整身份证信息（从真实硬件）
+        farmerName.setValue(readName);
+        currentIdCardNumber = readIdNumber != null ? readIdNumber : "";
+        currentGender = realIdCardData.getGender() != null ? realIdCardData.getGender() : "";
+        currentNationality = realIdCardData.getNationality() != null ? realIdCardData.getNationality() : "";
+        currentBirthDate = realIdCardData.getBirthDate() != null ? realIdCardData.getBirthDate() : "";
+        currentAddress = realIdCardData.getAddress() != null ? realIdCardData.getAddress() : "";
+        currentDepartment = realIdCardData.getDepartment() != null ? realIdCardData.getDepartment() : "";
+        currentStartDate = realIdCardData.getStartDate() != null ? realIdCardData.getStartDate() : "";
+        currentEndDate = realIdCardData.getEndDate() != null ? realIdCardData.getEndDate() : "";
+        
+        // 处理照片（Bitmap转byte[]）
+        if (realIdCardData.getPhoto() != null) {
+            try {
+                java.io.ByteArrayOutputStream stream = new java.io.ByteArrayOutputStream();
+                realIdCardData.getPhoto().compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream);
+                currentPhoto = stream.toByteArray();
+                stream.close();
+            } catch (Exception e) {
+                currentPhoto = null;
+            }
+        } else {
+            currentPhoto = null;
+        }
+        
+        // 显示验证结果
+        String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
+        statusMessage.setValue("身份证读取成功：" + readName + " (身份证号: " + maskIdCard(currentIdCardNumber) + ") - " + validationMessage);
+
+        // 为新烟农生成合同号，已存在的烟农保持原合同号
+        FarmerStatistics existing = findFarmerByIdCard(currentIdCardNumber);
+        if (existing != null) {
+            contractNumber.setValue(existing.getFarmerInfo().getContractNumber());
+        } else {
+            String newContractNumber = generateContractNumber();
+            contractNumber.setValue(newContractNumber);
+        }
+
+        // 更新预检比例显示
+        updateGlobalPrecheckRatios();
+        updateCurrentFarmerPrecheckRatio(readName);
+    }
+    
+    /**
+     * 遮盖身份证号中间部分
+     */
+    private String maskIdCard(String idCard) {
+        if (idCard == null || idCard.length() < 14) {
+            return idCard;
+        }
+        return idCard.substring(0, 6) + "********" + idCard.substring(14);
     }
 
     /**
@@ -255,32 +422,6 @@ public class WeightingViewModel extends ViewModel {
     }
 
     /**
-     * 打印标签
-     */
-    public void printLabel() {
-        if (Boolean.TRUE.equals(printerConnected.getValue())) {
-            String content = generateLabelContent();
-            hardwareSimulator.simulatePrint(content);
-            statusMessage.setValue("正在打印标签...");
-        } else {
-            statusMessage.setValue("打印机未连接");
-        }
-    }
-
-    /**
-     * 生成标签内容
-     */
-    private String generateLabelContent() {
-        StringBuilder content = new StringBuilder();
-        content.append("农户：").append(farmerName.getValue()).append("\n");
-        content.append("合同号：").append(contractNumber.getValue()).append("\n");
-        content.append("重量：").append(currentWeight.getValue()).append("\n");
-        content.append("等级：").append(selectedLevel.getValue()).append("\n");
-        content.append("时间：").append(currentTime.getValue()).append("\n");
-        return content.toString();
-    }
-
-    /**
      * 测试模拟重量
      */
     public void simulateWeight(double weight) {
@@ -293,27 +434,138 @@ public class WeightingViewModel extends ViewModel {
      */
     public void saveWeightRecord() {
         if (Boolean.TRUE.equals(isWeightStable.getValue())) {
-            // 创建WeightRecord对象并保存到数据库
-            WeightRecord dbRecord = createWeightRecordFromCurrentData();
-            if (dbRecord != null) {
-                repository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
-                    @Override
-                    public void onSuccess(Long recordId) {
-                        statusMessage.postValue("称重记录已保存到数据库，ID: " + recordId);
-                        updateCurrentTime();
-                    }
+            // 首先保存农户信息（如果是新农户）
+            saveFarmerInfoIfNew(() -> {
+                // 然后创建称重记录并保存到数据库
+                WeightRecord dbRecord = createWeightRecordFromCurrentData();
+                if (dbRecord != null) {
+                    weightRecordRepository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
+                        @Override
+                        public void onSuccess(Long recordId) {
+                            statusMessage.postValue("称重记录已保存到数据库，ID: " + recordId);
+                            updateCurrentTime();
+                        }
 
-                    @Override
-                    public void onError(Exception e) {
-                        statusMessage.postValue("保存失败: " + e.getMessage());
-                    }
-                });
-            } else {
-                statusMessage.setValue("数据不完整，无法保存");
-            }
+                        @Override
+                        public void onError(Exception e) {
+                            statusMessage.postValue("保存失败: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    statusMessage.setValue("数据不完整，无法保存");
+                }
+            });
         } else {
             statusMessage.setValue("重量不稳定，无法保存");
         }
+    }
+
+    /**
+     * 保存农户信息（仅在首次出现身份证号时保存）
+     */
+    private void saveFarmerInfoIfNew(Runnable onComplete) {
+        String farmerNameValue = farmerName.getValue();
+        
+        // 如果没有身份证号，但有农户姓名，则用姓名作为标识符保存
+        if (currentIdCardNumber == null || currentIdCardNumber.trim().isEmpty()) {
+            if (farmerNameValue == null || farmerNameValue.trim().isEmpty() || farmerNameValue.equals("未读取")) {
+                statusMessage.setValue("农户信息不完整，无法保存");
+                if (onComplete != null) onComplete.run();
+                return;
+            }
+            
+            // 生成一个临时身份证号用于数据库存储 (使用农户姓名的hash)
+            String tempIdCard = "TEMP_" + farmerNameValue.hashCode();
+            
+            // 创建FarmerInfo对象（没有真实身份证信息）
+            FarmerInfo farmerInfo = FarmerInfo.createWithIdCard(
+                farmerNameValue,
+                contractNumber.getValue() != null ? contractNumber.getValue() : "",
+                tempIdCard, // 使用临时ID
+                "", // 空性别
+                "", // 空民族
+                "", // 空出生日期
+                "", // 空地址
+                "", // 空签发机关
+                "", // 空起始日期
+                "", // 空结束日期
+                null // 空照片
+            );
+
+            // 保存农户信息
+            farmerInfoRepository.insertIfIdCardNotExists(farmerInfo, new FarmerInfoRepository.OnResultListener<FarmerInfoRepository.InsertResult>() {
+                @Override
+                public void onSuccess(FarmerInfoRepository.InsertResult result) {
+                    if (result.isNewRecord()) {
+                        statusMessage.postValue("新农户信息已保存（手动输入）: " + result.getMessage());
+                    } else {
+                        statusMessage.postValue("农户信息已存在（手动输入）: " + result.getMessage());
+                    }
+                    
+                    // 更新当前身份证号为临时ID，以便后续保存称重记录时使用
+                    currentIdCardNumber = tempIdCard;
+                    
+                    if (onComplete != null) onComplete.run();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    statusMessage.postValue("保存农户信息失败: " + e.getMessage());
+                    if (onComplete != null) onComplete.run();
+                }
+            });
+            return;
+        }
+
+        // 创建FarmerInfo对象（有真实身份证信息）
+        FarmerInfo farmerInfo = FarmerInfo.createWithIdCard(
+            farmerNameValue != null ? farmerNameValue : "",
+            contractNumber.getValue() != null ? contractNumber.getValue() : "",
+            currentIdCardNumber,
+            currentGender,
+            currentNationality,
+            currentBirthDate,
+            currentAddress,
+            currentDepartment,
+            currentStartDate,
+            currentEndDate,
+            currentPhoto
+        );
+
+        // 使用insertIfIdCardNotExists确保每个身份证号只存储一次
+        farmerInfoRepository.insertIfIdCardNotExists(farmerInfo, new FarmerInfoRepository.OnResultListener<FarmerInfoRepository.InsertResult>() {
+            @Override
+            public void onSuccess(FarmerInfoRepository.InsertResult result) {
+                if (result.isNewRecord()) {
+                    statusMessage.postValue("新农户信息已保存: " + result.getMessage());
+                } else {
+                    statusMessage.postValue("农户信息已存在: " + result.getMessage());
+                }
+                
+                // 更新首次称重时间（如果是第一次）
+                if (result.isNewRecord()) {
+                    farmerInfoRepository.updateFirstRecordTime(currentIdCardNumber, new FarmerInfoRepository.OnResultListener<Integer>() {
+                        @Override
+                        public void onSuccess(Integer count) {
+                            // 首次称重时间更新成功
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            // 更新失败，但不影响主流程
+                        }
+                    });
+                }
+                
+                if (onComplete != null) onComplete.run();
+            }
+
+            @Override
+            public void onError(Exception e) {
+                statusMessage.postValue("保存农户信息失败: " + e.getMessage());
+                if (onComplete != null) onComplete.run(); // 即使失败也继续后续操作
+            }
+        });
     }
 
     /**
@@ -334,7 +586,9 @@ public class WeightingViewModel extends ViewModel {
 
         WeightRecord record = new WeightRecord();
         record.setFarmerName(farmer);
-        record.setIdCardNumber(contract); // 临时使用合同号作为身份证号
+        record.setIdCardNumber(currentIdCardNumber); // 使用当前身份证号
+        record.setFarmerAddress(currentAddress); // 设置农户地址
+        record.setFarmerGender(currentGender); // 设置农户性别
         record.setTobaccoPart(level);
         record.setTobaccoBundles(1); // 默认1捆
 
@@ -369,19 +623,23 @@ public class WeightingViewModel extends ViewModel {
      * 将WeighingRecord保存到数据库
      */
     private void saveRecordToDatabase(WeighingRecord weighingRecord) {
-        WeightRecord dbRecord = convertToWeightRecord(weighingRecord);
-        repository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
-            @Override
-            public void onSuccess(Long recordId) {
-                // 成功保存到数据库，可以记录日志或更新UI
-                System.out.println("数据库保存成功，记录ID: " + recordId);
-            }
+        // 首先保存农户信息（如果是新农户）
+        saveFarmerInfoIfNew(() -> {
+            // 然后保存称重记录
+            WeightRecord dbRecord = convertToWeightRecord(weighingRecord);
+            weightRecordRepository.insert(dbRecord, new WeightRecordRepository.OnResultListener<Long>() {
+                @Override
+                public void onSuccess(Long recordId) {
+                    // 成功保存到数据库，可以记录日志或更新UI
+                    System.out.println("数据库保存成功，记录ID: " + recordId);
+                }
 
-            @Override
-            public void onError(Exception e) {
-                // 保存失败，可以记录日志或提示用户
-                System.err.println("数据库保存失败: " + e.getMessage());
-            }
+                @Override
+                public void onError(Exception e) {
+                    // 保存失败，可以记录日志或提示用户
+                    System.err.println("数据库保存失败: " + e.getMessage());
+                }
+            });
         });
     }
 
@@ -394,7 +652,9 @@ public class WeightingViewModel extends ViewModel {
         // 基本信息
         record.setRecordNumber(weighingRecord.getPrecheckId());
         record.setFarmerName(weighingRecord.getFarmerName());
-        record.setIdCardNumber(weighingRecord.getContractNumber()); // 暂时使用合同号
+        record.setIdCardNumber(currentIdCardNumber); // 使用当前身份证号
+        record.setFarmerAddress(currentAddress); // 设置农户地址
+        record.setFarmerGender(currentGender); // 设置农户性别
         record.setTobaccoPart(weighingRecord.getLeafType());
         record.setTobaccoBundles(1); // 默认1捆
         record.setWeight(weighingRecord.getWeight());
@@ -627,7 +887,27 @@ public class WeightingViewModel extends ViewModel {
      * 设置烟农姓名（手动输入）
      */
     public void setFarmerName(String name) {
+        String previousName = farmerName.getValue();
         farmerName.setValue(name);
+        
+        // 如果是手动输入且姓名发生变化，重置身份证相关信息
+        // 这样每个不同的农户都会获得独立的临时身份证号
+        if (name != null && !name.trim().isEmpty() && 
+            !name.equals(previousName) && 
+            (currentIdCardNumber == null || currentIdCardNumber.startsWith("TEMP_"))) {
+            
+            // 重置身份证相关信息，强制为新农户生成新的临时ID
+            currentIdCardNumber = "";
+            currentGender = "";
+            currentNationality = "";
+            currentBirthDate = "";
+            currentAddress = "";
+            currentDepartment = "";
+            currentStartDate = "";
+            currentEndDate = "";
+            currentPhoto = null;
+        }
+        
         // 烟农姓名变更时，重新计算预检比例
         if (name != null && !name.trim().isEmpty()) {
             updateGlobalPrecheckRatios();
@@ -704,10 +984,38 @@ public class WeightingViewModel extends ViewModel {
 
         FarmerStatistics statistics = farmerStatisticsMap.get(farmerKey);
         if (statistics == null) {
-            statistics = new FarmerStatistics(record.getFarmerName(), record.getContractNumber());
+            // 创建新的FarmerStatistics，包含完整身份证信息
+            statistics = FarmerStatistics.createWithFullInfo(
+                record.getFarmerName(), 
+                record.getContractNumber(), 
+                currentIdCardNumber, 
+                currentGender, 
+                currentNationality, 
+                currentBirthDate, 
+                currentAddress, 
+                currentDepartment, 
+                currentStartDate, 
+                currentEndDate, 
+                currentPhoto
+            );
             farmerStatisticsMap.put(farmerKey, statistics);
+        } else {
+            // 验证身份证号是否一致（防止数据不一致）
+            if (!statistics.matchesIdCard(currentIdCardNumber)) {
+                statusMessage.setValue("警告：身份证号不匹配！烟农: " + record.getFarmerName() + 
+                                     " 已存在: " + statistics.getFarmerInfo().getMaskedIdCardNumber() + 
+                                     " 当前: " + maskIdCard(currentIdCardNumber));
+                return; // 不添加记录，防止数据混乱
+            }
         }
 
+        // 验证记录是否属于当前农户
+        if (!statistics.isRecordValid(record)) {
+            statusMessage.setValue("警告：称重记录与农户信息不匹配！");
+            return;
+        }
+
+        // 只更新称重统计数据（身份证信息不可变）
         statistics.addWeighingRecord(record);
     }
 
@@ -828,7 +1136,14 @@ public class WeightingViewModel extends ViewModel {
      * 获取数据库Repository（供Fragment观察数据库状态使用）
      */
     public WeightRecordRepository getRepository() {
-        return repository;
+        return weightRecordRepository;
+    }
+
+    /**
+     * 获取农户信息仓库
+     */
+    public FarmerInfoRepository getFarmerInfoRepository() {
+        return farmerInfoRepository;
     }
 
     /**
@@ -846,6 +1161,70 @@ public class WeightingViewModel extends ViewModel {
         contractNumber.setValue(newContractNumber);
         statusMessage.setValue("已生成新合同号：" + newContractNumber);
     }
+    
+    /**
+     * 清空当前身份证信息
+     */
+    public void clearIdCardData() {
+        farmerName.setValue("未读取");
+        currentIdCardNumber = "";
+        currentGender = "";
+        currentNationality = "";
+        currentBirthDate = "";
+        currentAddress = "";
+        currentDepartment = "";
+        currentStartDate = "";
+        currentEndDate = "";
+        currentPhoto = null;
+        statusMessage.setValue("身份证信息已清空");
+    }
+    
+    /**
+     * 获取当前身份证信息（用于查询和验证）
+     */
+    public String getCurrentIdCardNumber() {
+        return currentIdCardNumber;
+    }
+    
+    public String getCurrentGender() {
+        return currentGender;
+    }
+    
+    public String getCurrentAddress() {
+        return currentAddress;
+    }
+    
+    public String getCurrentNationality() {
+        return currentNationality;
+    }
+    
+    public String getCurrentBirthDate() {
+        return currentBirthDate;
+    }
+    
+    public String getCurrentDepartment() {
+        return currentDepartment;
+    }
+    
+    public String getCurrentStartDate() {
+        return currentStartDate;
+    }
+    
+    public String getCurrentEndDate() {
+        return currentEndDate;
+    }
+    
+    public byte[] getCurrentPhoto() {
+        return currentPhoto;
+    }
+    
+    /**
+     * 检查当前是否有有效的身份证信息
+     */
+    public boolean hasValidIdCardInfo() {
+        return currentIdCardNumber != null && !currentIdCardNumber.trim().isEmpty() &&
+               farmerName.getValue() != null && !farmerName.getValue().equals("未读取");
+    }
 
     /**
      * 重置所有数据（测试用）
@@ -862,6 +1241,9 @@ public class WeightingViewModel extends ViewModel {
         String newContractNumber = generateContractNumber();
         contractNumber.setValue(newContractNumber);
 
+        // 重置身份证信息
+        clearIdCardData();
+
         // 重置预检比例显示
         upperRatio.setValue("0.0%");
         middleRatio.setValue("0.0%");
@@ -873,6 +1255,214 @@ public class WeightingViewModel extends ViewModel {
         currentPrecheckDate.setValue("--");
 
         statusMessage.setValue("数据已重置");
+    }
+    
+    /**
+     * 根据身份证号查找烟农统计信息（用于数据库链接）
+     */
+    public FarmerStatistics findFarmerByIdCard(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            return null;
+        }
+        
+        for (FarmerStatistics stats : farmerStatisticsMap.values()) {
+            if (stats.getFarmerInfo().matchesIdCard(idCardNumber)) {
+                return stats;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 根据身份证号获取烟农信息（用于数据库查询）
+     */
+    public FarmerInfo getFarmerInfoByIdCard(String idCardNumber) {
+        FarmerStatistics stats = findFarmerByIdCard(idCardNumber);
+        return stats != null ? stats.getFarmerInfo() : null;
+    }
+    
+    /**
+     * 根据身份证号获取烟农姓名（用于数据库查询）
+     */
+    public String getFarmerNameByIdCard(String idCardNumber) {
+        FarmerInfo farmerInfo = getFarmerInfoByIdCard(idCardNumber);
+        return farmerInfo != null ? farmerInfo.getFarmerName() : null;
+    }
+    
+    /**
+     * 检查身份证号是否已存在（防重复）
+     */
+    public boolean isIdCardExists(String idCardNumber) {
+        return findFarmerByIdCard(idCardNumber) != null;
+    }
+    
+    /**
+     * 验证烟农身份信息一致性
+     */
+    public boolean validateFarmerIdentity(String farmerName, String idCardNumber) {
+        if (farmerName == null || idCardNumber == null) {
+            return false;
+        }
+        
+        // 检查是否已存在相同姓名的烟农
+        FarmerStatistics existingByName = farmerStatisticsMap.get(farmerName);
+        if (existingByName != null) {
+            return existingByName.getFarmerInfo().matchesIdCard(idCardNumber);
+        }
+        
+        // 检查是否已存在相同身份证的烟农
+        FarmerStatistics existingById = findFarmerByIdCard(idCardNumber);
+        if (existingById != null) {
+            return existingById.getFarmerInfo().matchesName(farmerName);
+        }
+        
+        // 都不存在，可以创建新的
+        return true;
+    }
+    
+    /**
+     * 获取烟农身份验证结果
+     */
+    public String getFarmerValidationMessage(String farmerName, String idCardNumber) {
+        if (farmerName == null || idCardNumber == null || farmerName.trim().isEmpty() || idCardNumber.trim().isEmpty()) {
+            return "姓名或身份证号不能为空";
+        }
+        
+        FarmerStatistics existingByName = farmerStatisticsMap.get(farmerName);
+        FarmerStatistics existingById = findFarmerByIdCard(idCardNumber);
+        
+        if (existingByName != null && existingById != null) {
+            if (existingByName == existingById) {
+                return "验证成功：烟农信息一致";
+            } else {
+                return "错误：姓名和身份证号分属不同烟农";
+            }
+        } else if (existingByName != null) {
+            return "错误：烟农 " + farmerName + " 已存在，但身份证号不匹配 (现有: " + 
+                   existingByName.getFarmerInfo().getMaskedIdCardNumber() + ")";
+        } else if (existingById != null) {
+            return "错误：身份证号已存在，但姓名为 " + existingById.getFarmerInfo().getFarmerName();
+        } else {
+            return "验证成功：新烟农信息";
+        }
+    }
+
+    /**
+     * 准备打印数据（从ViewModel状态获取）
+     */
+    public PrintData preparePrintData(String farmerNameFromUI) {
+        // 获取当前数据（允许空白字段）
+        String farmerName = farmerNameFromUI != null ? farmerNameFromUI.trim() : "";
+        String selectedLevel = this.selectedLevel.getValue();
+        String precheckId = this.currentPrecheckId.getValue();
+        String contractNumber = this.contractNumber.getValue();
+
+        // 处理空值，用默认值替换
+        if (farmerName.isEmpty()) {
+            farmerName = "未填写";
+        }
+        if (selectedLevel == null || selectedLevel.equals("未选择")) {
+            selectedLevel = "未选择";
+        }
+        if (precheckId == null || precheckId.equals("未生成")) {
+            precheckId = "未生成";
+        }
+        if (contractNumber == null || contractNumber.equals("未设置")) {
+            contractNumber = "未设置";
+        }
+
+        // 创建当前日期
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+        String currentDate = dateFormat.format(new Date());
+
+        return new PrintData(farmerName, selectedLevel, precheckId, currentDate, contractNumber);
+    }
+
+    /**
+     * 验证打印数据是否有效
+     */
+    public boolean validatePrintData(PrintData printData) {
+        // 在这个版本中我们允许所有数据，即使是默认值
+        // 但可以在这里添加任何业务规则
+        return printData != null;
+    }
+
+    /**
+     * 通知打印事件
+     */
+    public void notifyPrintSuccess(PrintData printData) {
+        printEvent.setValue(new PrintEvent(PrintEvent.Type.PRINT_SUCCESS, "打印成功", null, printData));
+        printStatus.setValue("标签打印完成");
+    }
+
+    public void notifyPrintFailure(String errorType, String errorMessage, String errorDetails) {
+        printEvent.setValue(new PrintEvent(PrintEvent.Type.PRINT_FAILURE, errorType + ": " + errorMessage, errorDetails, null));
+        printStatus.setValue("打印失败: " + errorMessage);
+    }
+
+    public void notifyConnectionSuccess(String devicePath) {
+        printEvent.setValue(new PrintEvent(PrintEvent.Type.CONNECTION_SUCCESS, "打印机连接成功", devicePath, null));
+        printStatus.setValue("打印机已连接: " + devicePath);
+    }
+
+    public void notifyConnectionFailed(String error) {
+        printEvent.setValue(new PrintEvent(PrintEvent.Type.CONNECTION_FAILED, "打印机连接失败", error, null));
+        printStatus.setValue("连接失败: " + error);
+    }
+
+    public void notifyPrintStatusUpdate(String status) {
+        printEvent.setValue(new PrintEvent(PrintEvent.Type.STATUS_UPDATE, status, null, null));
+        printStatus.setValue(status);
+    }
+
+    /**
+     * 重置打印事件（避免重复处理）
+     */
+    public void clearPrintEvent() {
+        printEvent.setValue(null);
+    }
+
+    // Getters for print-related LiveData
+    public LiveData<PrintEvent> getPrintEvent() {
+        return printEvent;
+    }
+
+    public LiveData<String> getPrintStatus() {
+        return printStatus;
+    }
+
+    public LiveData<Boolean> getIsTestMode() {
+        return isTestMode;
+    }
+
+    /**
+     * 切换测试模式
+     */
+    public void toggleTestMode() {
+        boolean currentMode = Boolean.TRUE.equals(isTestMode.getValue());
+        setTestMode(!currentMode);
+    }
+
+    /**
+     * 设置测试模式
+     */
+    public void setTestMode(boolean testMode) {
+        isTestMode.setValue(testMode);
+        statusMessage.setValue("打印模式: " + (testMode ? "测试模式" : "真实模式"));
+    }
+
+    /**
+     * 强制启用测试模式（开发用）
+     */
+    public void enableTestMode() {
+        setTestMode(true);
+    }
+
+    /**
+     * 强制启用真实模式（生产用）
+     */
+    public void enableRealMode() {
+        setTestMode(false);
     }
 
     @Override
