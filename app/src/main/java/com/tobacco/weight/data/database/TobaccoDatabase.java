@@ -7,12 +7,25 @@ import androidx.room.TypeConverters;
 import android.content.Context;
 
 import com.tobacco.weight.data.dao.WeightRecordDao;
+import com.tobacco.weight.data.dao.FarmerInfoDao;
+import com.tobacco.weight.data.entity.FarmerInfoEntity;
 import com.tobacco.weight.data.model.WeightRecord;
 
 /**
  * 烟叶称重数据库
+ * 
+ * 包含两个主要表：
+ * - farmer_info: 烟农身份信息表（每个身份证号只存储一次）
+ * - weight_records: 称重记录表（通过身份证号关联烟农信息）
  */
-@Database(entities = { WeightRecord.class }, version = 1, exportSchema = true)
+@Database(
+    entities = { 
+        WeightRecord.class, 
+        FarmerInfoEntity.class 
+    }, 
+    version = 2, 
+    exportSchema = true
+)
 @TypeConverters({ DateConverter.class })
 public abstract class TobaccoDatabase extends RoomDatabase {
 
@@ -22,6 +35,11 @@ public abstract class TobaccoDatabase extends RoomDatabase {
      * 获取称重记录DAO
      */
     public abstract WeightRecordDao weightRecordDao();
+
+    /**
+     * 获取烟农信息DAO
+     */
+    public abstract FarmerInfoDao farmerInfoDao();
 
     /**
      * 获取数据库实例（单例模式）
