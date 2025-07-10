@@ -52,6 +52,7 @@ public class AdminActivity extends AppCompatActivity {
     private TextView tvTotalFarmerCount;
     private TextView tvTotalRecordCount;
     private TextView tvTotalWeight;
+    private TextView tvScrollHint; // 新增滑动提示
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +80,7 @@ public class AdminActivity extends AppCompatActivity {
         tvTotalFarmerCount = binding.tvTotalFarmerCount;
         tvTotalRecordCount = binding.tvTotalRecordCount;
         tvTotalWeight = binding.tvTotalWeight;
+        tvScrollHint = binding.tvScrollHint; // 初始化滑动提示
 
         // 设置按钮点击事件
         binding.btnRefreshData.setOnClickListener(v -> {
@@ -148,6 +150,7 @@ public class AdminActivity extends AppCompatActivity {
         if (farmerStatsList == null || farmerStatsList.isEmpty()) {
             tvDataStatus.setText("暂无农户数据");
             tvDataStatus.setVisibility(View.VISIBLE);
+            tvScrollHint.setVisibility(View.GONE); // 隐藏滑动提示
             return;
         }
 
@@ -160,6 +163,14 @@ public class AdminActivity extends AppCompatActivity {
             LinearLayout farmerRow = createFarmerRow(stats, i);
             layoutFarmerDataContainer.addView(farmerRow);
         }
+
+        // 当农户数据较多时显示滑动提示（超过5个农户）
+        if (farmerStatsList.size() > 5) {
+            tvScrollHint.setVisibility(View.VISIBLE);
+            tvScrollHint.setText("⬆⬇ 上下滑动查看更多农户数据 (共" + farmerStatsList.size() + "位农户)");
+        } else {
+            tvScrollHint.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -169,7 +180,7 @@ public class AdminActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(12, 12, 12, 12);
-        
+
         // 设置交替行背景
         if (index % 2 == 0) {
             row.setBackgroundColor(0xFFFFFFFF); // 白色
@@ -199,7 +210,7 @@ public class AdminActivity extends AppCompatActivity {
         LinearLayout buttonContainer = new LinearLayout(this);
         buttonContainer.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2));
         buttonContainer.setGravity(android.view.Gravity.CENTER);
-        
+
         Button viewButton = createViewButton(stats);
         buttonContainer.addView(viewButton);
         row.addView(buttonContainer);
@@ -229,11 +240,10 @@ public class AdminActivity extends AppCompatActivity {
         button.setTextColor(0xFFFFFFFF);
         button.setBackgroundColor(0xFF2196F3);
         button.setPadding(16, 8, 16, 8);
-        
+
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, 
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        );
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMargins(4, 4, 4, 4);
         button.setLayoutParams(params);
 
@@ -280,37 +290,38 @@ public class AdminActivity extends AppCompatActivity {
         layoutRecordsContainer.addView(loadingText);
 
         // 加载农户的所有个人记录
-        weightRecordRepository.getRecordsByIdCard(stats.getIdCardNumber()).observe(this, new androidx.lifecycle.Observer<List<com.tobacco.weight.data.model.WeightRecord>>() {
-            @Override
-            public void onChanged(List<com.tobacco.weight.data.model.WeightRecord> records) {
-                // Remove observer after first load to avoid memory leaks
-                weightRecordRepository.getRecordsByIdCard(stats.getIdCardNumber()).removeObserver(this);
-                
-                runOnUiThread(() -> {
-                    layoutRecordsContainer.removeAllViews(); // 清除加载状态
-                    
-                    if (records != null && !records.isEmpty()) {
-                        // 为每条记录创建显示行
-                        for (int i = 0; i < records.size(); i++) {
-                            LinearLayout recordRow = createSimpleRecordRow(records.get(i), i);
-                            layoutRecordsContainer.addView(recordRow);
-                        }
-                        
-                        // 强制刷新布局以确保滚动正常工作
-                        layoutRecordsContainer.requestLayout();
-                    } else {
-                        // 没有记录时显示提示
-                        TextView noRecordsText = new TextView(AdminActivity.this);
-                        noRecordsText.setText("暂无记录");
-                        noRecordsText.setGravity(android.view.Gravity.CENTER);
-                        noRecordsText.setPadding(16, 32, 16, 32);
-                        noRecordsText.setTextColor(0xFF757575);
-                        noRecordsText.setTextSize(16);
-                        layoutRecordsContainer.addView(noRecordsText);
+        weightRecordRepository.getRecordsByIdCard(stats.getIdCardNumber()).observe(this,
+                new androidx.lifecycle.Observer<List<com.tobacco.weight.data.model.WeightRecord>>() {
+                    @Override
+                    public void onChanged(List<com.tobacco.weight.data.model.WeightRecord> records) {
+                        // Remove observer after first load to avoid memory leaks
+                        weightRecordRepository.getRecordsByIdCard(stats.getIdCardNumber()).removeObserver(this);
+
+                        runOnUiThread(() -> {
+                            layoutRecordsContainer.removeAllViews(); // 清除加载状态
+
+                            if (records != null && !records.isEmpty()) {
+                                // 为每条记录创建显示行
+                                for (int i = 0; i < records.size(); i++) {
+                                    LinearLayout recordRow = createSimpleRecordRow(records.get(i), i);
+                                    layoutRecordsContainer.addView(recordRow);
+                                }
+
+                                // 强制刷新布局以确保滚动正常工作
+                                layoutRecordsContainer.requestLayout();
+                            } else {
+                                // 没有记录时显示提示
+                                TextView noRecordsText = new TextView(AdminActivity.this);
+                                noRecordsText.setText("暂无记录");
+                                noRecordsText.setGravity(android.view.Gravity.CENTER);
+                                noRecordsText.setPadding(16, 32, 16, 32);
+                                noRecordsText.setTextColor(0xFF757575);
+                                noRecordsText.setTextSize(16);
+                                layoutRecordsContainer.addView(noRecordsText);
+                            }
+                        });
                     }
                 });
-            }
-        });
 
         // 设置导出按钮点击事件
         btnExportFarmer.setOnClickListener(v -> {
@@ -339,7 +350,7 @@ public class AdminActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(8, 12, 8, 12);
-        
+
         // 设置交替行背景
         if (index % 2 == 0) {
             row.setBackgroundColor(0xFFFFFFFF); // 白色
@@ -378,14 +389,14 @@ public class AdminActivity extends AppCompatActivity {
         btnView.setTextColor(0xFFFFFFFF);
         btnView.setBackgroundColor(0xFF4CAF50);
         btnView.setPadding(8, 6, 8, 6);
-        
+
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         btnParams.setMargins(4, 2, 4, 2);
         btnView.setLayoutParams(btnParams);
 
         // 设置查看按钮点击事件
         btnView.setOnClickListener(v -> showRecordDetailDialog(record));
-        
+
         row.addView(btnView);
 
         return row;
@@ -451,7 +462,7 @@ public class AdminActivity extends AppCompatActivity {
         tvBundles.setText(String.valueOf(record.getTobaccoBundles()));
         tvGrade.setText(record.getTobaccoGrade());
         tvPrice.setText(String.format("%.2f 元/kg", record.getPurchasePrice()));
-        
+
         // 格式化完整时间戳
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         tvTimestamp.setText(sdf.format(new Date(record.getTimestamp())));
@@ -474,7 +485,8 @@ public class AdminActivity extends AppCompatActivity {
      * 更新系统统计信息
      */
     private void updateSystemStatistics(List<AdminViewModel.FarmerStatistics> farmerStatsList) {
-        if (farmerStatsList == null) return;
+        if (farmerStatsList == null)
+            return;
 
         int totalFarmers = farmerStatsList.size();
         int totalRecords = 0;

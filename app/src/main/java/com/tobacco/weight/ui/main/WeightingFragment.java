@@ -77,7 +77,7 @@ public class WeightingFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_weighing, container, false);
     }
 
@@ -122,7 +122,7 @@ public class WeightingFragment extends Fragment {
                 public void onPrintComplete() {
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
-                            // Print completed successfully 
+                            // Print completed successfully
                             viewModel.notifyPrintStatusUpdate("打印完成");
                         });
                     }
@@ -161,10 +161,11 @@ public class WeightingFragment extends Fragment {
             });
 
             // 观察身份证读取状态 (commented out - method doesn't exist)
-            // mainViewModel.getIdCardReadStatus().observe(getViewLifecycleOwner(), status -> {
-            //     if (status != null) {
-            //         Log.d("WeightingFragment", "ID Card Read Status: " + status);
-            //     }
+            // mainViewModel.getIdCardReadStatus().observe(getViewLifecycleOwner(), status
+            // -> {
+            // if (status != null) {
+            // Log.d("WeightingFragment", "ID Card Read Status: " + status);
+            // }
             // });
         }
     }
@@ -181,9 +182,9 @@ public class WeightingFragment extends Fragment {
             viewModel.onRealIdCardDataReceived(idCardData);
         }
 
-        Toast.makeText(getContext(), 
-            "✅ 身份证读取成功: " + idCardData.getName(), 
-            Toast.LENGTH_SHORT).show();
+        Toast.makeText(getContext(),
+                "✅ 身份证读取成功: " + idCardData.getName(),
+                Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -212,6 +213,25 @@ public class WeightingFragment extends Fragment {
                 }
             });
 
+            // 观察各部叶预检比例 - 新增观察者
+            viewModel.getUpperRatio().observe(getViewLifecycleOwner(), ratio -> {
+                if (etUpperRatio != null && ratio != null) {
+                    etUpperRatio.setText(ratio);
+                }
+            });
+
+            viewModel.getMiddleRatio().observe(getViewLifecycleOwner(), ratio -> {
+                if (etMiddleRatio != null && ratio != null) {
+                    etMiddleRatio.setText(ratio);
+                }
+            });
+
+            viewModel.getLowerRatio().observe(getViewLifecycleOwner(), ratio -> {
+                if (etLowerRatio != null && ratio != null) {
+                    etLowerRatio.setText(ratio);
+                }
+            });
+
             // 观察预检ID
             viewModel.getCurrentPrecheckId().observe(getViewLifecycleOwner(), precheckId -> {
                 if (tvPrecheckId != null && precheckId != null) {
@@ -235,27 +255,26 @@ public class WeightingFragment extends Fragment {
      * 处理打印事件
      */
     private void handlePrintEvent(WeightingViewModel.PrintEvent event) {
-        if (event == null) return;
+        if (event == null)
+            return;
 
         switch (event.getType()) {
             case PRINT_SUCCESS:
                 WeightingViewModel.PrintData printData = event.getPrintData();
                 if (printData != null) {
                     showPrintSuccessDialog(
-                        printData.getFarmerName(),
-                        printData.getTobaccoLevel(), 
-                        printData.getPrecheckId(),
-                        printData.getPrintDate()
-                    );
+                            printData.getFarmerName(),
+                            printData.getTobaccoLevel(),
+                            printData.getPrecheckId(),
+                            printData.getPrintDate());
                 }
                 break;
             case PRINT_FAILURE:
                 showPrintFailureDialog(
-                    "打印错误",
-                    event.getMessage(),
-                    event.getDetails(),
-                    event.getPrintData() != null ? event.getPrintData().getPrecheckId() : "未知"
-                );
+                        "打印错误",
+                        event.getMessage(),
+                        event.getDetails(),
+                        event.getPrintData() != null ? event.getPrintData().getPrecheckId() : "未知");
                 break;
         }
     }
@@ -295,17 +314,17 @@ public class WeightingFragment extends Fragment {
         if (etUpperRatio != null) {
             etUpperRatio.setFocusable(false);
             etUpperRatio.setClickable(false);
-            etUpperRatio.setText("0.0%");
+            // 移除硬编码，将从ViewModel动态获取
         }
         if (etMiddleRatio != null) {
             etMiddleRatio.setFocusable(false);
             etMiddleRatio.setClickable(false);
-            etMiddleRatio.setText("0.0%");
+            // 移除硬编码，将从ViewModel动态获取
         }
         if (etLowerRatio != null) {
             etLowerRatio.setFocusable(false);
             etLowerRatio.setClickable(false);
-            etLowerRatio.setText("0.0%");
+            // 移除硬编码，将从ViewModel动态获取
         }
 
         // 初始化数据库状态控件
@@ -465,7 +484,7 @@ public class WeightingFragment extends Fragment {
                 public void onPrintComplete() {
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
-                            // Print completed successfully 
+                            // Print completed successfully
                             viewModel.notifyPrintStatusUpdate("打印完成");
                         });
                     }
@@ -492,12 +511,11 @@ public class WeightingFragment extends Fragment {
 
             // 创建标签数据
             LabelData labelData = LabelData.createTobaccoWeighingLabel(
-                printData.getFarmerName(),
-                printData.getPrecheckId(),
-                printData.getTobaccoLevel(),
-                printData.getPrintDate(),
-                printData.getContractNumber()
-            );
+                    printData.getFarmerName(),
+                    printData.getPrecheckId(),
+                    printData.getTobaccoLevel(),
+                    printData.getPrintDate(),
+                    printData.getContractNumber());
 
             // 执行打印
             printerManager.printLabel(labelData);
@@ -511,14 +529,16 @@ public class WeightingFragment extends Fragment {
      * 显示打印成功界面
      */
     private void showPrintSuccessDialog(String farmerName, String tobaccoLevel, String precheckId, String printDate) {
-        if (getContext() == null) return;
+        if (getContext() == null)
+            return;
 
-        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(getContext());
-        
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(
+                getContext());
+
         // 设置标题和图标
         builder.setTitle("✅ 打印成功");
         builder.setIcon(android.R.drawable.ic_dialog_info);
-        
+
         // 构建详细信息
         StringBuilder message = new StringBuilder();
         message.append("烟叶称重标签已成功打印！\n\n");
@@ -530,30 +550,30 @@ public class WeightingFragment extends Fragment {
         message.append("📅 打印时间: ").append(printDate).append("\n");
         message.append("━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
         message.append("✨ 标签包含条形码和二维码，方便后续扫描识别。");
-        
+
         builder.setMessage(message.toString());
-        
+
         // 设置按钮
         builder.setPositiveButton("继续称重", (dialog, which) -> {
             dialog.dismiss();
             // 可选：重置界面为下一次称重做准备
             resetForNextWeighing();
         });
-        
+
         builder.setNeutralButton("重新打印", (dialog, which) -> {
             dialog.dismiss();
             // 重新调用打印功能
             printCurrentRecord();
         });
-        
+
         builder.setNegativeButton("关闭", (dialog, which) -> {
             dialog.dismiss();
         });
-        
+
         // 显示对话框
         androidx.appcompat.app.AlertDialog dialog = builder.create();
         dialog.show();
-        
+
         // 设置消息文本样式
         if (dialog.findViewById(android.R.id.message) != null) {
             TextView messageView = dialog.findViewById(android.R.id.message);
@@ -566,14 +586,16 @@ public class WeightingFragment extends Fragment {
      * 显示打印失败界面
      */
     private void showPrintFailureDialog(String errorType, String errorMessage, String errorDetails, String precheckId) {
-        if (getContext() == null) return;
+        if (getContext() == null)
+            return;
 
-        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(getContext());
-        
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(
+                getContext());
+
         // 设置标题和图标
         builder.setTitle("❌ " + errorType);
         builder.setIcon(android.R.drawable.ic_dialog_alert);
-        
+
         // 构建错误信息
         StringBuilder message = new StringBuilder();
         message.append(errorMessage).append("\n\n");
@@ -581,40 +603,40 @@ public class WeightingFragment extends Fragment {
         message.append("━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
         message.append(errorDetails != null ? errorDetails : "未知错误").append("\n");
         message.append("━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
-        
+
         if (precheckId != null && !precheckId.equals("未生成")) {
             message.append("📋 相关记录: ").append(precheckId).append("\n\n");
         }
-        
+
         message.append("💡 建议解决方案:\n");
         message.append("• 检查打印机电源和连接线\n");
         message.append("• 确认打印机纸张充足\n");
         message.append("• 检查USB连接是否稳定\n");
         message.append("• 尝试重新连接打印机");
-        
+
         builder.setMessage(message.toString());
-        
+
         // 设置按钮
         builder.setPositiveButton("重试打印", (dialog, which) -> {
             dialog.dismiss();
             // 重新尝试打印
             printCurrentRecord();
         });
-        
+
         builder.setNeutralButton("检查设置", (dialog, which) -> {
             dialog.dismiss();
             Toast.makeText(getContext(), "请检查打印机设置和连接", Toast.LENGTH_LONG).show();
             // 这里可以跳转到设置页面
         });
-        
+
         builder.setNegativeButton("关闭", (dialog, which) -> {
             dialog.dismiss();
         });
-        
+
         // 显示对话框
         androidx.appcompat.app.AlertDialog dialog = builder.create();
         dialog.show();
-        
+
         // 设置消息文本样式
         if (dialog.findViewById(android.R.id.message) != null) {
             TextView messageView = dialog.findViewById(android.R.id.message);
@@ -630,17 +652,17 @@ public class WeightingFragment extends Fragment {
     private void resetForNextWeighing() {
         // 重置等级选择
         resetLevelButtons();
-        
+
         // 可选：清空农户姓名（根据业务需求决定）
         // if (etFarmerName != null) {
-        //     etFarmerName.setText("");
+        // etFarmerName.setText("");
         // }
-        
+
         // 生成新的合同号
         if (viewModel != null) {
             viewModel.generateNewContractNumber();
         }
-        
+
         Toast.makeText(getContext(), "准备进行下一次称重", Toast.LENGTH_SHORT).show();
     }
 
@@ -706,7 +728,7 @@ public class WeightingFragment extends Fragment {
             viewModel.toggleTestMode();
         }
     }
-    
+
     /**
      * 获取当前打印模式状态
      */
@@ -730,18 +752,19 @@ public class WeightingFragment extends Fragment {
      * 测试所有打印模式切换（开发调试用）
      */
     public void testAllPrintModes() {
-        if (viewModel == null) return;
-        
+        if (viewModel == null)
+            return;
+
         // Show current mode
         showCurrentPrintMode();
-        
+
         // Test mode sequence after delays
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             quickEnableTestMode();
-            
+
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                 quickEnableRealMode();
-                
+
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                     quickEnableTestMode(); // Back to test mode
                 }, 1500);
@@ -760,4 +783,4 @@ public class WeightingFragment extends Fragment {
             });
         }
     }
-} 
+}
