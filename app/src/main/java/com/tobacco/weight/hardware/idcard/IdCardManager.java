@@ -25,6 +25,9 @@ public class IdCardManager {
     // 是否支持原生身份证读卡器功能
     private static boolean nativeLibraryAvailable = false;
     
+    // 开发模式控制 - 只有在明确启用时才进行模拟
+    private boolean developmentSimulationEnabled = false;
+    
     private Context context;
     private UsbManager usbManager;
     private UsbBroadcastReceiver usbReceiver;
@@ -76,6 +79,44 @@ public class IdCardManager {
     }
     
     /**
+     * 启用开发模拟模式（仅用于开发测试）
+     */
+    public void enableDevelopmentSimulation() {
+        developmentSimulationEnabled = true;
+        Log.d(TAG, "✅ 已启用开发模拟模式");
+        // 重新检查连接状态
+        if (isInitialized) {
+            checkConnection();
+        }
+    }
+    
+    /**
+     * 禁用开发模拟模式（生产模式）
+     */
+    public void disableDevelopmentSimulation() {
+        developmentSimulationEnabled = false;
+        Log.d(TAG, "❌ 已禁用开发模拟模式");
+        
+        // 立即停止读卡循环，防止继续生成模拟数据
+        if (isReading) {
+            stopReadingLoop();
+            Log.d(TAG, "🛑 强制停止读卡循环");
+        }
+        
+        // 重新检查连接状态
+        if (isInitialized) {
+            checkConnection();
+        }
+    }
+    
+    /**
+     * 检查是否启用了开发模拟模式
+     */
+    public boolean isDevelopmentSimulationEnabled() {
+        return developmentSimulationEnabled;
+    }
+    
+    /**
      * 获取连接状态流
      */
     public Flowable<Boolean> connectionStream() {
@@ -95,8 +136,12 @@ public class IdCardManager {
     private void initializeNativeLibrary() {
         // 检查原生库是否可用
         if (!nativeLibraryAvailable) {
-            Log.w(TAG, "原生身份证读卡器库不可用，使用模拟模式");
-            Log.d(TAG, "✅ 身份证读卡器模拟模式初始化成功");
+            Log.w(TAG, "❌ 原生身份证读卡器库不可用");
+            if (developmentSimulationEnabled) {
+                Log.d(TAG, "🧪 开发模拟模式已启用");
+            } else {
+                Log.d(TAG, "🏭 生产模式 - 需要真实硬件才能工作");
+            }
             return;
         }
         
@@ -151,9 +196,15 @@ public class IdCardManager {
                 // 使用演示代码的CompareReaderID检查是否为支持的设备
                 boolean isSupported;
                 if (!nativeLibraryAvailable) {
-                    // 模拟模式下假装所有设备都支持
-                    isSupported = true;
-                    Log.d(TAG, "模拟模式 - 假装设备受支持");
+                    if (developmentSimulationEnabled) {
+                        // 仅在开发模拟模式下假装设备受支持
+                        isSupported = true;
+                        Log.d(TAG, "🧪 开发模拟模式 - 假装设备受支持");
+                    } else {
+                        // 生产模式下无原生库：任何设备都不受支持
+                        isSupported = false;
+                        Log.d(TAG, "❌ 生产模式无原生库 - 设备不受支持");
+                    }
                 } else {
                     isSupported = CompareReaderID(device.getVendorId(), device.getProductId());
                 }
@@ -178,6 +229,14 @@ public class IdCardManager {
      */
     private void checkExistingDevices() {
         Log.d(TAG, "检查当前已连接的设备");
+        
+        // 确保初始状态正确
+        if (!nativeLibraryAvailable && !developmentSimulationEnabled) {
+            Log.d(TAG, "🏭 生产模式初始化 - 设置为未连接状态");
+            isConnected = false;
+            connectionProcessor.onNext(false);
+        }
+        
         checkConnection();
     }
     
@@ -188,14 +247,21 @@ public class IdCardManager {
         try {
             boolean connected;
             
-            // 在模拟模式下假装连接成功
             if (!nativeLibraryAvailable) {
-                connected = true; // 模拟模式下假装连接
-                Log.d(TAG, "模拟模式连接检查结果: " + connected);
+                // 原生库不可用时的处理
+                if (developmentSimulationEnabled) {
+                    // 仅在明确启用开发模拟时才假装连接
+                    connected = true;
+                    Log.d(TAG, "🧪 开发模拟模式 - 假装连接成功");
+                } else {
+                    // 生产模式：原生库不可用 = 无硬件连接
+                    connected = false;
+                    Log.d(TAG, "❌ 原生库不可用且未启用开发模拟 - 无硬件连接");
+                }
             } else {
-                // 使用演示代码的Connected方法
+                // 使用演示代码的Connected方法检查真实硬件
                 connected = Connected(usbManager);
-                Log.d(TAG, "连接检查结果: " + connected);
+                Log.d(TAG, "🔧 真实硬件连接检查结果: " + connected);
             }
             
             if (connected && !isConnected) {
@@ -233,24 +299,41 @@ public class IdCardManager {
      * 启动读卡循环
      */
     private void startReadingLoop() {
-        if (isReading) return;
+        if (isReading) {
+            Log.d(TAG, "读卡循环已在运行，跳过启动");
+            return;
+        }
         
         Log.d(TAG, "启动读卡循环");
+        
+        // 确保清理之前的订阅
+        disposables.clear();
         isReading = true;
         
         disposables.add(
             Flowable.interval(2, TimeUnit.SECONDS)  // 2秒间隔检查
                 .subscribeOn(Schedulers.io())
-                .takeWhile(tick -> isConnected && isReading)
+                .takeWhile(tick -> {
+                    boolean shouldContinue = isConnected && isReading;
+                    if (!shouldContinue) {
+                        Log.d(TAG, "🛑 读卡循环条件不满足，准备停止 - isConnected: " + isConnected + ", isReading: " + isReading);
+                    }
+                    return shouldContinue;
+                })
                 .subscribe(
                     tick -> performRead(),
                     throwable -> {
                         Log.e(TAG, "读卡循环异常", throwable);
                         isReading = false;
                     },
-                    () -> Log.d(TAG, "读卡循环已停止")
+                    () -> {
+                        Log.d(TAG, "✅ 读卡循环已正常停止");
+                        isReading = false;
+                    }
                 )
         );
+        
+        Log.d(TAG, "✅ 读卡循环已启动");
     }
     
     /**
@@ -259,7 +342,12 @@ public class IdCardManager {
     private void stopReadingLoop() {
         Log.d(TAG, "停止读卡循环");
         isReading = false;
+        
+        // 清理所有订阅，确保没有未完成的任务
         disposables.clear();
+        
+        // 记录状态以便调试
+        Log.d(TAG, "✅ 读卡循环已完全停止，所有订阅已清理");
     }
     
     /**
@@ -267,14 +355,27 @@ public class IdCardManager {
      */
     private void performRead() {
         try {
-            // 在模拟模式下生成模拟数据
+            // 首先检查读卡循环是否应该继续运行
+            if (!isReading || !isConnected) {
+                Log.d(TAG, "🛑 读卡循环已停止，跳过此次读取");
+                return;
+            }
+            
+            // 处理无原生库的情况
             if (!nativeLibraryAvailable) {
-                // 每20次调用生成一次模拟身份证数据
-                if (Math.random() < 0.05) { // 5%概率生成数据
-                    Log.d(TAG, "模拟模式 - 生成测试身份证数据");
-                    IdCardData simulatedData = createSimulatedCardData();
-                    cardDataProcessor.onNext(simulatedData);
-                    Log.d(TAG, "📤 发出模拟身份证数据流");
+                if (developmentSimulationEnabled) {
+                    // 仅在开发模拟模式下生成模拟数据
+                    if (Math.random() < 0.05) { // 5%概率生成数据
+                        Log.d(TAG, "🧪 开发模拟模式 - 生成测试身份证数据");
+                        IdCardData simulatedData = createSimulatedCardData();
+                        cardDataProcessor.onNext(simulatedData);
+                        Log.d(TAG, "📤 发出模拟身份证数据流");
+                    }
+                } else {
+                    // 生产模式下无原生库：不应该进入这里，立即停止读卡循环
+                    Log.w(TAG, "❌ 生产模式下读卡循环仍在运行，立即停止");
+                    stopReadingLoop();
+                    handleDeviceDisconnected();
                 }
                 return;
             }
@@ -346,7 +447,7 @@ public class IdCardManager {
                 Log.w(TAG, "停止服务失败", e);
             }
         } else {
-            Log.d(TAG, "模拟模式 - 跳过服务停止");
+            Log.d(TAG, "无原生库 - 跳过服务停止");
         }
         
         isInitialized = false;

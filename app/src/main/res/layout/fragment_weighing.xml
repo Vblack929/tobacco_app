@@ -45,17 +45,23 @@
         app:layout_constraintWidth_percent="0.65"
         app:layout_constraintHeight_percent="0.55">
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
-            <!-- 农户姓名和合同号 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- 农户姓名和合同号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -81,19 +87,36 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="合同号："
+                    android:text="身份证号："
                     android:textSize="16sp"
                     android:textColor="#757575"
                     android:layout_marginStart="16dp" />
 
-                <TextView
-                    android:id="@+id/tv_contract_number"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="未设置"
-                    android:textSize="18sp"
+                <EditText
+                    android:id="@+id/et_id_card_number"
+                    android:layout_width="150dp"
+                    android:layout_height="40dp"
+                    android:hint="身份证号或临时ID"
+                    android:textSize="14sp"
                     android:textColor="#212121"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:background="@android:color/white"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:inputType="text"
+                    android:maxLength="25" />
+
+                <!-- ID卡读取按钮 (小型内联) -->
+                <Button
+                    android:id="@+id/btn_read_id_card"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="📱 读卡"
+                    android:textSize="10sp"
+                    android:layout_marginStart="12dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:backgroundTint="#E91E63" />
 
             </LinearLayout>
 
@@ -129,256 +152,211 @@
 
             </LinearLayout>
 
-            <!-- 操作按钮区域 -->
+            <!-- 预检编号输入区域 (重新定位) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="6dp"
-                android:gravity="center">
+                android:layout_marginTop="8dp"
+                android:background="#E3F2FD"
+                android:padding="8dp"
+                android:gravity="center_vertical">
 
-                <Button
-                    android:id="@+id/btn_upper_level"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="预检编号："
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#1976D2" />
+
+                <EditText
+                    android:id="@+id/et_precheck_number"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
                     android:layout_weight="1"
-                    android:text="上部叶"
+                    android:hint="输入预检编号 (如: YJ100000001)"
                     android:textSize="12sp"
-                    android:layout_marginEnd="4dp"
-                    android:backgroundTint="#4CAF50" />
+                    android:background="@android:color/white"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:inputType="text" />
 
                 <Button
-                    android:id="@+id/btn_middle_level"
-                    android:layout_width="0dp"
+                    android:id="@+id/btn_start_session"
+                    android:layout_width="wrap_content"
                     android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:text="中部叶"
-                    android:textSize="12sp"
-                    android:layout_marginEnd="4dp"
-                    android:backgroundTint="#2196F3" />
-
-                <Button
-                    android:id="@+id/btn_lower_level"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:text="下部叶"
-                    android:textSize="12sp"
-                    android:backgroundTint="#FF9800" />
+                    android:text="开始会话"
+                    android:textSize="11sp"
+                    android:backgroundTint="#4CAF50"
+                    android:enabled="true" />
 
             </LinearLayout>
 
-            <!-- 底部操作按钮 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="4dp"
-                android:gravity="center">
-
-                <Button
-                    android:id="@+id/btn_confirm"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:text="确认"
-                    android:textSize="12sp"
-                    android:layout_marginEnd="4dp"
-                    android:backgroundTint="#9C27B0" />
-
-                <Button
-                    android:id="@+id/btn_print"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:text="打印"
-                    android:textSize="12sp"
-                    android:backgroundTint="#1976D2" />
-
-            </LinearLayout>
-
-            <!-- 合同量和预检比例信息区域 -->
+            <!-- 添加捆包操作区域 (重新设计) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="4dp"
-                android:background="#F0F0F0"
-                android:padding="6dp">
+                android:layout_marginTop="8dp"
+                android:background="#FFF3E0"
+                android:padding="8dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="合同信息与预检比例"
+                    android:text="添加捆包到会话"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="#212121" />
+                    android:textColor="#E65100" />
 
-                <!-- 合同量和预检比例 -->
+                <!-- 添加捆包主要操作行 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="4dp">
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical">
 
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginEnd="8dp">
+                        android:text="捆数："
+                        android:textSize="11sp"
+                        android:textColor="#E65100" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="合同量"
-                            android:textSize="12sp"
-                            android:textColor="#757575" />
+                    <EditText
+                        android:id="@+id/et_bundle_count"
+                        android:layout_width="80dp"
+                        android:layout_height="36dp"
+                        android:hint="数量"
+                        android:textSize="12sp"
+                        android:background="@android:color/white"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:layout_marginStart="6dp"
+                        android:layout_marginEnd="12dp"
+                        android:inputType="number"
+                        android:gravity="center"
+                        android:enabled="false" />
 
-                        <EditText
-                            android:id="@+id/et_contract_amount"
-                            android:layout_width="match_parent"
-                            android:layout_height="28dp"
-                            android:hint="输入合同量(kg)"
-                            android:textSize="10sp"
-                            android:background="@android:color/white"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:inputType="numberDecimal" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="预检比例"
-                            android:textSize="12sp"
-                            android:textColor="#757575" />
-
-                        <EditText
-                            android:id="@+id/et_precheck_ratio"
-                            android:layout_width="match_parent"
-                            android:layout_height="28dp"
-                            android:hint="输入预检比例(%)"
-                            android:textSize="10sp"
-                            android:background="@android:color/white"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:inputType="numberDecimal" />
-
-                    </LinearLayout>
+                        android:text="选择等级："
+                        android:textSize="11sp"
+                        android:textColor="#E65100" />
 
                 </LinearLayout>
 
-                <!-- 上中下部叶预检比例 -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="各部叶预检比例"
-                    android:textSize="12sp"
-                    android:textColor="#757575"
-                    android:layout_marginTop="6dp" />
-
+                <!-- 烟叶等级选择按钮 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="2dp">
+                    android:layout_marginTop="6dp"
+                    android:gravity="center">
 
-                    <LinearLayout
+                    <Button
+                        android:id="@+id/btn_upper_level"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="38dp"
                         android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginEnd="4dp">
+                        android:text="上部叶"
+                        android:textSize="11sp"
+                        android:layout_marginEnd="4dp"
+                        android:backgroundTint="#4CAF50"
+                        android:enabled="false" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="上部叶(%)"
-                            android:textSize="12sp"
-                            android:textColor="#757575" />
-
-                        <EditText
-                            android:id="@+id/et_upper_ratio"
-                            android:layout_width="match_parent"
-                            android:layout_height="28dp"
-                            android:hint="上部叶"
-                            android:textSize="10sp"
-                            android:background="@android:color/white"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:inputType="numberDecimal" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
+                    <Button
+                        android:id="@+id/btn_middle_level"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="38dp"
                         android:layout_weight="1"
-                        android:orientation="vertical"
+                        android:text="中部叶"
+                        android:textSize="11sp"
+                        android:layout_marginEnd="4dp"
                         android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp">
+                        android:backgroundTint="#2196F3"
+                        android:enabled="false" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="中部叶(%)"
-                            android:textSize="12sp"
-                            android:textColor="#757575" />
-
-                        <EditText
-                            android:id="@+id/et_middle_ratio"
-                            android:layout_width="match_parent"
-                            android:layout_height="28dp"
-                            android:hint="中部叶"
-                            android:textSize="10sp"
-                            android:background="@android:color/white"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:inputType="numberDecimal" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
+                    <Button
+                        android:id="@+id/btn_lower_level"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="38dp"
                         android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="4dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="下部叶(%)"
-                            android:textSize="12sp"
-                            android:textColor="#757575" />
-
-                        <EditText
-                            android:id="@+id/et_lower_ratio"
-                            android:layout_width="match_parent"
-                            android:layout_height="28dp"
-                            android:hint="下部叶"
-                            android:textSize="10sp"
-                            android:background="@android:color/white"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:inputType="numberDecimal" />
-
-                    </LinearLayout>
+                        android:text="下部叶"
+                        android:textSize="11sp"
+                        android:layout_marginStart="4dp"
+                        android:backgroundTint="#FF9800"
+                        android:enabled="false" />
 
                 </LinearLayout>
+
+                <!-- 会话状态显示 -->
+                <TextView
+                    android:id="@+id/tv_session_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="无活动会话 - 请输入预检编号开始"
+                    android:textSize="10sp"
+                    android:textColor="#BF360C"
+                    android:background="#FFCCBC"
+                    android:padding="6dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center" />
 
             </LinearLayout>
 
-        </LinearLayout>
+            <!-- 会话控制按钮 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/btn_reset_session"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:text="重置数据"
+                    android:textSize="11sp"
+                    android:layout_marginEnd="4dp"
+                    android:backgroundTint="#F44336"
+                    android:enabled="false" />
+
+                <Button
+                    android:id="@+id/btn_confirm_save"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:text="确认保存"
+                    android:textSize="11sp"
+                    android:layout_marginEnd="4dp"
+                    android:layout_marginStart="4dp"
+                    android:backgroundTint="#2E7D32"
+                    android:enabled="false" />
+
+                <Button
+                    android:id="@+id/btn_cancel_session"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:text="取消会话"
+                    android:textSize="11sp"
+                    android:layout_marginStart="4dp"
+                    android:backgroundTint="#D32F2F"
+                    android:enabled="false" />
+
+            </LinearLayout>
+
+            </LinearLayout>
+
+        </ScrollView>
 
     </androidx.cardview.widget.CardView>
 
@@ -398,175 +376,348 @@
         app:layout_constraintWidth_percent="0.3"
         app:layout_constraintHeight_percent="0.55">
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检码对接"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#212121" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检码等级"
-                android:textSize="16sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_precheck_level"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="未检测"
-                android:textSize="16sp"
-                android:textColor="#212121"
-                android:layout_marginTop="4dp" />
-
-            <!-- 预检信息显示 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检信息"
-                android:textSize="16sp"
-                android:textColor="#757575"
-                android:layout_marginTop="16dp" />
-
-            <!-- 预检编号 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检编号"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_precheck_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="未生成"
-                android:textSize="14sp"
-                android:textColor="#212121"
-                android:layout_marginTop="2dp" />
-
-            <!-- 预检日期 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检日期"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_precheck_date"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="--"
-                android:textSize="14sp"
-                android:textColor="#212121"
-                android:layout_marginTop="2dp" />
-
-            <!-- 预检比例 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检比例"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_precheck_ratio"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@{viewModel.precheckRatio}"
-                android:textSize="14sp"
-                android:textColor="#212121"
-                android:layout_marginTop="2dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="预检重量"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_precheck_weight"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0.00 kg"
-                android:textSize="14sp"
-                android:textColor="#212121"
-                android:layout_marginTop="2dp" />
-
-            <!-- 数据库状态 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="数据库记录"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tv_database_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0条记录"
-                android:textSize="14sp"
-                android:textColor="#4CAF50"
-                android:layout_marginTop="2dp" />
-
-            <Button
-                android:id="@+id/btn_read_id_card"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="读取身份证"
-                android:textSize="16sp"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#E91E63" />
-
-            <Button
-                android:id="@+id/btn_reset_precheck"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="重置预检数据"
-                android:textSize="14sp"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="#FF5722"
-                android:textColor="@android:color/white"
-                android:enabled="true"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <TextView
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="预检员信息"
-                android:textSize="16sp"
-                android:textColor="#757575"
-                android:layout_marginTop="16dp" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/tv_device_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="设备状态"
-                android:textSize="16sp"
-                android:textColor="#212121"
-                android:layout_marginTop="4dp" />
+                <!-- 标题 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊 当前称重会话统计"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#2E7D32" />
 
-        </LinearLayout>
+                <!-- 会话状态区域 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:background="#E8F5E8"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="会话状态"
+                        android:textSize="12sp"
+                        android:textColor="#1B5E20"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_session_display_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="无活动会话"
+                        android:textSize="14sp"
+                        android:textColor="#2E7D32"
+                        android:layout_marginTop="2dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="预检编号"
+                        android:textSize="12sp"
+                        android:textColor="#1B5E20"
+                        android:textStyle="bold"
+                        android:layout_marginTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/tv_session_precheck_number"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textSize="14sp"
+                        android:textColor="#2E7D32"
+                        android:layout_marginTop="2dp" />
+
+                </LinearLayout>
+
+                <!-- 总计统计 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:background="#E3F2FD"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📦 总计统计"
+                        android:textSize="14sp"
+                        android:textColor="#0D47A1"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="6dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="总捆数"
+                                android:textSize="11sp"
+                                android:textColor="#1565C0" />
+
+                            <TextView
+                                android:id="@+id/tv_total_bundles"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0 捆"
+                                android:textSize="16sp"
+                                android:textColor="#0D47A1"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="总重量"
+                                android:textSize="11sp"
+                                android:textColor="#1565C0" />
+
+                            <TextView
+                                android:id="@+id/tv_total_weight"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0.0 kg"
+                                android:textSize="16sp"
+                                android:textColor="#0D47A1"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- 分级统计 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:background="#FFF3E0"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🍃 分级统计"
+                        android:textSize="14sp"
+                        android:textColor="#E65100"
+                        android:textStyle="bold" />
+
+                    <!-- 上部叶 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="6dp"
+                        android:background="#4CAF50"
+                        android:padding="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="上部叶:"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_upper_leaf_stats"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0捆 (0.0kg) - 0%"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- 中部叶 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp"
+                        android:background="#2196F3"
+                        android:padding="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="中部叶:"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_middle_leaf_stats"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0捆 (0.0kg) - 0%"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- 下部叶 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp"
+                        android:background="#FF9800"
+                        android:padding="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="下部叶:"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_lower_leaf_stats"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="0捆 (0.0kg) - 0%"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- 实时重量 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:background="#F3E5F5"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚖️ 实时重量"
+                        android:textSize="14sp"
+                        android:textColor="#7B1FA2"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_current_scale_weight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="5.00 kg"
+                        android:textSize="18sp"
+                        android:textColor="#4A148C"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp" />
+
+                </LinearLayout>
+
+                <!-- 农户信息 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:background="#EFEBE9"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👤 农户信息"
+                        android:textSize="14sp"
+                        android:textColor="#5D4037"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="姓名"
+                        android:textSize="11sp"
+                        android:textColor="#6D4C41"
+                        android:layout_marginTop="6dp" />
+
+                    <TextView
+                        android:id="@+id/tv_farmer_name_display"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="张三"
+                        android:textSize="14sp"
+                        android:textColor="#3E2723"
+                        android:layout_marginTop="2dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="身份证号"
+                        android:textSize="11sp"
+                        android:textColor="#6D4C41"
+                        android:layout_marginTop="6dp" />
+
+                    <TextView
+                        android:id="@+id/tv_id_card_number_display"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="110101199001011234"
+                        android:textSize="14sp"
+                        android:textColor="#3E2723"
+                        android:layout_marginTop="2dp" />
+
+                </LinearLayout>
+
+                <!-- 打印按钮 -->
+                <Button
+                    android:id="@+id/btn_print"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="🖨️ 打印记录"
+                    android:textSize="14sp"
+                    android:layout_marginTop="16dp"
+                    android:backgroundTint="#1976D2" />
+
+            </LinearLayout>
+
+        </ScrollView>
 
     </androidx.cardview.widget.CardView>
 

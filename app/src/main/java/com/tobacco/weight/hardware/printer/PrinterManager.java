@@ -346,18 +346,39 @@ public class PrinterManager {
      * 打印标签 (完整版本)
      */
     public void printLabel(LabelData labelData) {
-        // Test mode - always simulate successful printing
+        // Basic data validation first (applies to both test and real mode)
+        if (labelData == null || !labelData.isValid()) {
+            Log.e(TAG, "Invalid label data provided");
+            notifyPrintError("打印数据无效 - 请检查标签内容");
+            return;
+        }
+        
+        // Test mode - simulate realistic printer hardware behavior
         if (testMode) {
-            Log.i(TAG, "TEST MODE: Simulating successful print operation");
-            
-            // Simulate connection success first
-            notifyConnectionSuccess("TEST-PRINTER-USB");
+            Log.i(TAG, "TEST MODE: Simulating printer hardware behavior");
             
             // Simulate printing process with realistic delays
             new Thread(() -> {
                 try {
-                    // Simulate connection and preparation time
-                    Thread.sleep(500);
+                    // Simulate connection attempt
+                    Thread.sleep(300);
+                    notifyStatusUpdate("正在连接打印机...");
+                    
+                    // Simulate various printer scenarios (80% success rate)
+                    double random = Math.random();
+                    
+                    if (random < 0.1) {
+                        // 10% chance: Connection failure
+                        Thread.sleep(800);
+                        Log.w(TAG, "TEST MODE: Simulated connection failure");
+                        notifyConnectionFailed("模拟打印机连接失败");
+                        notifyPrintError("打印机连接失败 - 请检查USB连接");
+                        return;
+                    }
+                    
+                    // Connection successful
+                    notifyConnectionSuccess("TEST-PRINTER-USB");
+                    Thread.sleep(200);
                     notifyStatusUpdate("正在准备打印机...");
                     
                     Thread.sleep(300);
@@ -367,8 +388,16 @@ public class PrinterManager {
                     notifyStatusUpdate("正在打印标签...");
                     
                     Thread.sleep(1000);
-                    Log.i(TAG, "TEST MODE: Simulated label print: " + (labelData != null ? labelData.toString() : "null data"));
-                    notifyPrintComplete();
+                    
+                    if (random < 0.15) {
+                        // 5% chance: Print failure (after connection success)
+                        Log.w(TAG, "TEST MODE: Simulated print error");
+                        notifyPrintError("模拟打印错误 - 纸张不足或通信中断");
+                    } else {
+                        // 85% chance: Success
+                        Log.i(TAG, "TEST MODE: Simulated successful print");
+                        notifyPrintComplete();
+                    }
                     
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -612,6 +641,35 @@ public class PrinterManager {
                 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            }
+        }).start();
+    }
+    
+    /**
+     * 强制测试成功场景（无论数据是否有效）
+     */
+    public void forceTestSuccess() {
+        if (!testMode) {
+            Log.w(TAG, "forceTestSuccess called but test mode is disabled");
+            return;
+        }
+        
+        Log.i(TAG, "TEST MODE: Forcing successful print");
+        
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                notifyStatusUpdate("正在连接打印机...");
+                
+                Thread.sleep(800);
+                notifyStatusUpdate("正在打印标签...");
+                
+                Thread.sleep(1000);
+                notifyPrintComplete();
+                
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                notifyPrintError("测试模式被中断");
             }
         }).start();
     }

@@ -17,13 +17,18 @@ import com.tobacco.weight.data.model.WeightRecord;
  * 包含两个主要表：
  * - farmer_info: 烟农身份信息表（每个身份证号只存储一次）
  * - weight_records: 称重记录表（通过身份证号关联烟农信息）
+ * 
+ * 版本历史：
+ * v1: 初始版本
+ * v2: 添加烟农信息表和身份证关联
+ * v3: 重构WeightRecord以支持详细的烟叶部位分级存储（上部叶/中部叶/下部叶独立记录）
  */
 @Database(
     entities = { 
         WeightRecord.class, 
         FarmerInfoEntity.class 
     }, 
-    version = 2, 
+    version = 3, 
     exportSchema = true
 )
 @TypeConverters({ DateConverter.class })
