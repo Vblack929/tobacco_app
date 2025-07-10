@@ -4,8 +4,10 @@ import android.app.Application;
 import android.content.Context;
 
 import com.tobacco.weight.data.dao.WeightRecordDao;
+import com.tobacco.weight.data.dao.FarmerInfoDao;
 import com.tobacco.weight.data.database.TobaccoDatabase;
 import com.tobacco.weight.data.repository.WeightRecordRepository;
+import com.tobacco.weight.data.repository.FarmerInfoRepository;
 
 import javax.inject.Singleton;
 
@@ -40,11 +42,28 @@ public class DatabaseModule {
     }
 
     /**
+     * 提供FarmerInfoDao
+     */
+    @Provides
+    public FarmerInfoDao provideFarmerInfoDao(TobaccoDatabase database) {
+        return database.farmerInfoDao();
+    }
+
+    /**
      * 提供WeightRecordRepository
      */
     @Provides
     @Singleton
     public WeightRecordRepository provideWeightRecordRepository(Application application) {
         return new WeightRecordRepository(application);
+    }
+
+    /**
+     * 提供FarmerInfoRepository
+     */
+    @Provides
+    @Singleton
+    public FarmerInfoRepository provideFarmerInfoRepository(Application application) {
+        return new FarmerInfoRepository(application);
     }
 }

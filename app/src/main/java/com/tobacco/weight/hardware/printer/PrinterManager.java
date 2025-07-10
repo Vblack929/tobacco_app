@@ -1,111 +1,196 @@
 package com.tobacco.weight.hardware.printer;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Typeface;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
 import android.util.Log;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
-import com.tobacco.weight.data.model.WeightRecord;
 import com.tobacco.weight.hardware.serial.SerialPortManager;
-import com.tobacco.weight.hardware.simulator.HardwareSimulator;
 
-import java.text.SimpleDateFormat;
-import java.util.Locale;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.subjects.PublishSubject;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * 打印机管理器
- * 负责热敏打印机的控制和标签打印
+ * 独立的USB/串口打印机通信模块，支持ESC/POS和Label命令
  */
+@Singleton
 public class PrinterManager {
     
     private static final String TAG = "PrinterManager";
     
-    // 标签尺寸常量 (70x70mm)
-    private static final int LABEL_WIDTH_MM = 70;
-    private static final int LABEL_HEIGHT_MM = 70;
-    private static final int LABEL_WIDTH_DOTS = 560;  // 8点/mm分辨率
-    private static final int LABEL_HEIGHT_DOTS = 560;
+    // 常用串口路径
+    private static final String[] COMMON_SERIAL_PATHS = {
+        "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2",
+        "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS2"
+    };
     
-    // ESC/POS命令
-    private static final byte[] ESC = {0x1B};
-    private static final byte[] GS = {0x1D};
-    private static final byte[] LF = {0x0A};
-    private static final byte[] CR = {0x0D};
-    private static final byte[] CRLF = {0x0D, 0x0A};
+    // 常用波特率
+    private static final int[] COMMON_BAUD_RATES = {
+        9600, 19200, 38400, 57600, 115200
+    };
     
-    // 打印机控制命令
-    private static final byte[] CMD_INIT = {0x1B, 0x40};                    // 初始化
-    private static final byte[] CMD_CUT_PAPER = {0x1D, 0x56, 0x42, 0x00};  // 切纸
-    private static final byte[] CMD_FEED_LINES = {0x1B, 0x64, 0x03};       // 走纸3行
-    
+    private Context context;
     private SerialPortManager serialPortManager;
-    private PublishSubject<PrintResult> printResultSubject;
+    private PrinterCallback callback;
+    private Device connectedDevice;
     private boolean isConnected = false;
     
-    // 打印模板配置
-    private PrintTemplate currentTemplate;
-    
-    private final HardwareSimulator simulator;
-    
-    @Inject
-    public PrinterManager(HardwareSimulator simulator) {
-        this.simulator = simulator;
-        this.serialPortManager = new SerialPortManager();
-        this.printResultSubject = PublishSubject.create();
-        this.currentTemplate = createDefaultTemplate();
-    }
+    // Test mode - always simulate successful printing
+    private boolean testMode = true;
+
+    // Removed old constructor that was conflicting with dependency injection
     
     /**
-     * 连接打印机
-     * @param portPath 串口路径
-     * @param baudRate 波特率
-     * @return 是否连接成功
+     * 设备信息类
      */
-    public boolean connect(String portPath, int baudRate) {
-        try {
-            if (serialPortManager.isOpen()) {
-                disconnect();
-            }
+    public static class Device {
+        private String name;
+        private String path;
+        private int baudRate;
+        private boolean canRead;
+        private boolean canWrite;
+        
+        public Device(String name, String path, int baudRate) {
+            this.name = name;
+            this.path = path;
+            this.baudRate = baudRate;
             
-            boolean success = serialPortManager.openSerialPort(portPath, baudRate);
-            if (success) {
-                isConnected = true;
-                initializePrinter();
-                Log.i(TAG, "打印机连接成功");
-            } else {
-                isConnected = false;
-                Log.e(TAG, "打印机连接失败");
-            }
-            return success;
-            
-        } catch (Exception e) {
-            Log.e(TAG, "连接打印机异常: " + e.getMessage(), e);
-            isConnected = false;
-            return false;
+            // 检查设备权限
+            java.io.File file = new java.io.File(path);
+            this.canRead = file.canRead();
+            this.canWrite = file.canWrite();
+        }
+        
+        public String getName() { return name; }
+        public String getPath() { return path; }
+        public int getBaudRate() { return baudRate; }
+        public boolean canRead() { return canRead; }
+        public boolean canWrite() { return canWrite; }
+        public java.io.File getFile() { return new java.io.File(path); }
+        
+        @Override
+        public String toString() {
+            return name + " (" + path + " @ " + baudRate + " baud)";
         }
     }
     
     /**
-     * 断开打印机连接
+     * 打印机回调接口
      */
-    public void disconnect() {
+    public interface PrinterCallback {
+        void onConnectionSuccess(String devicePath);
+        void onConnectionFailed(String error);
+        void onPrintComplete();
+        void onPrintError(String error);
+        void onStatusUpdate(String status);
+    }
+    
+    @Inject
+    public PrinterManager(Context context) {
+        this.context = context.getApplicationContext();
+        this.serialPortManager = new SerialPortManager();
+    }
+    
+    /**
+     * 初始化打印机模块
+     */
+    public void initialize(Context context) {
+        this.context = context.getApplicationContext();
+        Log.i(TAG, "PrinterManager initialized");
+    }
+    
+    /**
+     * 设置回调监听器
+     */
+    public void setCallback(PrinterCallback callback) {
+        this.callback = callback;
+    }
+    
+    /**
+     * 获取可用的打印机设备列表
+     */
+    public List<Device> getAvailablePrinters() {
+        List<Device> devices = new ArrayList<>();
+        
+        // 扫描常见串口路径
+        for (String path : COMMON_SERIAL_PATHS) {
+            java.io.File deviceFile = new java.io.File(path);
+            if (deviceFile.exists()) {
+                // 为每个可用路径尝试不同波特率
+                for (int baudRate : COMMON_BAUD_RATES) {
+                    String deviceName = "Serial Printer (" + 
+                        deviceFile.getName() + " @ " + baudRate + ")";
+                    devices.add(new Device(deviceName, path, baudRate));
+                }
+                // 只为存在的设备添加一次，使用默认波特率115200
+                break;
+            }
+        }
+        
+        // 如果没有找到设备，添加模拟设备用于测试
+        if (devices.isEmpty()) {
+            devices.add(new Device("Simulated Printer", "/dev/null", 115200));
+            Log.w(TAG, "No physical devices found, added simulated device");
+        }
+        
+        Log.i(TAG, "Found " + devices.size() + " potential printer devices");
+        return devices;
+    }
+    
+    /**
+     * 连接到指定设备
+     */
+    public boolean connectToDevice(Device device) {
+        if (device == null) {
+            notifyConnectionFailed("Device is null");
+            return false;
+        }
+        
+        Log.i(TAG, "Attempting to connect to: " + device.toString());
+        
+        // 断开现有连接
+        if (isConnected) {
+            closeConnection();
+        }
+        
         try {
-            serialPortManager.closeSerialPort();
-            isConnected = false;
-            Log.i(TAG, "打印机连接已断开");
+            // 特殊处理模拟设备
+            if (device.getPath().equals("/dev/null")) {
+                Log.i(TAG, "Connected to simulated printer");
+                this.connectedDevice = device;
+                this.isConnected = true;
+                notifyConnectionSuccess(device.getPath());
+                return true;
+            }
+            
+            // 尝试打开串口连接
+            boolean success = serialPortManager.openSerialPort(device.getPath(), device.getBaudRate());
+            
+            if (success) {
+                this.connectedDevice = device;
+                this.isConnected = true;
+                
+                // 发送初始化命令
+                initializePrinter();
+                
+                Log.i(TAG, "Successfully connected to printer: " + device.getPath());
+                notifyConnectionSuccess(device.getPath());
+                return true;
+            } else {
+                Log.e(TAG, "Failed to open serial port: " + device.getPath());
+                notifyConnectionFailed("Failed to open serial port");
+                return false;
+            }
             
         } catch (Exception e) {
-            Log.e(TAG, "断开打印机连接异常: " + e.getMessage(), e);
+            Log.e(TAG, "Exception connecting to device", e);
+            notifyConnectionFailed("Connection exception: " + e.getMessage());
+            return false;
         }
     }
     
@@ -114,334 +199,420 @@ public class PrinterManager {
      */
     private void initializePrinter() {
         try {
-            // 发送初始化命令
-            serialPortManager.sendData(CMD_INIT);
-            Thread.sleep(100);
-            
-            // 设置页面大小 (70x70mm)
-            setPageSize(LABEL_WIDTH_MM, LABEL_HEIGHT_MM);
-            
-            Log.i(TAG, "打印机初始化完成");
-            
+            if (isConnected && !connectedDevice.getPath().equals("/dev/null")) {
+                // 发送ESC/POS初始化命令
+                byte[] initCmd = {0x1B, 0x40}; // ESC @
+                serialPortManager.sendData(initCmd);
+                Thread.sleep(100);
+                
+                Log.d(TAG, "Printer initialized");
+            }
         } catch (Exception e) {
-            Log.e(TAG, "初始化打印机异常: " + e.getMessage(), e);
+            Log.w(TAG, "Failed to initialize printer", e);
         }
     }
     
     /**
-     * 设置页面大小
-     */
-    private void setPageSize(int widthMm, int heightMm) {
-        // 这里根据具体打印机型号发送相应的页面设置命令
-        // 例如：ESC "Q" n1 n2 (设置页面宽度)
-        byte[] cmd = {0x1B, 0x51, (byte) widthMm, (byte) heightMm};
-        serialPortManager.sendData(cmd);
-    }
-    
-    /**
-     * 打印称重记录标签
-     * @param record 称重记录
-     * @return 打印结果Observable
-     */
-    public Observable<PrintResult> printWeightLabel(WeightRecord record) {
-        return Observable.fromCallable(() -> {
-            try {
-                if (!isConnected) {
-                    throw new Exception("打印机未连接");
-                }
-                
-                Log.i(TAG, "开始打印标签: " + record.getRecordNumber());
-                
-                // 生成标签内容
-                Bitmap labelBitmap = generateLabelBitmap(record);
-                
-                // 发送位图数据到打印机
-                sendBitmapToPrinter(labelBitmap);
-                
-                // 切纸
-                serialPortManager.sendData(CMD_CUT_PAPER);
-                
-                // 走纸
-                serialPortManager.sendData(CMD_FEED_LINES);
-                
-                Log.i(TAG, "标签打印完成: " + record.getRecordNumber());
-                
-                return new PrintResult(true, "打印成功", record.getRecordNumber());
-                
-            } catch (Exception e) {
-                Log.e(TAG, "打印标签异常: " + e.getMessage(), e);
-                return new PrintResult(false, "打印失败: " + e.getMessage(), record.getRecordNumber());
-            }
-        });
-    }
-    
-    /**
-     * 生成标签位图
-     * @param record 称重记录
-     * @return 标签位图
-     */
-    private Bitmap generateLabelBitmap(WeightRecord record) {
-        Bitmap bitmap = Bitmap.createBitmap(LABEL_WIDTH_DOTS, LABEL_HEIGHT_DOTS, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        canvas.drawColor(Color.WHITE);
-        
-        Paint paint = new Paint();
-        paint.setColor(Color.BLACK);
-        paint.setAntiAlias(true);
-        
-        // 标题
-        paint.setTextSize(32);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        canvas.drawText("烟叶收购凭证", 160, 50, paint);
-        
-        // 分割线
-        paint.setStrokeWidth(2);
-        canvas.drawLine(20, 70, LABEL_WIDTH_DOTS - 20, 70, paint);
-        
-        // 基本信息
-        paint.setTextSize(24);
-        paint.setTypeface(Typeface.DEFAULT);
-        
-        int startY = 100;
-        int lineHeight = 35;
-        
-        canvas.drawText("记录编号: " + record.getRecordNumber(), 20, startY, paint);
-        canvas.drawText("农户姓名: " + record.getFarmerName(), 20, startY + lineHeight, paint);
-        canvas.drawText("性别: " + (record.getFarmerGender() != null ? record.getFarmerGender() : "未填"), 300, startY + lineHeight, paint);
-        canvas.drawText("身份证号: " + formatIdCard(record.getIdCardNumber()), 20, startY + lineHeight * 2, paint);
-        canvas.drawText("地址: " + (record.getFarmerAddress() != null ? record.getFarmerAddress() : "未填"), 20, startY + lineHeight * 3, paint);
-        canvas.drawText("烟叶部位: " + record.getTobaccoPart(), 20, startY + lineHeight * 4, paint);
-        canvas.drawText("捆数: " + record.getTobaccoBundles() + "捆", 300, startY + lineHeight * 4, paint);
-        
-        // 重量和金额（重点显示）
-        paint.setTextSize(28);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        canvas.drawText("重量: " + String.format("%.3f", record.getWeight()) + " kg", 20, startY + lineHeight * 5 + 10, paint);
-        canvas.drawText("金额: ¥" + String.format("%.2f", record.getTotalAmount()), 20, startY + lineHeight * 6 + 10, paint);
-        
-        // 时间
-        paint.setTextSize(20);
-        paint.setTypeface(Typeface.DEFAULT);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        canvas.drawText("时间: " + sdf.format(record.getCreateTime()), 20, startY + lineHeight * 6 + 20, paint);
-        
-        // 生成二维码
-        if (record.getQrCode() != null && !record.getQrCode().isEmpty()) {
-            Bitmap qrBitmap = generateQRCode(record.getQrCode(), 120);
-            if (qrBitmap != null) {
-                canvas.drawBitmap(qrBitmap, LABEL_WIDTH_DOTS - 140, startY + lineHeight * 4, paint);
-            }
-        }
-        
-        // 底部信息
-        paint.setTextSize(18);
-        canvas.drawText("操作员: " + record.getOperatorName(), 20, LABEL_HEIGHT_DOTS - 60, paint);
-        canvas.drawText("仓库: " + record.getWarehouseNumber(), 20, LABEL_HEIGHT_DOTS - 35, paint);
-        canvas.drawText("预检编号: " + record.getPreCheckNumber(), 20, LABEL_HEIGHT_DOTS - 10, paint);
-        
-        return bitmap;
-    }
-    
-    /**
-     * 生成二维码
-     * @param content 二维码内容
-     * @param size 二维码大小
-     * @return 二维码位图
-     */
-    private Bitmap generateQRCode(String content, int size) {
-        try {
-            QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size);
-            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
-            
-            for (int x = 0; x < size; x++) {
-                for (int y = 0; y < size; y++) {
-                    bitmap.setPixel(x, y, bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
-                }
-            }
-            
-            return bitmap;
-            
-        } catch (WriterException e) {
-            Log.e(TAG, "生成二维码失败: " + e.getMessage(), e);
-            return null;
-        }
-    }
-    
-    /**
-     * 发送位图数据到打印机
-     * @param bitmap 位图
-     */
-    private void sendBitmapToPrinter(Bitmap bitmap) throws Exception {
-        // 将位图转换为打印机可识别的数据格式
-        byte[] imageData = convertBitmapToEscPos(bitmap);
-        
-        // 发送图像打印命令
-        serialPortManager.sendData(imageData);
-    }
-    
-    /**
-     * 将位图转换为ESC/POS格式
-     * @param bitmap 位图
-     * @return ESC/POS数据
-     */
-    private byte[] convertBitmapToEscPos(Bitmap bitmap) {
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        
-        // 计算每行需要的字节数（8个像素一个字节）
-        int bytesPerLine = (width + 7) / 8;
-        
-        // 创建数据缓冲区
-        byte[] imageData = new byte[height * bytesPerLine + 8];
-        int index = 0;
-        
-        // ESC * 命令头 (位图模式)
-        imageData[index++] = 0x1B;
-        imageData[index++] = 0x2A;
-        imageData[index++] = 33;  // 24点双密度模式
-        imageData[index++] = (byte) (bytesPerLine & 0xFF);
-        imageData[index++] = (byte) ((bytesPerLine >> 8) & 0xFF);
-        
-        // 转换像素数据
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x += 8) {
-                byte pixelByte = 0;
-                for (int bit = 0; bit < 8 && (x + bit) < width; bit++) {
-                    int pixel = bitmap.getPixel(x + bit, y);
-                    // 判断是否为黑色像素
-                    if (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel) < 384) {
-                        pixelByte |= (1 << (7 - bit));
-                    }
-                }
-                imageData[index++] = pixelByte;
-            }
-        }
-        
-        // 添加换行
-        imageData[index++] = 0x0A;
-        
-        return imageData;
-    }
-    
-    /**
-     * 格式化身份证号（隐藏中间部分）
-     */
-    private String formatIdCard(String idCard) {
-        if (idCard == null || idCard.length() < 18) {
-            return idCard;
-        }
-        return idCard.substring(0, 6) + "********" + idCard.substring(14);
-    }
-    
-    /**
-     * 创建默认打印模板
-     */
-    private PrintTemplate createDefaultTemplate() {
-        PrintTemplate template = new PrintTemplate();
-        template.setName("默认模板");
-        template.setWidth(LABEL_WIDTH_MM);
-        template.setHeight(LABEL_HEIGHT_MM);
-        template.setShowQRCode(true);
-        template.setShowLogo(false);
-        return template;
-    }
-    
-    /**
-     * 设置打印模板
-     */
-    public void setPrintTemplate(PrintTemplate template) {
-        this.currentTemplate = template;
-    }
-    
-    /**
-     * 获取当前打印模板
-     */
-    public PrintTemplate getCurrentTemplate() {
-        return currentTemplate;
-    }
-    
-    /**
-     * 测试打印
-     */
-    public Observable<PrintResult> testPrint() {
-        return Observable.fromCallable(() -> {
-            try {
-                if (!isConnected) {
-                    throw new Exception("打印机未连接");
-                }
-                
-                // 发送测试页面
-                String testContent = "打印机测试页面\n\n";
-                testContent += "时间: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(System.currentTimeMillis()) + "\n";
-                testContent += "状态: 正常\n";
-                testContent += "分辨率: 8点/mm\n";
-                testContent += "标签尺寸: 70x70mm\n\n";
-                testContent += "测试完成\n";
-                
-                serialPortManager.sendData(testContent.getBytes());
-                serialPortManager.sendData(CMD_CUT_PAPER);
-                serialPortManager.sendData(CMD_FEED_LINES);
-                
-                return new PrintResult(true, "测试打印成功", "TEST");
-                
-            } catch (Exception e) {
-                Log.e(TAG, "测试打印异常: " + e.getMessage(), e);
-                return new PrintResult(false, "测试打印失败: " + e.getMessage(), "TEST");
-            }
-        });
-    }
-    
-    /**
-     * 获取打印结果Observable
-     */
-    public Observable<PrintResult> getPrintResultObservable() {
-        return printResultSubject;
-    }
-    
-    /**
-     * 检查是否已连接
+     * 检查打印机连接状态
      */
     public boolean isConnected() {
-        return isConnected && serialPortManager.isOpen();
+        return isConnected && connectedDevice != null;
+    }
+    
+    /**
+     * 打印收据 (简单版本 - 向后兼容)
+     */
+    public void printReceipt(String content) {
+        ReceiptData receipt = ReceiptData.createSimple("RECEIPT", content);
+        printReceipt(receipt);
+    }
+    
+    /**
+     * 打印收据 (完整版本)
+     */
+    public void printReceipt(ReceiptData receiptData) {
+        if (!isConnected()) {
+            notifyPrintError("Printer not connected");
+            return;
+        }
+        
+        if (receiptData == null || !receiptData.isValid()) {
+            notifyPrintError("Invalid receipt data");
+            return;
+        }
+        
+        try {
+            Log.i(TAG, "Printing receipt...");
+            
+            if (connectedDevice.getPath().equals("/dev/null")) {
+                // 模拟打印
+                Log.i(TAG, "Simulated receipt print: " + receiptData.toString());
+                Thread.sleep(500); // 模拟打印时间
+                notifyPrintComplete();
+                return;
+            }
+            
+            // 创建ESC命令
+            Esc esc = new Esc();
+            esc.reset();
+            
+            // 打印标题
+            if (receiptData.getHeader() != null && !receiptData.getHeader().trim().isEmpty()) {
+                esc.align(1); // 居中对齐
+                esc.textType(0, 0, 0, 1, 1, 1, 0); // 粗体，双倍大小
+                esc.printText(receiptData.getHeader());
+                esc.formfeedY(2);
+            }
+            
+            // 打印内容项目
+            if (receiptData.getItems() != null) {
+                for (ReceiptData.ReceiptItem item : receiptData.getItems()) {
+                    // 设置对齐方式
+                    esc.align(item.getAlignment());
+                    
+                    // 设置字体属性
+                    esc.textType(0, 0, 0, 
+                        item.isBold() ? 1 : 0,
+                        item.isDoubleSize() ? 1 : 0,
+                        item.isDoubleSize() ? 1 : 0,
+                        item.isUnderline() ? 1 : 0);
+                    
+                    // 打印文本
+                    esc.printText(item.getText());
+                    esc.formfeedY(1);
+                }
+            }
+            
+            // 打印条形码
+            if (receiptData.getBarcode() != null && !receiptData.getBarcode().trim().isEmpty()) {
+                esc.align(1); // 居中对齐
+                esc.formfeedY(1);
+                esc.printBarCode(73, receiptData.getBarcode()); // Code128
+                esc.formfeedY(2);
+            }
+            
+            // 打印二维码
+            if (receiptData.getQrCode() != null && !receiptData.getQrCode().trim().isEmpty()) {
+                esc.align(1); // 居中对齐
+                esc.createQR(receiptData.getQrCode());
+                esc.QRSize(5);
+                esc.printQR();
+                esc.formfeedY(2);
+            }
+            
+            // 打印页脚
+            if (receiptData.getFooter() != null && !receiptData.getFooter().trim().isEmpty()) {
+                esc.align(1); // 居中对齐
+                esc.printText(receiptData.getFooter());
+                esc.formfeedY(2);
+            }
+            
+            // 最终走纸
+            esc.formfeedY(receiptData.getFeedLines());
+            
+            // 切纸 (如果启用)
+            if (receiptData.isEnableCut()) {
+                esc.cutPaper();
+            }
+            
+            // 发送命令到打印机
+            sendEscCommands(esc);
+            esc.clear();
+            
+            notifyPrintComplete();
+            Log.i(TAG, "Receipt printed successfully");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to print receipt", e);
+            notifyPrintError("Print failed: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 打印标签 (简单版本 - 向后兼容)
+     */
+    public void printLabel(String name, String id, String qrCodeData) {
+        LabelData label = LabelData.createSimple(name, "ID: " + id);
+        if (qrCodeData != null && !qrCodeData.isEmpty()) {
+            label.addQRCode(250, 80, qrCodeData);
+        }
+        if (id != null && !id.isEmpty()) {
+            label.addBarcode(10, 100, id);
+        }
+        printLabel(label);
+    }
+    
+    /**
+     * 打印标签 (完整版本)
+     */
+    public void printLabel(LabelData labelData) {
+        // Test mode - always simulate successful printing
+        if (testMode) {
+            Log.i(TAG, "TEST MODE: Simulating successful print operation");
+            
+            // Simulate connection success first
+            notifyConnectionSuccess("TEST-PRINTER-USB");
+            
+            // Simulate printing process with realistic delays
+            new Thread(() -> {
+                try {
+                    // Simulate connection and preparation time
+                    Thread.sleep(500);
+                    notifyStatusUpdate("正在准备打印机...");
+                    
+                    Thread.sleep(300);
+                    notifyStatusUpdate("正在发送标签数据...");
+                    
+                    Thread.sleep(800);
+                    notifyStatusUpdate("正在打印标签...");
+                    
+                    Thread.sleep(1000);
+                    Log.i(TAG, "TEST MODE: Simulated label print: " + (labelData != null ? labelData.toString() : "null data"));
+                    notifyPrintComplete();
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    notifyPrintError("测试模式被中断");
+                }
+            }).start();
+            
+            return;
+        }
+        
+        if (!isConnected()) {
+            notifyPrintError("Printer not connected");
+            return;
+        }
+        
+        if (labelData == null || !labelData.isValid()) {
+            notifyPrintError("Invalid label data");
+            return;
+        }
+        
+        try {
+            Log.i(TAG, "Printing label...");
+            
+            if (connectedDevice.getPath().equals("/dev/null")) {
+                // 模拟打印
+                Log.i(TAG, "Simulated label print: " + labelData.toString());
+                Thread.sleep(800); // 模拟打印时间
+                notifyPrintComplete();
+                return;
+            }
+            
+            // 创建标签命令
+            Label label = new Label();
+            
+            // 设置页面属性
+            label.pageStart(labelData.getX(), labelData.getY(), 
+                          labelData.getWidth(), labelData.getHeight(), 
+                          labelData.getRotation());
+            
+            // 设置打印参数
+            if (labelData.getDensity() > 0) {
+                label.setDensity(labelData.getDensity());
+            }
+            if (labelData.getSpeed() > 0) {
+                label.setSpeed(labelData.getSpeed());
+            }
+            
+            // 处理所有元素
+            for (LabelData.LabelElement element : labelData.getElements()) {
+                switch (element.getType()) {
+                    case TEXT:
+                        label.printText(element.getX(), element.getY(), 
+                                      element.getFontSize(), 
+                                      element.isBold() ? 1 : 0, 
+                                      element.isUnderline() ? 1 : 0, 
+                                      element.getValue(), 
+                                      element.getRotation());
+                        break;
+                        
+                    case BARCODE:
+                        label.printBarCode(element.getX(), element.getY(), 
+                                         element.getBarcodeType(),
+                                         element.getHeight(), 
+                                         element.getWidth(), 
+                                         element.getValue(), 
+                                         element.getRotation());
+                        break;
+                        
+                    case QR_CODE:
+                        label.printQR(element.getX(), element.getY(), 
+                                    element.getQrSize(),
+                                    element.getQrVersion(), 
+                                    element.getQrEcc(), 
+                                    element.getValue(), 
+                                    element.getRotation());
+                        break;
+                        
+                    case LINE:
+                        label.drawLine(element.getX(), element.getY(),
+                                     element.getX() + element.getWidth(),
+                                     element.getY() + element.getHeight(),
+                                     element.getThickness());
+                        break;
+                        
+                    case RECTANGLE:
+                        label.drawRect(element.getX(), element.getY(),
+                                     element.getWidth(), element.getHeight(),
+                                     element.getThickness());
+                        break;
+                        
+                    case IMAGE:
+                        if (element.getImagePath() != null) {
+                            label.printImage(element.getX(), element.getY(),
+                                           element.getWidth(), element.getHeight(),
+                                           element.getImagePath());
+                        }
+                        break;
+                }
+            }
+            
+            label.pageEnd();
+            label.customPrintPage(labelData.getCopies());
+            
+            // 发送命令到打印机
+            sendLabelCommands(label);
+            label.clear();
+            
+            notifyPrintComplete();
+            Log.i(TAG, "Label printed successfully");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to print label", e);
+            notifyPrintError("Print failed: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 发送ESC命令到打印机
+     */
+    private void sendEscCommands(Esc esc) throws IOException {
+        if (serialPortManager != null && serialPortManager.isOpen()) {
+            List<byte[]> commands = esc.getCommands();
+            for (byte[] command : commands) {
+                serialPortManager.sendData(command);
+                try {
+                    Thread.sleep(10); // 小延迟确保命令按序发送
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+    
+    /**
+     * 发送Label命令到打印机
+     */
+    private void sendLabelCommands(Label label) throws IOException {
+        if (serialPortManager != null && serialPortManager.isOpen()) {
+            List<byte[]> commands = label.getCommands();
+            for (byte[] command : commands) {
+                serialPortManager.sendData(command);
+                try {
+                    Thread.sleep(10); // 小延迟确保命令按序发送
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+    
+    /**
+     * 关闭打印机连接
+     */
+    public void closeConnection() {
+        try {
+            if (serialPortManager != null && serialPortManager.isOpen()) {
+                serialPortManager.closeSerialPort();
+            }
+            
+            isConnected = false;
+            connectedDevice = null;
+            
+            Log.i(TAG, "Printer connection closed");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error closing printer connection", e);
+        }
     }
     
     /**
      * 释放资源
      */
     public void release() {
-        disconnect();
-        serialPortManager.release();
-        
-        if (printResultSubject != null) {
-            printResultSubject.onComplete();
+        closeConnection();
+        if (serialPortManager != null) {
+            serialPortManager.release();
         }
+        callback = null;
+        Log.i(TAG, "PrinterManager resources released");
+    }
+    
+    // 通知方法
+    private void notifyConnectionSuccess(String devicePath) {
+        if (callback != null) {
+            callback.onConnectionSuccess(devicePath);
+        }
+    }
+    
+    private void notifyConnectionFailed(String error) {
+        if (callback != null) {
+            callback.onConnectionFailed(error);
+        }
+    }
+    
+    private void notifyPrintComplete() {
+        if (callback != null) {
+            callback.onPrintComplete();
+        }
+    }
+    
+    private void notifyPrintError(String error) {
+        if (callback != null) {
+            callback.onPrintError(error);
+        }
+    }
+    
+    private void notifyStatusUpdate(String status) {
+        if (callback != null) {
+            callback.onStatusUpdate(status);
+        }
+    }
+    
+    // Test mode control methods
+    public void setTestMode(boolean enabled) {
+        this.testMode = enabled;
+        Log.i(TAG, "Test mode " + (enabled ? "ENABLED" : "DISABLED"));
+    }
+    
+    public boolean isTestMode() {
+        return testMode;
     }
     
     /**
-     * 打印结果类
+     * 测试打印失败场景
      */
-    public static class PrintResult {
-        private boolean success;
-        private String message;
-        private String recordNumber;
-        private long timestamp;
-        
-        public PrintResult(boolean success, String message, String recordNumber) {
-            this.success = success;
-            this.message = message;
-            this.recordNumber = recordNumber;
-            this.timestamp = System.currentTimeMillis();
+    public void simulatePrintFailure(String errorMessage) {
+        if (!testMode) {
+            Log.w(TAG, "simulatePrintFailure called but test mode is disabled");
+            return;
         }
         
-        // Getter 方法
-        public boolean isSuccess() { return success; }
-        public String getMessage() { return message; }
-        public String getRecordNumber() { return recordNumber; }
-        public long getTimestamp() { return timestamp; }
+        Log.i(TAG, "TEST MODE: Simulating print failure");
+        
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                notifyStatusUpdate("正在连接打印机...");
+                
+                Thread.sleep(800);
+                notifyPrintError(errorMessage != null ? errorMessage : "测试打印失败场景");
+                
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
-    
-    public HardwareSimulator getSimulator() {
-        return simulator;
-    }
-} 
+}

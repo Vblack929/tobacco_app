@@ -7,28 +7,59 @@ import java.util.Map;
 
 /**
  * 烟农统计数据模型
- * 用于存储每个烟农的汇总信息
+ * 
+ * 设计原则：
+ * - 只包含可变的统计数据
+ * - 通过FarmerInfo引用获取不可变的身份信息
+ * - 职责单一：仅负责称重统计计算
+ * - 与身份信息完全分离
  */
 public class FarmerStatistics {
-    private String farmerName; // 烟农姓名
-    private String contractNumber; // 合同号
+    
+    // 农户身份信息引用（不可变）
+    private final FarmerInfo farmerInfo;
+    
+    // 可变的统计数据
     private int totalBundles; // 预检捆数（总）
     private double totalWeight; // 预检重量（总）
     private Map<String, Double> leafTypeWeights; // 各部叶重量统计
     private Map<String, Integer> leafTypeCounts; // 各部叶捆数统计
     private List<WeighingRecord> records; // 所有称重记录
 
-    public FarmerStatistics() {
+    /**
+     * 主构造函数
+     */
+    public FarmerStatistics(FarmerInfo farmerInfo) {
+        if (farmerInfo == null) {
+            throw new IllegalArgumentException("FarmerInfo cannot be null");
+        }
+        
+        this.farmerInfo = farmerInfo;
         this.leafTypeWeights = new HashMap<>();
         this.leafTypeCounts = new HashMap<>();
         this.records = new ArrayList<>();
         initializeLeafTypes();
     }
 
-    public FarmerStatistics(String farmerName, String contractNumber) {
-        this();
-        this.farmerName = farmerName;
-        this.contractNumber = contractNumber;
+    /**
+     * 工厂方法：创建带有完整身份信息的统计
+     */
+    public static FarmerStatistics createWithFullInfo(String farmerName, String contractNumber, 
+                                                    String idCardNumber, String gender, String nationality, 
+                                                    String birthDate, String address, String department, 
+                                                    String startDate, String endDate, byte[] photo) {
+        FarmerInfo farmerInfo = FarmerInfo.createWithIdCard(farmerName, contractNumber, idCardNumber, 
+                                                          gender, nationality, birthDate, address, 
+                                                          department, startDate, endDate, photo);
+        return new FarmerStatistics(farmerInfo);
+    }
+
+    /**
+     * 工厂方法：创建基本统计信息
+     */
+    public static FarmerStatistics createBasic(String farmerName, String contractNumber, String idCardNumber) {
+        FarmerInfo farmerInfo = FarmerInfo.createBasic(farmerName, contractNumber, idCardNumber);
+        return new FarmerStatistics(farmerInfo);
     }
 
     private void initializeLeafTypes() {
@@ -42,7 +73,7 @@ public class FarmerStatistics {
     }
 
     /**
-     * 添加称重记录
+     * 添加称重记录（更新统计数据）
      */
     public void addWeighingRecord(WeighingRecord record) {
         records.add(record);
@@ -65,6 +96,16 @@ public class FarmerStatistics {
         if (leafTypeCounts.containsKey(leafType)) {
             leafTypeCounts.put(leafType, leafTypeCounts.get(leafType) + 1);
         }
+    }
+    
+    /**
+     * 重置统计数据（保持农户信息不变）
+     */
+    public void resetStatistics() {
+        totalBundles = 0;
+        totalWeight = 0.0;
+        records.clear();
+        initializeLeafTypes();
     }
 
     /**
@@ -92,24 +133,117 @@ public class FarmerStatistics {
         Integer count = leafTypeCounts.get(leafType);
         return count != null ? count : 0;
     }
+    
+    /**
+     * 验证记录是否属于当前农户
+     */
+    public boolean isRecordValid(WeighingRecord record) {
+        return record != null && 
+               farmerInfo.matchesName(record.getFarmerName());
+    }
 
-    // Getters and Setters
+    // === 便捷方法：委托给FarmerInfo ===
+    
+    /**
+     * 获取农户身份信息
+     */
+    public FarmerInfo getFarmerInfo() {
+        return farmerInfo;
+    }
+    
+    /**
+     * 获取农户姓名
+     */
     public String getFarmerName() {
-        return farmerName;
+        return farmerInfo.getFarmerName();
     }
 
-    public void setFarmerName(String farmerName) {
-        this.farmerName = farmerName;
-    }
-
+    /**
+     * 获取合同号
+     */
     public String getContractNumber() {
-        return contractNumber;
+        return farmerInfo.getContractNumber();
+    }
+    
+    /**
+     * 获取身份证号
+     */
+    public String getIdCardNumber() {
+        return farmerInfo.getIdCardNumber();
     }
 
-    public void setContractNumber(String contractNumber) {
-        this.contractNumber = contractNumber;
+    /**
+     * 获取性别
+     */
+    public String getGender() {
+        return farmerInfo.getGender();
     }
 
+    /**
+     * 获取地址
+     */
+    public String getAddress() {
+        return farmerInfo.getAddress();
+    }
+
+    /**
+     * 获取民族
+     */
+    public String getNationality() {
+        return farmerInfo.getNationality();
+    }
+
+    /**
+     * 获取出生日期
+     */
+    public String getBirthDate() {
+        return farmerInfo.getBirthDate();
+    }
+
+    /**
+     * 获取签发机关
+     */
+    public String getDepartment() {
+        return farmerInfo.getDepartment();
+    }
+
+    /**
+     * 获取有效期开始
+     */
+    public String getStartDate() {
+        return farmerInfo.getStartDate();
+    }
+
+    /**
+     * 获取有效期结束
+     */
+    public String getEndDate() {
+        return farmerInfo.getEndDate();
+    }
+
+    /**
+     * 获取照片
+     */
+    public byte[] getPhoto() {
+        return farmerInfo.getPhoto();
+    }
+    
+    /**
+     * 检查身份证号是否匹配
+     */
+    public boolean matchesIdCard(String idCardNumber) {
+        return farmerInfo.matchesIdCard(idCardNumber);
+    }
+    
+    /**
+     * 检查是否有完整的身份证信息
+     */
+    public boolean hasCompleteIdCardInfo() {
+        return farmerInfo.hasCompleteIdCardInfo();
+    }
+
+    // === 统计数据的Getters和Setters ===
+    
     public int getTotalBundles() {
         return totalBundles;
     }
@@ -153,11 +287,11 @@ public class FarmerStatistics {
     @Override
     public String toString() {
         return "FarmerStatistics{" +
-                "farmerName='" + farmerName + '\'' +
-                ", contractNumber='" + contractNumber + '\'' +
+                "farmerInfo=" + farmerInfo.getDisplayInfo() +
                 ", totalBundles=" + totalBundles +
                 ", totalWeight=" + totalWeight +
                 ", records=" + records.size() +
+                ", hasCompleteIdCardInfo=" + hasCompleteIdCardInfo() +
                 '}';
     }
 }

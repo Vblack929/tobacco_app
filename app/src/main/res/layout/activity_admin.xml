@@ -9,417 +9,299 @@
             type="com.tobacco.weight.ui.admin.AdminViewModel" />
     </data>
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
         android:background="@color/background_color"
+        android:padding="16dp"
         tools:context=".ui.admin.AdminActivity">
 
-        <LinearLayout
+        <!-- 标题 -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:text="管理员界面（一级）"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_text_color"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
 
-            <!-- 标题 -->
-            <TextView
+        <!-- 系统统计信息 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="烟叶称重管理系统"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/primary_text_color"
-                android:gravity="center"
-                android:layout_marginBottom="24dp" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <!-- 预检统计信息 -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="系统统计"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/primary_text_color"
+                    android:layout_marginBottom="16dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="预检统计信息"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text_color"
-                        android:layout_marginBottom="16dp" />
+                    android:orientation="horizontal">
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:text="注册农户"
+                            android:textSize="14sp"
+                            android:textColor="@color/secondary_text_color" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="总预检数"
-                                android:textSize="14sp"
-                                android:textColor="@color/secondary_text_color" />
-
-                            <TextView
-                                android:id="@+id/tv_total_precheck_count"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="50"
-                                android:textSize="24sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/primary_color" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:id="@+id/tv_total_farmer_count"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:text="0"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_color" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="已完成数"
-                                android:textSize="14sp"
-                                android:textColor="@color/secondary_text_color" />
+                    </LinearLayout>
 
-                            <TextView
-                                android:id="@+id/tv_current_precheck_count"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0"
-                                android:textSize="24sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/success_color" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
 
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:text="称重记录"
+                            android:textSize="14sp"
+                            android:textColor="@color/secondary_text_color" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="总重量"
-                                android:textSize="14sp"
-                                android:textColor="@color/secondary_text_color" />
-
-                            <TextView
-                                android:id="@+id/tv_total_precheck_weight"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0.00 kg"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/warning_color" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:id="@+id/tv_total_record_count"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:text="0"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/success_color" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="平均重量"
-                                android:textSize="14sp"
-                                android:textColor="@color/secondary_text_color" />
+                    </LinearLayout>
 
-                            <TextView
-                                android:id="@+id/tv_average_weight"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0.00 kg"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/info_color" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
 
-                        </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="总重量"
+                            android:textSize="14sp"
+                            android:textColor="@color/secondary_text_color" />
+
+                        <TextView
+                            android:id="@+id/tv_total_weight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0.00 kg"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/warning_color" />
 
                     </LinearLayout>
 
                 </LinearLayout>
 
-            </androidx.cardview.widget.CardView>
+            </LinearLayout>
 
-            <!-- 烟叶分类统计 -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
+        </androidx.cardview.widget.CardView>
+
+        <!-- 农户信息表 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="烟叶分类统计（一级）"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_text_color"
-                        android:layout_marginBottom="16dp" />
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="农户信息表"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_text_color" />
+
+                        <Button
+                            android:id="@+id/btn_export_all_data"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:text="导出所有记录"
+                            android:textSize="12sp"
+                            android:backgroundTint="@color/primary_color"
+                            android:textColor="@android:color/white"
+                            android:layout_marginStart="8dp" />
+
+                        <Button
+                            android:id="@+id/btn_refresh_data"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:text="刷新数据"
+                            android:textSize="12sp"
+                            android:backgroundTint="@color/success_color"
+                            android:textColor="@android:color/white"
+                            android:layout_marginStart="4dp" />
+
+                    </LinearLayout>
 
                     <!-- 表格头 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:background="@color/primary_light_color"
-                        android:padding="8dp">
+                        android:background="@color/primary_color"
+                        android:padding="12dp">
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="姓名"
+                            android:layout_weight="3"
+                            android:text="农户姓名"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            android:textColor="@color/white"
+                            android:textColor="@android:color/white"
                             android:gravity="center" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="2"
-                            android:text="预检总捆数"
+                            android:text="记录总数"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            android:textColor="@color/white"
+                            android:textColor="@android:color/white"
                             android:gravity="center" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="预检总重量"
+                            android:layout_weight="3"
+                            android:text="总重量"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            android:textColor="@color/white"
+                            android:textColor="@android:color/white"
+                            android:gravity="center" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="2"
+                            android:text="操作"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/white"
                             android:gravity="center" />
 
                     </LinearLayout>
 
-                    <!-- 张三 -->
-                    <LinearLayout
+                    <!-- 数据状态提示 -->
+                    <TextView
+                        android:id="@+id/tv_data_status"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="@color/white"
-                        android:padding="8dp">
+                        android:text="正在加载农户数据..."
+                        android:textSize="14sp"
+                        android:textColor="@color/secondary_text_color"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:visibility="visible" />
 
-                        <TextView
-                            android:layout_width="0dp"
+                    <!-- 可滚动的农户数据区域 -->
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:layout_marginTop="4dp"
+                        android:scrollbars="vertical"
+                        android:fadeScrollbars="false"
+                        android:scrollbarStyle="outsideOverlay"
+                        android:scrollbarThumbVertical="@android:color/darker_gray"
+                        android:scrollbarTrackVertical="@android:color/transparent"
+                        android:fillViewport="true">
+
+                        <LinearLayout
+                            android:id="@+id/layout_farmer_data_container"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="张三"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
+                            android:orientation="vertical">
 
-                        <TextView
-                            android:id="@+id/tv_farmer_a_bundle_count"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="50"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
+                            <!-- 动态添加农户数据行 -->
 
-                        <TextView
-                            android:id="@+id/tv_farmer_a_total_weight"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="125.30 kg"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
+                        </LinearLayout>
 
-                    </LinearLayout>
+                    </ScrollView>
 
-                    <!-- 李四 -->
-                    <LinearLayout
+                    <!-- 滑动提示 -->
+                    <TextView
+                        android:id="@+id/tv_scroll_hint"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="@color/background_light"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="李四"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_b_bundle_count"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="38"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_b_total_weight"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="96.75 kg"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                    </LinearLayout>
-
-                    <!-- 王五 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="@color/white"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="王五"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_c_bundle_count"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="42"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_c_total_weight"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="108.20 kg"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                    </LinearLayout>
-
-                    <!-- 赵六 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="@color/background_light"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="赵六"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_d_bundle_count"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="35"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                        <TextView
-                            android:id="@+id/tv_farmer_d_total_weight"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:text="87.90 kg"
-                            android:textSize="16sp"
-                            android:textColor="@color/primary_text_color"
-                            android:gravity="center" />
-
-                    </LinearLayout>
+                        android:text="⬆⬇ 上下滑动查看更多农户数据"
+                        android:textSize="12sp"
+                        android:textColor="@color/secondary_text_color"
+                        android:gravity="center"
+                        android:padding="8dp"
+                        android:visibility="gone" />
 
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>
 
-            <!-- 操作按钮 -->
-            <LinearLayout
+            <!-- 导出路径提示 -->
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="16dp">
-
-                <Button
-                    android:id="@+id/btn_refresh_data"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:text="刷新数据"
-                    android:textSize="16sp"
-                    android:layout_marginEnd="8dp"
-                    android:backgroundTint="@color/primary_color" />
-
-                <Button
-                    android:id="@+id/btn_export_data"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:text="导出数据"
-                    android:textSize="16sp"
-                    android:layout_marginStart="8dp"
-                    android:backgroundTint="@color/success_color" />
-
-            </LinearLayout>
+                android:text="导出路径: 内部存储/Documents/TobaccoWeightExports/"
+                android:textSize="12sp"
+                android:textColor="@color/secondary_text_color"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
 
         </LinearLayout>
 
-    </ScrollView>
-
-</layout> 
+    </layout> 

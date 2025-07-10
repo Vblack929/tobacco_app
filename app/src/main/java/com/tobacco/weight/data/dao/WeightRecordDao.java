@@ -54,6 +54,12 @@ public interface WeightRecordDao {
     LiveData<List<WeightRecord>> getRecordsByFarmerName(String farmerName);
 
     /**
+     * 根据身份证号查询记录（用于数据库链接）
+     */
+    @Query("SELECT * FROM weight_records WHERE id_card_number = :idCardNumber ORDER BY create_time DESC")
+    LiveData<List<WeightRecord>> getRecordsByIdCardNumber(String idCardNumber);
+
+    /**
      * 根据预检编号查询记录
      */
     @Query("SELECT * FROM weight_records WHERE pre_check_number = :precheckNumber ORDER BY create_time DESC")
@@ -78,10 +84,100 @@ public interface WeightRecordDao {
     LiveData<Integer> getRecordCountByFarmer(String farmerName);
 
     /**
-     * 获取指定烟农的各部叶重量统计
+     * 获取指定烟农的各部叶重量统计（按姓名）
      */
-    @Query("SELECT tobacco_part, SUM(weight) as total_weight FROM weight_records WHERE farmer_name = :farmerName GROUP BY tobacco_part")
+    @Query("SELECT tobacco_part, SUM(weight) as total_weight, COUNT(*) as total_count FROM weight_records WHERE farmer_name = :farmerName GROUP BY tobacco_part")
     LiveData<List<LeafTypeStatistics>> getLeafTypeStatisticsByFarmer(String farmerName);
+    
+    /**
+     * 获取指定烟农的各部叶重量统计（按身份证号）
+     */
+    @Query("SELECT tobacco_part, SUM(weight) as total_weight, COUNT(*) as total_count FROM weight_records WHERE id_card_number = :idCardNumber GROUP BY tobacco_part")
+    LiveData<List<LeafTypeStatistics>> getLeafTypeStatisticsByIdCard(String idCardNumber);
+    
+    /**
+     * 获取指定烟农的各部叶综合统计（按身份证号）- 包含数量和重量
+     */
+    @Query("SELECT tobacco_part, SUM(weight) as total_weight, COUNT(*) as total_count FROM weight_records WHERE id_card_number = :idCardNumber GROUP BY tobacco_part")
+    List<LeafTypeStatistics> getLeafTypeDetailsByIdCard(String idCardNumber);
+    
+    /**
+     * 获取指定烟农各部叶的数量统计（按身份证号）
+     */
+    @Query("SELECT COUNT(*) FROM weight_records WHERE id_card_number = :idCardNumber AND tobacco_part = :tobaccoPart")
+    int getLeafTypeCountByIdCard(String idCardNumber, String tobaccoPart);
+    
+    /**
+     * 获取指定烟农各部叶的重量统计（按身份证号）
+     */
+    @Query("SELECT COALESCE(SUM(weight), 0.0) FROM weight_records WHERE id_card_number = :idCardNumber AND tobacco_part = :tobaccoPart")
+    double getLeafTypeWeightByIdCard(String idCardNumber, String tobaccoPart);
+    
+    /**
+     * 根据身份证号获取烟农的总重量
+     */
+    @Query("SELECT SUM(weight) FROM weight_records WHERE id_card_number = :idCardNumber")
+    LiveData<Double> getTotalWeightByIdCard(String idCardNumber);
+    
+    /**
+     * 根据身份证号获取烟农的记录数量
+     */
+    @Query("SELECT COUNT(*) FROM weight_records WHERE id_card_number = :idCardNumber")
+    LiveData<Integer> getRecordCountByIdCard(String idCardNumber);
+    
+    /**
+     * 获取所有不同的烟农身份证号（用于统计）
+     */
+    @Query("SELECT DISTINCT id_card_number FROM weight_records WHERE id_card_number IS NOT NULL AND id_card_number != ''")
+    LiveData<List<String>> getAllFarmerIdCards();
+
+    /**
+     * 获取称重记录总数
+     */
+    @Query("SELECT COUNT(*) FROM weight_records")
+    int getTotalRecordCount();
+
+    /**
+     * 获取所有记录的总重量
+     */
+    @Query("SELECT COALESCE(SUM(weight), 0.0) FROM weight_records")
+    double getTotalWeight();
+
+    /**
+     * 获取所有记录的总叶片数量（总捆数）
+     */
+    @Query("SELECT COALESCE(SUM(tobacco_bundles), 0) FROM weight_records")
+    int getTotalLeafCount();
+
+    /**
+     * 获取指定身份证号的记录数量
+     */
+    @Query("SELECT COUNT(*) FROM weight_records WHERE id_card_number = :idCardNumber")
+    int getFarmerRecordCount(String idCardNumber);
+
+    /**
+     * 获取指定身份证号的总重量
+     */
+    @Query("SELECT COALESCE(SUM(weight), 0.0) FROM weight_records WHERE id_card_number = :idCardNumber")
+    double getFarmerTotalWeight(String idCardNumber);
+
+    /**
+     * 获取指定身份证号的总叶片数量（总捆数）
+     */
+    @Query("SELECT COALESCE(SUM(tobacco_bundles), 0) FROM weight_records WHERE id_card_number = :idCardNumber")
+    int getFarmerTotalLeafCount(String idCardNumber);
+
+    /**
+     * 获取指定身份证号的最近记录时间戳
+     */
+    @Query("SELECT timestamp FROM weight_records WHERE id_card_number = :idCardNumber ORDER BY timestamp DESC LIMIT 1")
+    Long getFarmerLastRecordTimestamp(String idCardNumber);
+
+    /**
+     * 根据身份证号获取记录
+     */
+    @Query("SELECT * FROM weight_records WHERE id_card_number = :idCardNumber ORDER BY timestamp DESC")
+    LiveData<List<WeightRecord>> getRecordsByIdCard(String idCardNumber);
 
     /**
      * 清空所有记录
@@ -96,4 +192,13 @@ public interface WeightRecordDao {
 class LeafTypeStatistics {
     public String tobacco_part;
     public double total_weight;
+    public int total_count;
+    
+    public LeafTypeStatistics() {}
+    
+    public LeafTypeStatistics(String tobacco_part, double total_weight, int total_count) {
+        this.tobacco_part = tobacco_part;
+        this.total_weight = total_weight;
+        this.total_count = total_count;
+    }
 }

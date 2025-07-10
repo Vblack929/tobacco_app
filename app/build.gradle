@@ -51,6 +51,15 @@ android {
         jvmTarget = '11'
     }
 
+    kapt {
+        correctErrorTypes true
+        useBuildCache true
+        mapDiagnosticLocations true
+        javacOptions {
+            option("-Xmx4g")
+        }
+    }
+
     buildFeatures {
         dataBinding true
         viewBinding true
@@ -67,6 +76,12 @@ android {
     packagingOptions {
         resources {
             excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt']
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
         }
     }
 }
@@ -98,8 +113,13 @@ dependencies {
     kapt 'androidx.room:room-compiler:2.6.1'
 
     // 依赖注入 Hilt
-    implementation 'com.google.dagger:hilt-android:2.48'
-    kapt 'com.google.dagger:hilt-compiler:2.48'
+    implementation 'com.google.dagger:hilt-android:2.56.2'
+    kapt 'com.google.dagger:hilt-compiler:2.56.2'
+    
+    // 数据绑定编译器
+    kapt 'androidx.databinding:databinding-compiler:8.2.2'
+    
+
 
     // RxJava3
     implementation 'io.reactivex.rxjava3:rxjava:3.1.8'
@@ -143,4 +163,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.5.1'
     androidTestImplementation 'androidx.room:room-testing:2.6.1'
+
+    implementation files('libs/SerialportPrintSDK.jar')
 } 
