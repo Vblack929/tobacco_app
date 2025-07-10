@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/white">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📋 记录详情（三级）"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:gravity="center"
+        android:paddingBottom="16dp"
+        android:background="#F5F5F5"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 可滚动内容区域 -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- 基础信息组 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="👤 基础信息"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1976D2"
+                android:background="#E3F2FD"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 烟农姓名 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="烟农姓名："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_farmer_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 身份证号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="身份证号："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_id_card_number"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 农户地址 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="农户地址："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_farmer_address"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 性别 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="性别："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_farmer_gender"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 记录信息组 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📋 记录信息"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#388E3C"
+                android:background="#E8F5E8"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 记录编号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="记录编号："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_number"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 预检编号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="预检编号："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_precheck_number"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 仓库编号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="仓库编号："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_warehouse_number"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 操作员 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="操作员："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_operator_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 烟叶信息组 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🌿 烟叶信息"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#F57C00"
+                android:background="#FFF3E0"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 部叶类型 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="部叶类型："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_tobacco_part"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 等级 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="烟叶等级："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_grade"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 重量 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="重量："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_weight"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#2196F3"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 捆数 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="捆数："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_bundles"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#FF9800"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 水分含量 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="水分含量："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_moisture_content"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 杂质率 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="杂质率："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_impurity_rate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 价格信息组 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💰 价格信息"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#7B1FA2"
+                android:background="#F3E5F5"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 收购价格 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="收购价格："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_price"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#E91E63"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 总金额 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="总金额："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_total_amount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#E91E63"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 系统信息组 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚙️ 系统信息"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#455A64"
+                android:background="#ECEFF1"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 记录时间 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="记录时间："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_timestamp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 更新时间 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="更新时间："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_update_time"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 状态 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="状态："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 打印状态 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="打印状态："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_print_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 导出状态 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="导出状态："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_export_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+            <!-- 二维码 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="二维码："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_qr_code"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="12sp"
+                    android:textColor="#212121"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <!-- 备注 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:text="备注："
+                    android:textSize="14sp"
+                    android:textColor="#757575" />
+                <TextView
+                    android:id="@+id/tv_record_remark"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- 按钮 -->
+    <Button
+        android:id="@+id/btn_close_record_dialog"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="关闭"
+        android:textSize="16sp"
+        android:backgroundTint="#757575"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout> 

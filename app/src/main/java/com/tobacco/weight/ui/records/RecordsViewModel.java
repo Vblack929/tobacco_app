@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.tobacco.weight.data.model.WeightRecord;
+import com.tobacco.weight.data.repository.WeightRecordRepository;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -33,6 +34,10 @@ public class RecordsViewModel extends ViewModel {
     private double avgPrice = 0.0;
     private boolean isEmpty = true;
     private boolean isLoading = false;
+    private String farmerName = "";
+    private String farmerIdNumber = "";
+    private String farmerAddress = "";
+    private String farmerGender = "";
 
     // LiveData 属性
     private final MutableLiveData<List<WeightRecord>> records = new MutableLiveData<>(new ArrayList<>());
@@ -43,8 +48,11 @@ public class RecordsViewModel extends ViewModel {
     private List<WeightRecord> allRecords = new ArrayList<>();
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
+    private final WeightRecordRepository repository;
+
     @Inject
-    public RecordsViewModel() {
+    public RecordsViewModel(WeightRecordRepository repository) {
+        this.repository = repository;
         // 初始化，加载记录
         loadRecords();
     }
@@ -190,12 +198,16 @@ public class RecordsViewModel extends ViewModel {
     }
 
     private void loadRecords() {
-        // TODO: 从数据库加载记录
-        // 模拟数据加载
+        setLoading(true);
+
+        // 从数据库加载记录
+        // 注意：实际应用中，应该在Fragment中观察LiveData
+        // 这里为了兼容现有架构，仍使用线程加载
         new Thread(() -> {
             try {
-                Thread.sleep(1000); // 模拟加载时间
+                Thread.sleep(500); // 模拟加载时间
 
+                // 开发阶段先使用模拟数据，实际项目中应该从数据库加载
                 List<WeightRecord> recordList = generateSampleRecords();
                 allRecords = recordList;
 
@@ -209,6 +221,13 @@ public class RecordsViewModel extends ViewModel {
                 setLoading(false);
             }
         }).start();
+    }
+
+    /**
+     * 获取数据库中的所有记录（供Fragment观察使用）
+     */
+    public LiveData<List<WeightRecord>> getDatabaseRecords() {
+        return repository.getAllRecords();
     }
 
     private boolean matchesSearchQuery(WeightRecord record) {
@@ -249,12 +268,25 @@ public class RecordsViewModel extends ViewModel {
     private List<WeightRecord> generateSampleRecords() {
         List<WeightRecord> records = new ArrayList<>();
 
-        // 生成一些示例数据
+        // 示例农户信息（包含完整身份证信息）
+        String[] farmerNames = { "张建华", "李明雨", "王国强", "刘小芳", "陈德顺" };
+        String[] farmerGenders = { "男", "男", "男", "女", "男" };
+        String[] farmerAddresses = {
+                "湖南省长沙市望城区白沙洲街道",
+                "湖南省浏阳市大围山镇楚东村",
+                "湖南省醴陵市板杉镇新田村",
+                "湖南省攸县莲塘坳镇双江村",
+                "湖南省炎陵县霞阳镇朝阳村"
+        };
+
+        // 生成一些示例数据（包含完整ID card信息）
         for (int i = 1; i <= 5; i++) {
             WeightRecord record = new WeightRecord();
             record.setRecordNumber("WR202401" + String.format("%03d", i));
-            record.setFarmerName("农户" + i);
-            record.setIdCardNumber("11010119900101000" + i);
+            record.setFarmerName(farmerNames[i - 1]);
+            record.setIdCardNumber("43012119901201000" + i);
+            record.setFarmerAddress(farmerAddresses[i - 1]);
+            record.setFarmerGender(farmerGenders[i - 1]);
             record.setTobaccoPart(i % 2 == 0 ? "上二棚" : "下二棚");
             record.setWeight(50.0 + i * 10);
             record.setTotalAmount((50.0 + i * 10) * 18.5);
