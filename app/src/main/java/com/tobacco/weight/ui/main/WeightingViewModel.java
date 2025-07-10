@@ -38,9 +38,10 @@ public class WeightingViewModel extends ViewModel {
     private final HardwareSimulator hardwareSimulator;
     private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
-    // 界面数据
+    // UI observable data
     private final MutableLiveData<String> farmerName = new MutableLiveData<>("未读取");
     private final MutableLiveData<String> contractNumber = new MutableLiveData<>("未设置");
+    private final MutableLiveData<String> idCardNumberInput = new MutableLiveData<>(""); // User input for ID card number
     private final MutableLiveData<String> currentWeight = new MutableLiveData<>("0.00 kg");
     private final MutableLiveData<String> deviceStatus = new MutableLiveData<>("设备连接中...");
     private final MutableLiveData<String> precheckLevel = new MutableLiveData<>("未检测");
@@ -91,6 +92,19 @@ public class WeightingViewModel extends ViewModel {
     private static int contractCounter = 10000000; // 合同号计数器，从HT10000000开始
     private final Map<String, FarmerStatistics> farmerStatisticsMap = new HashMap<>();
     private final List<WeighingRecord> allWeighingRecords = new ArrayList<>();
+    
+    // 新增：会话管理
+    public enum SessionState {
+        INACTIVE,   // 无活动会话
+        ACTIVE,     // 会话进行中
+        SAVED       // 已保存（可打印）
+    }
+    
+    private WeighingSession currentSession = null;
+    private SessionState currentSessionState = SessionState.INACTIVE;
+    private final MutableLiveData<String> sessionStatus = new MutableLiveData<>("无活动会话 - 请输入预检编号开始");
+    private final MutableLiveData<Boolean> sessionActive = new MutableLiveData<>(false);
+    private final MutableLiveData<SessionState> sessionState = new MutableLiveData<>(SessionState.INACTIVE);
 
     // 身份证相关数据存储
     private String currentIdCardNumber = ""; // 当前身份证号
@@ -110,7 +124,11 @@ public class WeightingViewModel extends ViewModel {
     // Print-related LiveData
     private final MutableLiveData<PrintEvent> printEvent = new MutableLiveData<>();
     private final MutableLiveData<String> printStatus = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> isTestMode = new MutableLiveData<>(true); // Track test mode state
+    private final MutableLiveData<Boolean> isTestMode = new MutableLiveData<>(false); // Track test mode state
+
+    // ID Card-related LiveData
+    private final MutableLiveData<IdCardEvent> idCardEvent = new MutableLiveData<>();
+    private final MutableLiveData<String> idCardStatus = new MutableLiveData<>();
 
     // Print event class for communication with Fragment
     public static class PrintEvent {
@@ -134,6 +152,30 @@ public class WeightingViewModel extends ViewModel {
         public String getMessage() { return message; }
         public String getDetails() { return details; }
         public PrintData getPrintData() { return printData; }
+    }
+
+    // ID Card event class for communication with Fragment
+    public static class IdCardEvent {
+        public enum Type {
+            ID_CARD_SUCCESS, ID_CARD_FAILURE, CONNECTION_SUCCESS, CONNECTION_FAILED, STATUS_UPDATE
+        }
+        
+        private final Type type;
+        private final String message;
+        private final String details;
+        private final com.tobacco.weight.hardware.idcard.IdCardData idCardData;
+        
+        public IdCardEvent(Type type, String message, String details, com.tobacco.weight.hardware.idcard.IdCardData idCardData) {
+            this.type = type;
+            this.message = message;
+            this.details = details;
+            this.idCardData = idCardData;
+        }
+        
+        public Type getType() { return type; }
+        public String getMessage() { return message; }
+        public String getDetails() { return details; }
+        public com.tobacco.weight.hardware.idcard.IdCardData getIdCardData() { return idCardData; }
     }
     
     // Print data class
@@ -274,6 +316,10 @@ public class WeightingViewModel extends ViewModel {
         // 存储完整身份证信息（从模拟器）
         farmerName.setValue(readName);
         currentIdCardNumber = readIdNumber != null ? readIdNumber : "";
+        
+        // 更新UI输入字段
+        idCardNumberInput.setValue(currentIdCardNumber);
+        
         currentAddress = idCardData.getAddress() != null ? idCardData.getAddress() : "";
         currentGender = ""; // 模拟器数据中没有性别字段
         currentNationality = "";
@@ -298,31 +344,42 @@ public class WeightingViewModel extends ViewModel {
 
         // 更新预检比例显示
         updateGlobalPrecheckRatios();
-        updateCurrentFarmerPrecheckRatio(readName);
+        updateCurrentFarmerPrecheckRatio();
     }
     
     /**
      * 处理真实身份证数据（从真实硬件）
      */
     public void onRealIdCardDataReceived(com.tobacco.weight.hardware.idcard.IdCardData realIdCardData) {
-        if (realIdCardData == null || !realIdCardData.isValid()) {
-            statusMessage.setValue("身份证读取失败：数据无效");
+        if (realIdCardData == null) {
+            statusMessage.setValue("身份证读取失败：无效数据");
             return;
         }
-        
+
         String readName = realIdCardData.getName();
         String readIdNumber = realIdCardData.getIdNumber();
         
+        // 验证身份信息的完整性
+        if (readName == null || readName.trim().isEmpty() || 
+            readIdNumber == null || readIdNumber.trim().isEmpty()) {
+            statusMessage.setValue("身份证读取失败：关键信息缺失");
+            return;
+        }
+
         // 验证烟农身份一致性
         if (!validateFarmerIdentity(readName, readIdNumber)) {
             String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
             statusMessage.setValue("身份验证失败：" + validationMessage);
             return;
         }
-        
+
         // 存储完整身份证信息（从真实硬件）
         farmerName.setValue(readName);
-        currentIdCardNumber = readIdNumber != null ? readIdNumber : "";
+        currentIdCardNumber = readIdNumber;
+        
+        // 更新UI输入字段
+        idCardNumberInput.setValue(currentIdCardNumber);
+        
         currentGender = realIdCardData.getGender() != null ? realIdCardData.getGender() : "";
         currentNationality = realIdCardData.getNationality() != null ? realIdCardData.getNationality() : "";
         currentBirthDate = realIdCardData.getBirthDate() != null ? realIdCardData.getBirthDate() : "";
@@ -344,10 +401,10 @@ public class WeightingViewModel extends ViewModel {
         } else {
             currentPhoto = null;
         }
-        
+
         // 显示验证结果
         String validationMessage = getFarmerValidationMessage(readName, readIdNumber);
-        statusMessage.setValue("身份证读取成功：" + readName + " (身份证号: " + maskIdCard(currentIdCardNumber) + ") - " + validationMessage);
+        statusMessage.setValue("身份证读取成功：" + readName + " - " + validationMessage);
 
         // 为新烟农生成合同号，已存在的烟农保持原合同号
         FarmerStatistics existing = findFarmerByIdCard(currentIdCardNumber);
@@ -360,7 +417,7 @@ public class WeightingViewModel extends ViewModel {
 
         // 更新预检比例显示
         updateGlobalPrecheckRatios();
-        updateCurrentFarmerPrecheckRatio(readName);
+        updateCurrentFarmerPrecheckRatio();
     }
     
     /**
@@ -474,8 +531,8 @@ public class WeightingViewModel extends ViewModel {
                 return;
             }
             
-            // 生成一个临时身份证号用于数据库存储 (使用农户姓名的hash)
-            String tempIdCard = "TEMP_" + farmerNameValue.hashCode();
+            // 生成一个唯一的临时身份证号用于数据库存储（使用时间戳确保唯一性）
+            String tempIdCard = "MANUAL_" + farmerNameValue + "_" + System.currentTimeMillis();
             
             // 创建FarmerInfo对象（没有真实身份证信息）
             FarmerInfo farmerInfo = FarmerInfo.createWithIdCard(
@@ -569,18 +626,15 @@ public class WeightingViewModel extends ViewModel {
     }
 
     /**
-     * 从当前数据创建WeightRecord对象
+     * 从当前数据创建WeightRecord（更新为支持烟叶分级详细数据）
      */
     private WeightRecord createWeightRecordFromCurrentData() {
         String farmer = farmerName.getValue();
         String contract = contractNumber.getValue();
-        String level = selectedLevel.getValue();
         String weight = currentWeight.getValue();
         String precheckId = currentPrecheckId.getValue();
 
-        if (farmer == null || farmer.equals("未读取") ||
-                level == null || level.equals("未选择") ||
-                weight == null) {
+        if (farmer == null || farmer.equals("未读取") || weight == null) {
             return null;
         }
 
@@ -589,15 +643,65 @@ public class WeightingViewModel extends ViewModel {
         record.setIdCardNumber(currentIdCardNumber); // 使用当前身份证号
         record.setFarmerAddress(currentAddress); // 设置农户地址
         record.setFarmerGender(currentGender); // 设置农户性别
-        record.setTobaccoPart(level);
-        record.setTobaccoBundles(1); // 默认1捆
 
-        // 解析重量（移除"kg"后缀）
-        try {
-            double weightValue = Double.parseDouble(weight.replace(" kg", ""));
-            record.setWeight(weightValue);
-        } catch (NumberFormatException e) {
-            record.setWeight(5.0); // 默认5kg
+        // === 关键修复：从会话中提取详细的烟叶分级数据 ===
+        if (currentSession != null && !currentSession.getEntries().isEmpty()) {
+            int upperBundles = 0, middleBundles = 0, lowerBundles = 0;
+            double upperWeight = 0.0, middleWeight = 0.0, lowerWeight = 0.0;
+            
+            // 汇总各个等级的数据
+            for (WeighingSession.SessionEntry entry : currentSession.getEntries()) {
+                switch (entry.getTobaccoGrade()) {
+                    case "上部叶":
+                        upperBundles += entry.getBundleCount();
+                        upperWeight += entry.getWeight();
+                        break;
+                    case "中部叶":
+                        middleBundles += entry.getBundleCount();
+                        middleWeight += entry.getWeight();
+                        break;
+                    case "下部叶":
+                        lowerBundles += entry.getBundleCount();
+                        lowerWeight += entry.getWeight();
+                        break;
+                }
+            }
+            
+            // 使用便利方法一次性设置所有烟叶数据
+            record.setTobaccoLeafData(upperBundles, upperWeight, 
+                                    middleBundles, middleWeight, 
+                                    lowerBundles, lowerWeight);
+        } else {
+            // 兼容旧流程：如果没有会话数据，使用默认值
+            String level = selectedLevel.getValue();
+            if (level != null && !level.equals("未选择")) {
+                // 解析重量（移除"kg"后缀）
+                double weightValue = 5.0; // 默认5kg
+                try {
+                    weightValue = Double.parseDouble(weight.replace(" kg", ""));
+                } catch (NumberFormatException e) {
+                    // 使用默认值
+                }
+                
+                // 根据选中的等级设置对应字段
+                switch (level) {
+                    case "上部叶":
+                        record.setTobaccoLeafData(1, weightValue, 0, 0.0, 0, 0.0);
+                        break;
+                    case "中部叶":
+                        record.setTobaccoLeafData(0, 0.0, 1, weightValue, 0, 0.0);
+                        break;
+                    case "下部叶":
+                        record.setTobaccoLeafData(0, 0.0, 0, 0.0, 1, weightValue);
+                        break;
+                    default:
+                        record.setTobaccoLeafData(1, weightValue, 0, 0.0, 0, 0.0); // 默认上部叶
+                        break;
+                }
+            } else {
+                // 完全默认值
+                record.setTobaccoLeafData(0, 0.0, 0, 0.0, 0, 0.0);
+            }
         }
 
         record.setPreCheckNumber(precheckId);
@@ -644,7 +748,7 @@ public class WeightingViewModel extends ViewModel {
     }
 
     /**
-     * 将WeighingRecord转换为WeightRecord
+     * 将WeighingRecord转换为WeightRecord（更新为支持烟叶分级详细数据）
      */
     private WeightRecord convertToWeightRecord(WeighingRecord weighingRecord) {
         WeightRecord record = new WeightRecord();
@@ -655,9 +759,59 @@ public class WeightingViewModel extends ViewModel {
         record.setIdCardNumber(currentIdCardNumber); // 使用当前身份证号
         record.setFarmerAddress(currentAddress); // 设置农户地址
         record.setFarmerGender(currentGender); // 设置农户性别
-        record.setTobaccoPart(weighingRecord.getLeafType());
-        record.setTobaccoBundles(1); // 默认1捆
-        record.setWeight(weighingRecord.getWeight());
+
+        // === 关键修复：从会话中提取详细的烟叶分级数据 ===
+        if (currentSession != null && !currentSession.getEntries().isEmpty()) {
+            int upperBundles = 0, middleBundles = 0, lowerBundles = 0;
+            double upperWeight = 0.0, middleWeight = 0.0, lowerWeight = 0.0;
+            
+            // 汇总各个等级的数据
+            for (WeighingSession.SessionEntry entry : currentSession.getEntries()) {
+                switch (entry.getTobaccoGrade()) {
+                    case "上部叶":
+                        upperBundles += entry.getBundleCount();
+                        upperWeight += entry.getWeight();
+                        break;
+                    case "中部叶":
+                        middleBundles += entry.getBundleCount();
+                        middleWeight += entry.getWeight();
+                        break;
+                    case "下部叶":
+                        lowerBundles += entry.getBundleCount();
+                        lowerWeight += entry.getWeight();
+                        break;
+                }
+            }
+            
+            // 使用便利方法一次性设置所有烟叶数据
+            record.setTobaccoLeafData(upperBundles, upperWeight, 
+                                    middleBundles, middleWeight, 
+                                    lowerBundles, lowerWeight);
+        } else {
+            // 兼容旧流程：使用WeighingRecord中的数据
+            String leafType = weighingRecord.getLeafType();
+            double weight = weighingRecord.getWeight();
+            
+            if (leafType != null) {
+                switch (leafType) {
+                    case "上部叶":
+                        record.setTobaccoLeafData(1, weight, 0, 0.0, 0, 0.0);
+                        break;
+                    case "中部叶":
+                        record.setTobaccoLeafData(0, 0.0, 1, weight, 0, 0.0);
+                        break;
+                    case "下部叶":
+                        record.setTobaccoLeafData(0, 0.0, 0, 0.0, 1, weight);
+                        break;
+                    default:
+                        record.setTobaccoLeafData(1, weight, 0, 0.0, 0, 0.0); // 默认上部叶
+                        break;
+                }
+            } else {
+                record.setTobaccoLeafData(0, 0.0, 0, 0.0, 0, 0.0);
+            }
+        }
+        
         record.setPreCheckNumber(weighingRecord.getPrecheckId());
 
         // 时间信息
@@ -911,7 +1065,35 @@ public class WeightingViewModel extends ViewModel {
         // 烟农姓名变更时，重新计算预检比例
         if (name != null && !name.trim().isEmpty()) {
             updateGlobalPrecheckRatios();
-            updateCurrentFarmerPrecheckRatio(name.trim());
+            updateCurrentFarmerPrecheckRatio();
+        }
+    }
+
+    /**
+     * 获取身份证号输入字段的LiveData（用于UI绑定）
+     */
+    public LiveData<String> getIdCardNumberInput() {
+        return idCardNumberInput;
+    }
+
+    /**
+     * 设置身份证号（手动输入）
+     */
+    public void setIdCardNumber(String idCardNumber) {
+        if (idCardNumber == null) {
+            idCardNumber = "";
+        }
+        
+        // 更新UI输入字段
+        idCardNumberInput.setValue(idCardNumber);
+        
+        // 更新内部身份证号状态
+        currentIdCardNumber = idCardNumber.trim();
+        
+        // 如果输入的是有效身份证号，重新计算预检比例
+        if (!currentIdCardNumber.isEmpty()) {
+            updateGlobalPrecheckRatios();
+            updateCurrentFarmerPrecheckRatio();
         }
     }
 
@@ -973,14 +1155,20 @@ public class WeightingViewModel extends ViewModel {
         statusMessage.setValue("称重完成 - 预检号: " + precheckId + " | " + currentSelectedLevel + " 5.00kg");
 
         // 更新预检比例显示
-        updatePrecheckRatios(currentFarmerName.trim());
+        updatePrecheckRatios();
     }
 
     /**
      * 更新烟农统计数据
      */
     private void updateFarmerStatistics(WeighingRecord record) {
-        String farmerKey = record.getFarmerName();
+        // Use ID card number as key instead of farmer name
+        String farmerKey = currentIdCardNumber;
+
+        if (farmerKey == null || farmerKey.trim().isEmpty()) {
+            statusMessage.setValue("警告：身份证号为空，无法更新统计数据");
+            return;
+        }
 
         FarmerStatistics statistics = farmerStatisticsMap.get(farmerKey);
         if (statistics == null) {
@@ -1022,12 +1210,12 @@ public class WeightingViewModel extends ViewModel {
     /**
      * 更新预检比例显示 - 计算全局预检比例
      */
-    private void updatePrecheckRatios(String farmerName) {
+    private void updatePrecheckRatios() {
         // 计算全局各部叶预检比例
         updateGlobalPrecheckRatios();
 
         // 计算当前烟农的预检比例
-        updateCurrentFarmerPrecheckRatio(farmerName);
+        updateCurrentFarmerPrecheckRatio();
     }
 
     /**
@@ -1083,8 +1271,8 @@ public class WeightingViewModel extends ViewModel {
     /**
      * 计算当前烟农的预检比例（当前预检重量占全部预检重量的比例）
      */
-    private void updateCurrentFarmerPrecheckRatio(String farmerName) {
-        if (allWeighingRecords.isEmpty()) {
+    private void updateCurrentFarmerPrecheckRatio() {
+        if (allWeighingRecords.isEmpty() || currentIdCardNumber == null || currentIdCardNumber.trim().isEmpty()) {
             precheckRatio.setValue("0.0%");
             return;
         }
@@ -1093,11 +1281,13 @@ public class WeightingViewModel extends ViewModel {
         double farmerTotalWeight = 0.0;
         double globalTotalWeight = 0.0;
 
+        String currentFarmerName = farmerName.getValue();
         for (WeighingRecord record : allWeighingRecords) {
             double weight = record.getWeight();
             globalTotalWeight += weight;
 
-            if (record.getFarmerName().equals(farmerName)) {
+            // Match by farmer name since WeighingRecord stores farmer name, not ID card
+            if (currentFarmerName != null && record.getFarmerName().equals(currentFarmerName)) {
                 farmerTotalWeight += weight;
             }
         }
@@ -1112,10 +1302,10 @@ public class WeightingViewModel extends ViewModel {
     }
 
     /**
-     * 获取烟农统计数据
+     * 获取烟农统计数据（通过身份证号）
      */
-    public FarmerStatistics getFarmerStatistics(String farmerName) {
-        return farmerStatisticsMap.get(farmerName);
+    public FarmerStatistics getFarmerStatistics(String idCardNumber) {
+        return farmerStatisticsMap.get(idCardNumber);
     }
 
     /**
@@ -1265,12 +1455,8 @@ public class WeightingViewModel extends ViewModel {
             return null;
         }
         
-        for (FarmerStatistics stats : farmerStatisticsMap.values()) {
-            if (stats.getFarmerInfo().matchesIdCard(idCardNumber)) {
-                return stats;
-            }
-        }
-        return null;
+        // Direct lookup since we now use ID card numbers as keys
+        return farmerStatisticsMap.get(idCardNumber);
     }
     
     /**
@@ -1304,19 +1490,13 @@ public class WeightingViewModel extends ViewModel {
             return false;
         }
         
-        // 检查是否已存在相同姓名的烟农
-        FarmerStatistics existingByName = farmerStatisticsMap.get(farmerName);
-        if (existingByName != null) {
-            return existingByName.getFarmerInfo().matchesIdCard(idCardNumber);
-        }
-        
         // 检查是否已存在相同身份证的烟农
         FarmerStatistics existingById = findFarmerByIdCard(idCardNumber);
         if (existingById != null) {
             return existingById.getFarmerInfo().matchesName(farmerName);
         }
         
-        // 都不存在，可以创建新的
+        // 不存在，可以创建新的
         return true;
     }
     
@@ -1328,20 +1508,14 @@ public class WeightingViewModel extends ViewModel {
             return "姓名或身份证号不能为空";
         }
         
-        FarmerStatistics existingByName = farmerStatisticsMap.get(farmerName);
         FarmerStatistics existingById = findFarmerByIdCard(idCardNumber);
         
-        if (existingByName != null && existingById != null) {
-            if (existingByName == existingById) {
+        if (existingById != null) {
+            if (existingById.getFarmerInfo().matchesName(farmerName)) {
                 return "验证成功：烟农信息一致";
             } else {
-                return "错误：姓名和身份证号分属不同烟农";
+                return "错误：身份证号已存在，但姓名为 " + existingById.getFarmerInfo().getFarmerName();
             }
-        } else if (existingByName != null) {
-            return "错误：烟农 " + farmerName + " 已存在，但身份证号不匹配 (现有: " + 
-                   existingByName.getFarmerInfo().getMaskedIdCardNumber() + ")";
-        } else if (existingById != null) {
-            return "错误：身份证号已存在，但姓名为 " + existingById.getFarmerInfo().getFarmerName();
         } else {
             return "验证成功：新烟农信息";
         }
@@ -1465,6 +1639,304 @@ public class WeightingViewModel extends ViewModel {
         setTestMode(false);
     }
 
+    /**
+     * 通知身份证事件
+     */
+    public void notifyIdCardSuccess(com.tobacco.weight.hardware.idcard.IdCardData idCardData) {
+        idCardEvent.setValue(new IdCardEvent(IdCardEvent.Type.ID_CARD_SUCCESS, "身份证读取成功", null, idCardData));
+        idCardStatus.setValue("身份证读取完成: " + (idCardData != null ? idCardData.getName() : "未知"));
+    }
+
+    public void notifyIdCardFailure(String errorType, String errorMessage, String errorDetails) {
+        idCardEvent.setValue(new IdCardEvent(IdCardEvent.Type.ID_CARD_FAILURE, errorType + ": " + errorMessage, errorDetails, null));
+        idCardStatus.setValue("身份证读取失败: " + errorMessage);
+    }
+
+    public void notifyIdCardConnectionSuccess(String deviceInfo) {
+        idCardEvent.setValue(new IdCardEvent(IdCardEvent.Type.CONNECTION_SUCCESS, "身份证读卡器连接成功", deviceInfo, null));
+        idCardStatus.setValue("读卡器已连接: " + deviceInfo);
+    }
+
+    public void notifyIdCardConnectionFailed(String error) {
+        idCardEvent.setValue(new IdCardEvent(IdCardEvent.Type.CONNECTION_FAILED, "读卡器连接失败", error, null));
+        idCardStatus.setValue("连接失败: " + error);
+    }
+
+    public void notifyIdCardStatusUpdate(String status) {
+        idCardEvent.setValue(new IdCardEvent(IdCardEvent.Type.STATUS_UPDATE, status, null, null));
+        idCardStatus.setValue(status);
+    }
+
+    /**
+     * 重置身份证事件（避免重复处理）
+     */
+    public void clearIdCardEvent() {
+        idCardEvent.setValue(null);
+    }
+
+    // Getters for ID card-related LiveData
+    public LiveData<IdCardEvent> getIdCardEvent() {
+        return idCardEvent;
+    }
+
+    public LiveData<String> getIdCardStatus() {
+        return idCardStatus;
+    }
+
+    // ===== 新增：会话管理方法 =====
+    
+    /**
+     * 会话数据类
+     */
+    public static class WeighingSession {
+        private String sessionId;
+        private String precheckNumber;
+        private Date precheckDate;
+        private List<SessionEntry> entries = new ArrayList<>();
+        private int totalBundles = 0;
+        private double totalWeight = 0.0;
+        
+        public static class SessionEntry {
+            private String tobaccoGrade;
+            private int bundleCount;
+            private double weight;
+            
+            public SessionEntry(String tobaccoGrade, int bundleCount, double weight) {
+                this.tobaccoGrade = tobaccoGrade;
+                this.bundleCount = bundleCount;
+                this.weight = weight;
+            }
+            
+            // Getters
+            public String getTobaccoGrade() { return tobaccoGrade; }
+            public int getBundleCount() { return bundleCount; }
+            public double getWeight() { return weight; }
+        }
+        
+        // Getters and setters
+        public String getSessionId() { return sessionId; }
+        public void setSessionId(String sessionId) { this.sessionId = sessionId; }
+        public String getPrecheckNumber() { return precheckNumber; }
+        public void setPrecheckNumber(String precheckNumber) { this.precheckNumber = precheckNumber; }
+        public Date getPrecheckDate() { return precheckDate; }
+        public void setPrecheckDate(Date precheckDate) { this.precheckDate = precheckDate; }
+        public List<SessionEntry> getEntries() { return entries; }
+        public int getTotalBundles() { return totalBundles; }
+        public double getTotalWeight() { return totalWeight; }
+        
+        public void addEntry(SessionEntry entry) {
+            entries.add(entry);
+            totalBundles += entry.getBundleCount();
+            totalWeight += entry.getWeight();
+        }
+    }
+    
+    /**
+     * 开始称重会话
+     */
+    public void startWeighingSession(String precheckNumber) {
+        if (precheckNumber == null || precheckNumber.trim().isEmpty()) {
+            statusMessage.setValue("错误：请输入预检编号");
+            return;
+        }
+        
+        // 如果有已保存的会话，清理它
+        if (currentSessionState == SessionState.SAVED) {
+            statusMessage.setValue("已清理上一个已保存的会话，开始新会话");
+        }
+        
+        // 创建新会话
+        currentSession = new WeighingSession();
+        currentSession.setSessionId("WS_" + System.currentTimeMillis());
+        currentSession.setPrecheckNumber(precheckNumber.trim());
+        currentSession.setPrecheckDate(new Date());
+        
+        // 更新会话状态
+        currentSessionState = SessionState.ACTIVE;
+        sessionState.setValue(SessionState.ACTIVE);
+        sessionActive.setValue(true);
+        sessionStatus.setValue("会话进行中 - 预检号: " + precheckNumber);
+        statusMessage.setValue("称重会话已开始 - " + precheckNumber);
+    }
+    
+    /**
+     * 添加到称重会话
+     */
+    public void addToWeighingSession(String tobaccoGrade, int bundleCount) {
+        if (currentSession == null) {
+            statusMessage.setValue("错误：没有活动的称重会话");
+            return;
+        }
+        
+        if (bundleCount <= 0) {
+            statusMessage.setValue("错误：请输入有效的捆数");
+            return;
+        }
+        
+        // === 修复：使用当前秤的实际重量，而不是捆数乘以固定重量 ===
+        String currentWeightStr = currentWeight.getValue();
+        double actualScaleWeight = 0.0;
+        
+        if (currentWeightStr != null) {
+            try {
+                // 解析当前显示的重量（移除"kg"后缀）
+                actualScaleWeight = Double.parseDouble(currentWeightStr.replace(" kg", "").trim());
+            } catch (NumberFormatException e) {
+                // 如果解析失败，使用默认值
+                actualScaleWeight = 5.0;
+                statusMessage.setValue("警告：无法读取秤重，使用默认值5.0kg");
+            }
+        } else {
+            actualScaleWeight = 5.0;
+            statusMessage.setValue("警告：秤重为空，使用默认值5.0kg");
+        }
+        
+        // 添加到会话 - 使用实际秤重作为该批次烟叶的总重量
+        WeighingSession.SessionEntry entry = new WeighingSession.SessionEntry(tobaccoGrade, bundleCount, actualScaleWeight);
+        currentSession.addEntry(entry);
+        
+        // 更新UI状态
+        String sessionInfo = String.format("会话进行中 - 预检号: %s | 总计: %d捆 %.1fkg", 
+                                          currentSession.getPrecheckNumber(),
+                                          currentSession.getTotalBundles(),
+                                          currentSession.getTotalWeight());
+        sessionStatus.setValue(sessionInfo);
+        
+        statusMessage.setValue(String.format("已添加: %s %d捆 %.1fkg (秤重)", tobaccoGrade, bundleCount, actualScaleWeight));
+    }
+    
+    /**
+     * 确认并保存会话
+     */
+    public void confirmAndSaveSession() {
+        if (currentSession == null) {
+            statusMessage.setValue("错误：没有活动的称重会话");
+            return;
+        }
+        
+        if (currentSession.getEntries().isEmpty()) {
+            statusMessage.setValue("错误：会话中没有任何记录");
+            return;
+        }
+        
+        // 创建汇总的称重记录
+        String farmerNameFromSession = farmerName.getValue();
+        String contractNumberFromSession = contractNumber.getValue();
+        
+        if (farmerNameFromSession == null || farmerNameFromSession.equals("未读取")) {
+            statusMessage.setValue("错误：请先读取农户身份证");
+            return;
+        }
+        
+        // 创建最终记录
+        WeighingRecord finalRecord = new WeighingRecord(
+            currentSession.getPrecheckNumber(),
+            farmerNameFromSession,
+            contractNumberFromSession != null ? contractNumberFromSession : generateContractNumber(),
+            aggregateSessionEntries(currentSession), // 汇总烟叶等级信息
+            currentSession.getTotalWeight()
+        );
+        
+        // 保存到全局记录列表
+        allWeighingRecords.add(finalRecord);
+        
+        // 保存到数据库
+        saveRecordToDatabase(finalRecord);
+        
+        // 更新烟农统计数据
+        updateFarmerStatistics(finalRecord);
+        
+        // 更新预检比例显示
+        updatePrecheckRatios();
+        
+        // 将会话标记为已保存（保留数据供打印使用）
+        currentSessionState = SessionState.SAVED;
+        sessionState.setValue(SessionState.SAVED);
+        sessionActive.setValue(false);  // 不再可编辑
+        sessionStatus.setValue("✅ 已保存 - 预检号: " + currentSession.getPrecheckNumber() + " | 可打印记录");
+        
+        // 重置选中状态
+        selectedLevel.setValue("未选择");
+        
+        statusMessage.setValue("✅ 称重会话已完成并保存 - 预检号: " + finalRecord.getPrecheckId() + " | 可点击打印按钮");
+    }
+    
+    /**
+     * 取消称重会话
+     */
+    public void cancelWeighingSession() {
+        if (currentSession != null) {
+            String precheckNumber = currentSession.getPrecheckNumber();
+            currentSession = null;
+            currentSessionState = SessionState.INACTIVE;
+            sessionState.setValue(SessionState.INACTIVE);
+            sessionActive.setValue(false);
+            sessionStatus.setValue("无活动会话 - 请输入预检编号开始");
+            statusMessage.setValue("称重会话已取消 - " + precheckNumber);
+        }
+    }
+    
+    /**
+     * 汇总会话条目为单一烟叶等级字符串
+     */
+    private String aggregateSessionEntries(WeighingSession session) {
+        Map<String, Integer> gradeCountMap = new HashMap<>();
+        
+        // 按等级汇总捆数
+        for (WeighingSession.SessionEntry entry : session.getEntries()) {
+            gradeCountMap.put(entry.getTobaccoGrade(), 
+                gradeCountMap.getOrDefault(entry.getTobaccoGrade(), 0) + entry.getBundleCount());
+        }
+        
+        // 选择捆数最多的等级作为主要等级
+        String primaryGrade = "混合";
+        int maxCount = 0;
+        for (Map.Entry<String, Integer> entry : gradeCountMap.entrySet()) {
+            if (entry.getValue() > maxCount) {
+                maxCount = entry.getValue();
+                primaryGrade = entry.getKey();
+            }
+        }
+        
+        return primaryGrade;
+    }
+    
+    // ===== Getters for session data =====
+    public LiveData<String> getSessionStatus() {
+        return sessionStatus;
+    }
+    
+    public LiveData<Boolean> getSessionActive() {
+        return sessionActive;
+    }
+    
+    public LiveData<SessionState> getSessionState() {
+        return sessionState;
+    }
+    
+    public WeighingSession getCurrentSession() {
+        return currentSession;
+    }
+    
+    public SessionState getCurrentSessionState() {
+        return currentSessionState;
+    }
+    
+    /**
+     * 重置会话 - 完全清理当前会话数据
+     */
+    public void resetSession() {
+        if (currentSession != null) {
+            String precheckNumber = currentSession.getPrecheckNumber();
+            currentSession = null;
+            currentSessionState = SessionState.INACTIVE;
+            sessionState.setValue(SessionState.INACTIVE);
+            sessionActive.setValue(false);
+            sessionStatus.setValue("无活动会话 - 请输入预检编号开始");
+            statusMessage.setValue("会话数据已重置 - " + precheckNumber);
+        }
+    }
+    
     @Override
     protected void onCleared() {
         super.onCleared();

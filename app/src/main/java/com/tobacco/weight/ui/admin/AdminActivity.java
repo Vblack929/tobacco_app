@@ -195,7 +195,7 @@ public class AdminActivity extends AppCompatActivity {
         row.addView(tvName);
 
         // 记录总数
-        TextView tvCount = createTableCell(String.valueOf(stats.getLeafCount()), 2);
+        TextView tvCount = createTableCell(String.valueOf(stats.getRecordCount()), 2);
         tvCount.setTextColor(0xFF4CAF50);
         tvCount.setTextSize(16);
         row.addView(tvCount);
@@ -278,7 +278,7 @@ public class AdminActivity extends AppCompatActivity {
         tvFarmerName.setText(stats.getFarmerName());
         tvIdNumber.setText(stats.getMaskedIdCardNumber());
         tvTotalWeight.setText(String.format("%.2f kg", stats.getTotalWeight()));
-        tvRecordCount.setText(String.valueOf(stats.getLeafCount()));
+        tvRecordCount.setText(String.valueOf(stats.getRecordCount()));
 
         // 清空记录容器并显示加载状态
         layoutRecordsContainer.removeAllViews();
@@ -344,7 +344,7 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     /**
-     * 创建简化的单条记录显示行 (时间、捆数、合同编号)
+     * 创建简化的单条记录显示行 (时间、总捆数、预检编号、查看按钮)
      */
     private LinearLayout createSimpleRecordRow(com.tobacco.weight.data.model.WeightRecord record, int index) {
         LinearLayout row = new LinearLayout(this);
@@ -362,43 +362,57 @@ public class AdminActivity extends AppCompatActivity {
         SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
         String timeStr = sdf.format(new Date(record.getTimestamp()));
 
-        // 时间
+        // 时间 (权重3)
         TextView tvTime = createRecordCell(timeStr, 3);
         tvTime.setTextSize(13);
         tvTime.setTextColor(0xFF212121);
         row.addView(tvTime);
 
-        // 捆数
-        TextView tvBundles = createRecordCell(String.valueOf(record.getTobaccoBundles()), 2);
+        // 总捆数 (权重2) - 使用新的数据结构
+        TextView tvBundles = createRecordCell(String.valueOf(record.getTotalBundles()), 2);
         tvBundles.setTextSize(13);
-        tvBundles.setTextColor(0xFFFF9800);
-        tvBundles.setTypeface(null, android.graphics.Typeface.BOLD);
+        tvBundles.setTextColor(0xFF4CAF50);
         row.addView(tvBundles);
 
-        // 合同编号 (使用记录编号)
-        String contractNumber = record.getRecordNumber() != null ? record.getRecordNumber() : "无编号";
-        TextView tvContractNumber = createRecordCell(contractNumber, 3);
-        tvContractNumber.setTextSize(13);
-        tvContractNumber.setTextColor(0xFF2196F3);
-        row.addView(tvContractNumber);
+        // 预检编号 (权重4) - 替换合同编号
+        TextView tvPrecheckNumber = createRecordCell(getDisplayText(record.getPreCheckNumber()), 4);
+        tvPrecheckNumber.setTextSize(13);
+        tvPrecheckNumber.setTextColor(0xFF2196F3);
+        row.addView(tvPrecheckNumber);
 
-        // 查看按钮
-        Button btnView = new Button(this);
-        btnView.setText("查看");
-        btnView.setTextSize(11);
-        btnView.setTextColor(0xFFFFFFFF);
-        btnView.setBackgroundColor(0xFF4CAF50);
-        btnView.setPadding(8, 6, 8, 6);
+        // 查看按钮 (权重2)
+        LinearLayout buttonContainer = new LinearLayout(this);
+        buttonContainer.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+        buttonContainer.setGravity(android.view.Gravity.CENTER);
+        buttonContainer.setPadding(4, 0, 4, 0);
 
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        btnParams.setMargins(4, 2, 4, 2);
-        btnView.setLayoutParams(btnParams);
+        Button viewButton = new Button(this);
+        viewButton.setText("查看");
+        viewButton.setTextSize(11);
+        viewButton.setTextColor(0xFFFFFFFF);
+        viewButton.setBackgroundColor(0xFF2196F3);
+        
+        // 设置按钮大小
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                (int) (32 * getResources().getDisplayMetrics().density) // 32dp height
+        );
+        buttonParams.setMargins(2, 2, 2, 2);
+        viewButton.setLayoutParams(buttonParams);
+        viewButton.setPadding(12, 4, 12, 4);
 
-        // 设置查看按钮点击事件
-        btnView.setOnClickListener(v -> showRecordDetailDialog(record));
+        // 设置点击监听器 - 显示个人记录详情（Level 3）
+        viewButton.setOnClickListener(v -> {
+            showRecordDetailDialog(record);
+        });
 
-        row.addView(btnView);
+        buttonContainer.addView(viewButton);
+        row.addView(buttonContainer);
 
+        // 移除整行点击监听器，现在只通过按钮点击
+        row.setClickable(false);
+        row.setFocusable(false);
+        
         return row;
     }
 
@@ -411,28 +425,29 @@ public class AdminActivity extends AppCompatActivity {
         textView.setText(text);
         textView.setGravity(android.view.Gravity.CENTER);
         textView.setPadding(4, 4, 4, 4);
-        textView.setTextColor(0xFF212121);
         return textView;
     }
 
     /**
-     * 根据部叶类型获取颜色
+     * 根据烟叶部位获取颜色
      */
     private int getColorForTobaccoPart(String tobaccoPart) {
+        if (tobaccoPart == null) return 0xFF757575;
+        
         switch (tobaccoPart) {
             case "上部叶":
-                return 0xFF4CAF50; // 绿色
+                return 0xFFE57373; // 红色
             case "中部叶":
-                return 0xFF2196F3; // 蓝色
+                return 0xFF81C784; // 绿色
             case "下部叶":
-                return 0xFFFF9800; // 橙色
+                return 0xFF64B5F6; // 蓝色
             default:
                 return 0xFF757575; // 灰色
         }
     }
 
     /**
-     * 显示单条记录详细信息对话框（Level 3）
+     * 显示记录详细信息对话框（Level 3）- 类似主界面右侧显示
      */
     private void showRecordDetailDialog(com.tobacco.weight.data.model.WeightRecord record) {
         // 创建Dialog
@@ -441,31 +456,172 @@ public class AdminActivity extends AppCompatActivity {
         dialog.setContentView(R.layout.dialog_record_detail);
         dialog.setCancelable(true);
 
-        // 获取Dialog中的控件
+        // === 获取Dialog中的控件 ===
+        
+        // 基本信息
         TextView tvFarmerName = dialog.findViewById(R.id.tv_record_farmer_name);
+        TextView tvIdCardNumber = dialog.findViewById(R.id.tv_record_id_card_number);
+        TextView tvFarmerAddress = dialog.findViewById(R.id.tv_record_farmer_address);
+        TextView tvFarmerGender = dialog.findViewById(R.id.tv_record_farmer_gender);
+        
+        // 记录信息
+        TextView tvRecordNumber = dialog.findViewById(R.id.tv_record_number);
         TextView tvPrecheckNumber = dialog.findViewById(R.id.tv_record_precheck_number);
-        TextView tvContractNumber = dialog.findViewById(R.id.tv_record_contract_number);
+        TextView tvWarehouseNumber = dialog.findViewById(R.id.tv_record_warehouse_number);
+        TextView tvOperatorName = dialog.findViewById(R.id.tv_record_operator_name);
+        
+        // 烟叶信息
         TextView tvTobaccoPart = dialog.findViewById(R.id.tv_record_tobacco_part);
+        TextView tvGrade = dialog.findViewById(R.id.tv_record_grade);
         TextView tvWeight = dialog.findViewById(R.id.tv_record_weight);
         TextView tvBundles = dialog.findViewById(R.id.tv_record_bundles);
-        TextView tvGrade = dialog.findViewById(R.id.tv_record_grade);
+        TextView tvMoistureContent = dialog.findViewById(R.id.tv_record_moisture_content);
+        TextView tvImpurityRate = dialog.findViewById(R.id.tv_record_impurity_rate);
+        
+        // 价格信息
         TextView tvPrice = dialog.findViewById(R.id.tv_record_price);
+        TextView tvTotalAmount = dialog.findViewById(R.id.tv_record_total_amount);
+        
+        // 系统信息
         TextView tvTimestamp = dialog.findViewById(R.id.tv_record_timestamp);
+        TextView tvUpdateTime = dialog.findViewById(R.id.tv_record_update_time);
+        TextView tvStatus = dialog.findViewById(R.id.tv_record_status);
+        TextView tvPrintStatus = dialog.findViewById(R.id.tv_record_print_status);
+        TextView tvExportStatus = dialog.findViewById(R.id.tv_record_export_status);
+        TextView tvQrCode = dialog.findViewById(R.id.tv_record_qr_code);
+        TextView tvRemark = dialog.findViewById(R.id.tv_record_remark);
+        
         Button btnClose = dialog.findViewById(R.id.btn_close_record_dialog);
 
-        // 设置数据
-        tvFarmerName.setText(record.getFarmerName());
-        tvPrecheckNumber.setText(record.getPreCheckNumber());
-        tvContractNumber.setText(record.getRecordNumber());
-        tvTobaccoPart.setText(record.getTobaccoPart());
-        tvWeight.setText(String.format("%.2f kg", record.getWeight()));
-        tvBundles.setText(String.valueOf(record.getTobaccoBundles()));
-        tvGrade.setText(record.getTobaccoGrade());
-        tvPrice.setText(String.format("%.2f 元/kg", record.getPurchasePrice()));
-
-        // 格式化完整时间戳
+        // === 填充基本信息 ===
+        tvFarmerName.setText(getDisplayText(record.getFarmerName()));
+        tvIdCardNumber.setText(getDisplayText(record.getIdCardNumber()));
+        tvFarmerAddress.setText(getDisplayText(record.getFarmerAddress()));
+        tvFarmerGender.setText(getDisplayText(record.getFarmerGender()));
+        
+        // === 填充记录信息 ===
+        tvRecordNumber.setText(getDisplayText(record.getRecordNumber()));
+        tvPrecheckNumber.setText(getDisplayText(record.getPreCheckNumber()));
+        tvWarehouseNumber.setText(getDisplayText(record.getWarehouseNumber()));
+        tvOperatorName.setText(getDisplayText(record.getOperatorName()));
+        
+        // === 填充烟叶信息 ===
+        
+        // 使用新的详细烟叶分级数据结构
+        if (record.hasMultipleTobaccoParts()) {
+            // 多部位烟叶记录，显示详细分解
+            tvTobaccoPart.setText("混合烟叶 (" + record.getPrimaryTobaccoPart() + "为主)");
+            tvTobaccoPart.setTextColor(0xFF757575); // 灰色表示混合
+            
+            // 显示详细分解信息
+            String tobaccoBreakdown = record.getTobaccoPartsDescription();
+            tvGrade.setText(tobaccoBreakdown);
+            tvGrade.setTextSize(12); // 稍小字体显示详细信息
+            
+        } else {
+            // 单一部位烟叶记录
+            tvTobaccoPart.setText(getDisplayText(record.getPrimaryTobaccoPart()));
+            tvTobaccoPart.setTextColor(getColorForTobaccoPart(record.getPrimaryTobaccoPart()));
+            tvGrade.setText(getDisplayText(record.getTobaccoGrade()));
+        }
+        
+        // 显示总重量（来自新的数据结构）
+        if (record.getTotalWeight() > 0) {
+            tvWeight.setText(String.format("%.2f kg", record.getTotalWeight()));
+        } else {
+            tvWeight.setText("未称重");
+        }
+        
+        // 显示总捆数（来自新的数据结构）
+        if (record.getTotalBundles() > 0) {
+            tvBundles.setText(String.format("%d 捆", record.getTotalBundles()));
+            
+            // 如果有多个部位，添加详细捆数信息
+            if (record.hasMultipleTobaccoParts()) {
+                String bundleDetails = "";
+                if (record.getUpperLeafBundles() > 0) {
+                    bundleDetails += "上部:" + record.getUpperLeafBundles() + "捆 ";
+                }
+                if (record.getMiddleLeafBundles() > 0) {
+                    bundleDetails += "中部:" + record.getMiddleLeafBundles() + "捆 ";
+                }
+                if (record.getLowerLeafBundles() > 0) {
+                    bundleDetails += "下部:" + record.getLowerLeafBundles() + "捆";
+                }
+                
+                if (!bundleDetails.trim().isEmpty()) {
+                    tvBundles.setText(String.format("%d 捆 (%s)", record.getTotalBundles(), bundleDetails.trim()));
+                }
+            }
+        } else {
+            tvBundles.setText("0 捆");
+        }
+        
+        // 处理水分含量和杂质率
+        if (record.getMoistureContent() > 0) {
+            tvMoistureContent.setText(String.format("%.2f%%", record.getMoistureContent()));
+        } else {
+            tvMoistureContent.setText("未设置");
+        }
+        
+        if (record.getImpurityRate() > 0) {
+            tvImpurityRate.setText(String.format("%.2f%%", record.getImpurityRate()));
+        } else {
+            tvImpurityRate.setText("未设置");
+        }
+        
+        // === 填充价格信息 ===
+        if (record.getPurchasePrice() > 0) {
+            tvPrice.setText(String.format("%.2f 元/kg", record.getPurchasePrice()));
+        } else {
+            tvPrice.setText("未设置");
+        }
+        
+        if (record.getTotalAmount() > 0) {
+            tvTotalAmount.setText(String.format("%.2f 元", record.getTotalAmount()));
+        } else {
+            tvTotalAmount.setText("未计算");
+        }
+        
+        // === 填充系统信息 ===
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        tvTimestamp.setText(sdf.format(new Date(record.getTimestamp())));
+        
+        // 记录时间
+        if (record.getCreateTime() != null) {
+            tvTimestamp.setText(sdf.format(record.getCreateTime()));
+        } else if (record.getTimestamp() > 0) {
+            tvTimestamp.setText(sdf.format(new Date(record.getTimestamp())));
+        } else {
+            tvTimestamp.setText("未知");
+        }
+        
+        // 更新时间
+        if (record.getUpdateTime() != null) {
+            tvUpdateTime.setText(sdf.format(record.getUpdateTime()));
+        } else {
+            tvUpdateTime.setText("未更新");
+        }
+        
+        // 状态信息
+        tvStatus.setText(getDisplayText(record.getStatus()));
+        
+        // 打印状态
+        if (record.isPrinted()) {
+            if (record.getPrintCount() > 0) {
+                tvPrintStatus.setText(String.format("已打印 (%d次)", record.getPrintCount()));
+            } else {
+                tvPrintStatus.setText("已打印");
+            }
+        } else {
+            tvPrintStatus.setText("未打印");
+        }
+        
+        // 导出状态
+        tvExportStatus.setText(record.isExported() ? "已导出" : "未导出");
+        
+        // 二维码和备注
+        tvQrCode.setText(getDisplayText(record.getQrCode()));
+        tvRemark.setText(getDisplayText(record.getRemark()));
 
         // 设置关闭按钮点击事件
         btnClose.setOnClickListener(v -> dialog.dismiss());
@@ -473,12 +629,22 @@ public class AdminActivity extends AppCompatActivity {
         // 显示Dialog
         dialog.show();
 
-        // 设置Dialog窗口大小
+        // 设置Dialog窗口大小 - 加大高度以容纳更多内容
         if (dialog.getWindow() != null) {
             dialog.getWindow().setLayout(
-                    (int) (getResources().getDisplayMetrics().widthPixels * 0.8),
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                    (int) (getResources().getDisplayMetrics().widthPixels * 0.85),
+                    (int) (getResources().getDisplayMetrics().heightPixels * 0.8));
         }
+    }
+    
+    /**
+     * 获取显示文本，处理null值
+     */
+    private String getDisplayText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return "未设置";
+        }
+        return text;
     }
 
     /**
@@ -493,7 +659,7 @@ public class AdminActivity extends AppCompatActivity {
         double totalWeight = 0.0;
 
         for (AdminViewModel.FarmerStatistics stats : farmerStatsList) {
-            totalRecords += stats.getLeafCount(); // Changed from recordCount to leafCount
+            totalRecords += stats.getRecordCount(); // Use record count instead of leaf count
             totalWeight += stats.getTotalWeight();
         }
 

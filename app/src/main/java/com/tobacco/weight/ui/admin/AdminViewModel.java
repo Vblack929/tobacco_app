@@ -33,6 +33,7 @@ public class AdminViewModel extends ViewModel {
     // 系统统计数据
     private final MutableLiveData<Integer> totalFarmerCount = new MutableLiveData<>(0);
     private final MutableLiveData<Integer> totalLeafCount = new MutableLiveData<>(0);
+    private final MutableLiveData<Integer> totalRecordCount = new MutableLiveData<>(0);
     private final MutableLiveData<Double> totalWeight = new MutableLiveData<>(0.0);
 
     // 农户统计列表
@@ -74,7 +75,20 @@ public class AdminViewModel extends ViewModel {
             }
         });
 
-        // 获取称重记录统计
+        // 获取称重记录总数（实际记录数量）
+        weightRecordRepository.getTotalRecordCount(new WeightRecordRepository.CountCallback() {
+            @Override
+            public void onSuccess(int count) {
+                totalRecordCount.postValue(count);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                totalRecordCount.postValue(0);
+            }
+        });
+
+        // 获取称重记录总叶片数量（总捆数）
         weightRecordRepository.getTotalLeafCount(new WeightRecordRepository.CountCallback() {
             @Override
             public void onSuccess(int count) {
@@ -133,15 +147,16 @@ public class AdminViewModel extends ViewModel {
         final int[] completedCount = {0}; // 使用数组来在回调中修改
 
         for (FarmerInfoEntity farmer : farmers) {
-            // 获取每个农户的称重记录统计
-            weightRecordRepository.getFarmerRecordStatistics(farmer.getIdCardNumber(),
-                    new WeightRecordRepository.FarmerStatsCallback() {
+            // 获取每个农户的完整称重记录统计
+            weightRecordRepository.getFarmerCompleteStatistics(farmer.getIdCardNumber(),
+                    new WeightRecordRepository.CompleteStatsCallback() {
                         @Override
-                        public void onSuccess(int totalLeafCount, double totalWeight, String lastRecordDate) {
+                        public void onSuccess(int recordCount, int totalLeafCount, double totalWeight, String lastRecordDate) {
                             // 创建农户统计对象
                             FarmerStatistics stats = new FarmerStatistics(
                                     farmer.getFarmerName(),
                                     farmer.getIdCardNumber(),
+                                    recordCount,
                                     totalLeafCount,
                                     totalWeight,
                                     lastRecordDate != null ? lastRecordDate : "暂无记录"
@@ -166,8 +181,9 @@ public class AdminViewModel extends ViewModel {
                             FarmerStatistics stats = new FarmerStatistics(
                                     farmer.getFarmerName(),
                                     farmer.getIdCardNumber(),
-                                    0,
-                                    0.0,
+                                    0, // recordCount
+                                    0, // leafCount
+                                    0.0, // totalWeight
                                     "暂无记录"
                             );
                             
@@ -195,6 +211,10 @@ public class AdminViewModel extends ViewModel {
         return totalLeafCount;
     }
 
+    public LiveData<Integer> getTotalRecordCount() {
+        return totalRecordCount;
+    }
+
     public LiveData<Double> getTotalWeight() {
         return totalWeight;
     }
@@ -206,19 +226,21 @@ public class AdminViewModel extends ViewModel {
     // === 数据模型类 ===
 
     /**
-     * 农户统计信息类
+     * 农户统计数据模型
      */
     public static class FarmerStatistics {
         private final String farmerName;
         private final String idCardNumber;
+        private final int recordCount;
         private final int leafCount;
         private final double totalWeight;
         private final String lastRecordDate;
 
-        public FarmerStatistics(String farmerName, String idCardNumber, int leafCount, 
+        public FarmerStatistics(String farmerName, String idCardNumber, int recordCount, int leafCount, 
                                double totalWeight, String lastRecordDate) {
             this.farmerName = farmerName;
             this.idCardNumber = idCardNumber;
+            this.recordCount = recordCount;
             this.leafCount = leafCount;
             this.totalWeight = totalWeight;
             this.lastRecordDate = lastRecordDate;
@@ -230,6 +252,10 @@ public class AdminViewModel extends ViewModel {
 
         public String getIdCardNumber() {
             return idCardNumber;
+        }
+
+        public int getRecordCount() {
+            return recordCount;
         }
 
         public int getLeafCount() {

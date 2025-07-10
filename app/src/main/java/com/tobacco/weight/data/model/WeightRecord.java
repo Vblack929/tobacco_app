@@ -32,14 +32,42 @@ public class WeightRecord {
     @ColumnInfo(name = "farmer_gender")
     private String farmerGender; // 农户性别（新增）
 
-    @ColumnInfo(name = "tobacco_part")
-    private String tobaccoPart; // 烟叶部位
-
-    @ColumnInfo(name = "tobacco_bundles")
-    private int tobaccoBundles; // 捆数
+    // === 替换单一烟叶部位字段为详细的各部位数据 ===
+    
+    // 上部叶数据
+    @ColumnInfo(name = "upper_leaf_bundles")
+    private int upperLeafBundles; // 上部叶捆数
+    
+    @ColumnInfo(name = "upper_leaf_weight")
+    private double upperLeafWeight; // 上部叶重量(kg)
+    
+    // 中部叶数据
+    @ColumnInfo(name = "middle_leaf_bundles")
+    private int middleLeafBundles; // 中部叶捆数
+    
+    @ColumnInfo(name = "middle_leaf_weight")
+    private double middleLeafWeight; // 中部叶重量(kg)
+    
+    // 下部叶数据
+    @ColumnInfo(name = "lower_leaf_bundles")
+    private int lowerLeafBundles; // 下部叶捆数
+    
+    @ColumnInfo(name = "lower_leaf_weight")
+    private double lowerLeafWeight; // 下部叶重量(kg)
+    
+    // 总计数据（计算字段）
+    @ColumnInfo(name = "total_bundles")
+    private int totalBundles; // 总捆数
+    
+    @ColumnInfo(name = "total_weight")
+    private double totalWeight; // 总重量(kg)
+    
+    // 主要烟叶部位（用于向后兼容和简单显示）
+    @ColumnInfo(name = "primary_tobacco_part")
+    private String primaryTobaccoPart; // 主要烟叶部位（捆数最多的部位）
 
     @ColumnInfo(name = "weight")
-    private double weight; // 重量(kg)
+    private double weight; // 重量(kg) - 保留用于兼容，等同于totalWeight
 
     @ColumnInfo(name = "total_amount")
     private double totalAmount; // 总金额
@@ -106,12 +134,21 @@ public class WeightRecord {
         this.recordNumber = recordNumber;
         this.farmerName = farmerName;
         this.idCardNumber = idCardNumber;
-        this.tobaccoPart = tobaccoPart;
-        this.tobaccoBundles = tobaccoBundles;
-        this.weight = weight;
+        this.primaryTobaccoPart = tobaccoPart; // Map old tobacco_part to primaryTobaccoPart
+        this.totalBundles = tobaccoBundles; // Map old tobacco_bundles to totalBundles
+        this.totalWeight = weight;
+        this.weight = weight; // Keep both for compatibility
         this.totalAmount = totalAmount;
         this.operatorName = operatorName;
         this.warehouseNumber = warehouseNumber;
+        
+        // Initialize individual leaf data to zero (will be set properly later)
+        this.upperLeafBundles = 0;
+        this.upperLeafWeight = 0.0;
+        this.middleLeafBundles = 0;
+        this.middleLeafWeight = 0.0;
+        this.lowerLeafBundles = 0;
+        this.lowerLeafWeight = 0.0;
     }
 
     // 完整构造函数（包含ID card信息）
@@ -123,6 +160,34 @@ public class WeightRecord {
                 weight, totalAmount, operatorName, warehouseNumber);
         this.farmerAddress = farmerAddress;
         this.farmerGender = farmerGender;
+    }
+    
+    // 新增：烟叶详细数据构造函数
+    public WeightRecord(String recordNumber, String farmerName, String idCardNumber,
+            String farmerAddress, String farmerGender,
+            int upperBundles, double upperWeight,
+            int middleBundles, double middleWeight, 
+            int lowerBundles, double lowerWeight,
+            String operatorName, String warehouseNumber) {
+        this();
+        this.recordNumber = recordNumber;
+        this.farmerName = farmerName;
+        this.idCardNumber = idCardNumber;
+        this.farmerAddress = farmerAddress;
+        this.farmerGender = farmerGender;
+        this.operatorName = operatorName;
+        this.warehouseNumber = warehouseNumber;
+        
+        // 设置各部位数据
+        this.upperLeafBundles = upperBundles;
+        this.upperLeafWeight = upperWeight;
+        this.middleLeafBundles = middleBundles;
+        this.middleLeafWeight = middleWeight;
+        this.lowerLeafBundles = lowerBundles;
+        this.lowerLeafWeight = lowerWeight;
+        
+        // 自动计算总计
+        updateTotalsAndPrimaryPart();
     }
 
     // Getter 和 Setter 方法
@@ -167,19 +232,19 @@ public class WeightRecord {
     }
 
     public String getTobaccoPart() {
-        return tobaccoPart;
+        return primaryTobaccoPart; // Keep for compatibility
     }
 
     public void setTobaccoPart(String tobaccoPart) {
-        this.tobaccoPart = tobaccoPart;
+        this.primaryTobaccoPart = tobaccoPart;
     }
 
     public int getTobaccoBundles() {
-        return tobaccoBundles;
+        return totalBundles; // Keep for compatibility
     }
 
     public void setTobaccoBundles(int tobaccoBundles) {
-        this.tobaccoBundles = tobaccoBundles;
+        this.totalBundles = tobaccoBundles;
     }
 
     public double getWeight() {
@@ -340,6 +405,182 @@ public class WeightRecord {
         isExported = exported;
     }
 
+    // === 新增：烟叶详细数据的getter和setter方法 ===
+    
+    // 上部叶数据
+    public int getUpperLeafBundles() {
+        return upperLeafBundles;
+    }
+
+    public void setUpperLeafBundles(int upperLeafBundles) {
+        this.upperLeafBundles = upperLeafBundles;
+        updateTotalsAndPrimaryPart();
+    }
+
+    public double getUpperLeafWeight() {
+        return upperLeafWeight;
+    }
+
+    public void setUpperLeafWeight(double upperLeafWeight) {
+        this.upperLeafWeight = upperLeafWeight;
+        updateTotalsAndPrimaryPart();
+    }
+
+    // 中部叶数据
+    public int getMiddleLeafBundles() {
+        return middleLeafBundles;
+    }
+
+    public void setMiddleLeafBundles(int middleLeafBundles) {
+        this.middleLeafBundles = middleLeafBundles;
+        updateTotalsAndPrimaryPart();
+    }
+
+    public double getMiddleLeafWeight() {
+        return middleLeafWeight;
+    }
+
+    public void setMiddleLeafWeight(double middleLeafWeight) {
+        this.middleLeafWeight = middleLeafWeight;
+        updateTotalsAndPrimaryPart();
+    }
+
+    // 下部叶数据
+    public int getLowerLeafBundles() {
+        return lowerLeafBundles;
+    }
+
+    public void setLowerLeafBundles(int lowerLeafBundles) {
+        this.lowerLeafBundles = lowerLeafBundles;
+        updateTotalsAndPrimaryPart();
+    }
+
+    public double getLowerLeafWeight() {
+        return lowerLeafWeight;
+    }
+
+    public void setLowerLeafWeight(double lowerLeafWeight) {
+        this.lowerLeafWeight = lowerLeafWeight;
+        updateTotalsAndPrimaryPart();
+    }
+
+    // 总计数据
+    public int getTotalBundles() {
+        return totalBundles;
+    }
+
+    public void setTotalBundles(int totalBundles) {
+        this.totalBundles = totalBundles;
+    }
+
+    public double getTotalWeight() {
+        return totalWeight;
+    }
+
+    public void setTotalWeight(double totalWeight) {
+        this.totalWeight = totalWeight;
+        this.weight = totalWeight; // Keep weight field in sync
+    }
+
+    // 主要烟叶部位
+    public String getPrimaryTobaccoPart() {
+        return primaryTobaccoPart;
+    }
+
+    public void setPrimaryTobaccoPart(String primaryTobaccoPart) {
+        this.primaryTobaccoPart = primaryTobaccoPart;
+    }
+
+    // === 便利方法：设置完整的烟叶数据 ===
+    
+    /**
+     * 一次性设置所有烟叶数据，避免多次触发重计算
+     */
+    public void setTobaccoLeafData(int upperBundles, double upperWeight,
+                                   int middleBundles, double middleWeight,
+                                   int lowerBundles, double lowerWeight) {
+        this.upperLeafBundles = upperBundles;
+        this.upperLeafWeight = upperWeight;
+        this.middleLeafBundles = middleBundles;
+        this.middleLeafWeight = middleWeight;
+        this.lowerLeafBundles = lowerBundles;
+        this.lowerLeafWeight = lowerWeight;
+        
+        updateTotalsAndPrimaryPart();
+    }
+
+    /**
+     * 获取指定烟叶部位的捆数
+     */
+    public int getBundlesByTobaccoPart(String tobaccoPart) {
+        if (tobaccoPart == null) return 0;
+        
+        switch (tobaccoPart) {
+            case "上部叶":
+                return upperLeafBundles;
+            case "中部叶":
+                return middleLeafBundles;
+            case "下部叶":
+                return lowerLeafBundles;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * 获取指定烟叶部位的重量
+     */
+    public double getWeightByTobaccoPart(String tobaccoPart) {
+        if (tobaccoPart == null) return 0.0;
+        
+        switch (tobaccoPart) {
+            case "上部叶":
+                return upperLeafWeight;
+            case "中部叶":
+                return middleLeafWeight;
+            case "下部叶":
+                return lowerLeafWeight;
+            default:
+                return 0.0;
+        }
+    }
+
+    /**
+     * 检查是否有多个烟叶部位的数据
+     */
+    public boolean hasMultipleTobaccoParts() {
+        int partsWithData = 0;
+        if (upperLeafBundles > 0) partsWithData++;
+        if (middleLeafBundles > 0) partsWithData++;
+        if (lowerLeafBundles > 0) partsWithData++;
+        return partsWithData > 1;
+    }
+
+    /**
+     * 获取烟叶部位统计描述
+     */
+    public String getTobaccoPartsDescription() {
+        StringBuilder desc = new StringBuilder();
+        
+        if (upperLeafBundles > 0) {
+            desc.append(String.format("上部叶:%d捆(%.1fkg)", upperLeafBundles, upperLeafWeight));
+        }
+        if (middleLeafBundles > 0) {
+            if (desc.length() > 0) desc.append(" | ");
+            desc.append(String.format("中部叶:%d捆(%.1fkg)", middleLeafBundles, middleLeafWeight));
+        }
+        if (lowerLeafBundles > 0) {
+            if (desc.length() > 0) desc.append(" | ");
+            desc.append(String.format("下部叶:%d捆(%.1fkg)", lowerLeafBundles, lowerLeafWeight));
+        }
+        
+        if (desc.length() == 0) {
+            return "无烟叶数据";
+        }
+        
+        return desc.toString();
+    }
+
     /**
      * 检查ID card信息是否完整
      */
@@ -385,7 +626,7 @@ public class WeightRecord {
                 ", idCardNumber='" + (idCardNumber != null ? formatIdCard(idCardNumber) : null) + '\'' +
                 ", farmerAddress='" + farmerAddress + '\'' +
                 ", farmerGender='" + farmerGender + '\'' +
-                ", tobaccoPart='" + tobaccoPart + '\'' +
+                ", tobaccoPart='" + primaryTobaccoPart + '\'' +
                 ", weight=" + weight +
                 ", totalAmount=" + totalAmount +
                 ", createTime=" + createTime +
@@ -407,5 +648,26 @@ public class WeightRecord {
     @Override
     public int hashCode() {
         return recordNumber != null ? recordNumber.hashCode() : 0;
+    }
+
+    // 新增：更新总计和主要部位的方法
+    private void updateTotalsAndPrimaryPart() {
+        // 计算总计
+        this.totalBundles = upperLeafBundles + middleLeafBundles + lowerLeafBundles;
+        this.totalWeight = upperLeafWeight + middleLeafWeight + lowerLeafWeight;
+        this.weight = this.totalWeight; // 保持向后兼容
+
+        // 确定主要烟叶部位（捆数最多的部位）
+        if (totalBundles > 0) {
+            if (upperLeafBundles >= middleLeafBundles && upperLeafBundles >= lowerLeafBundles) {
+                this.primaryTobaccoPart = "上部叶";
+            } else if (middleLeafBundles >= upperLeafBundles && middleLeafBundles >= lowerLeafBundles) {
+                this.primaryTobaccoPart = "中部叶";
+            } else {
+                this.primaryTobaccoPart = "下部叶";
+            }
+        } else {
+            this.primaryTobaccoPart = "无烟叶";
+        }
     }
 }

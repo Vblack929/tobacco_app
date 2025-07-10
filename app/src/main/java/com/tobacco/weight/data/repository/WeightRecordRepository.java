@@ -177,6 +177,34 @@ public class WeightRecordRepository {
     }
 
     /**
+     * 获取指定农户的完整统计信息（包含记录数和捆数）
+     */
+    public void getFarmerCompleteStatistics(String idCardNumber, CompleteStatsCallback callback) {
+        executor.execute(() -> {
+            try {
+                int recordCount = weightRecordDao.getFarmerRecordCount(idCardNumber);
+                int totalLeafCount = weightRecordDao.getFarmerTotalLeafCount(idCardNumber);
+                double totalWeight = weightRecordDao.getFarmerTotalWeight(idCardNumber);
+                Long lastRecordTimestamp = weightRecordDao.getFarmerLastRecordTimestamp(idCardNumber);
+                
+                String lastRecordDate = null;
+                if (lastRecordTimestamp != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                    lastRecordDate = sdf.format(new Date(lastRecordTimestamp));
+                }
+                
+                if (callback != null) {
+                    callback.onSuccess(recordCount, totalLeafCount, totalWeight, lastRecordDate);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onFailure("获取农户完整统计失败: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
      * 获取指定农户的叶型统计详情（包含数量和重量）
      */
     public void getFarmerLeafTypeStatistics(String idCardNumber, LeafTypeStatsCallback callback) {
@@ -331,6 +359,14 @@ public class WeightRecordRepository {
      */
     public interface FarmerStatsCallback {
         void onSuccess(int totalLeafCount, double totalWeight, String lastRecordDate);
+        void onFailure(String error);
+    }
+
+    /**
+     * 完整统计回调接口
+     */
+    public interface CompleteStatsCallback {
+        void onSuccess(int recordCount, int totalLeafCount, double totalWeight, String lastRecordDate);
         void onFailure(String error);
     }
 
