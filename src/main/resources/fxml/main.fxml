@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.tobacco.weight.ui.MainController"
+      spacing="10" styleClass="main-container">
+    
+    <!-- 标题栏 -->
+    <HBox styleClass="title-bar" alignment="CENTER">
+        <Label text="烟叶称重系统 - Windows版" styleClass="title-label"/>
+    </HBox>
+    <!-- 操作提示栏 -->
+    <HBox alignment="CENTER" style="-fx-padding: 4 0 4 0;">
+        <Label fx:id="operationTipLabel" text="" styleClass="operation-tip-label"/>
+    </HBox>
+    
+    <!-- 主要内容区域 -->
+    <HBox spacing="20" VBox.vgrow="ALWAYS">
+        
+        <!-- 左侧称重区域 -->
+        <VBox styleClass="weighing-panel" spacing="15" HBox.hgrow="ALWAYS">
+            <Label text="称重操作" styleClass="panel-title"/>
+            
+            <!-- 烟农信息 -->
+            <GridPane hgap="10" vgap="10">
+                <Label text="烟农姓名:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <TextField fx:id="farmerNameField" promptText="请输入烟农姓名" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="0" HBox.hgrow="ALWAYS"/>
+                
+                <Label text="合同号:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <TextField fx:id="contractNumberField" promptText="合同号" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="1" HBox.hgrow="ALWAYS"/>
+                
+                <Label text="身份证号:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                <TextField fx:id="idCardNumberField" promptText="请输入身份证号" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="2" HBox.hgrow="ALWAYS"/>
+            </GridPane>
+            
+            <!-- 当前重量显示 -->
+            <VBox alignment="CENTER" styleClass="weight-display">
+                <Label text="当前重量" styleClass="weight-label"/>
+                <Label fx:id="currentWeightLabel" text="0.00 kg" styleClass="weight-value"/>
+            </VBox>
+            
+            <!-- 部叶选择按钮 -->
+            <HBox spacing="10" alignment="CENTER">
+                <Button fx:id="upperLeafButton" text="上部叶" styleClass="leaf-button"/>
+                <Button fx:id="middleLeafButton" text="中部叶" styleClass="leaf-button"/>
+                <Button fx:id="lowerLeafButton" text="下部叶" styleClass="leaf-button"/>
+            </HBox>
+            
+            <!-- 操作按钮 -->
+            <HBox spacing="10" alignment="CENTER">
+                <Button fx:id="confirmButton" text="确认称重" styleClass="confirm-button"/>
+                <Button fx:id="readIdCardButton" text="读取身份证" styleClass="id-card-button"/>
+            </HBox>
+            
+            <!-- 预检编号和日期 -->
+            <HBox spacing="20" alignment="CENTER">
+                <Label text="预检编号:"/>
+                <Label fx:id="precheckIdLabel" text="YJ100000000"/>
+                <Label text="日期:"/>
+                <Label fx:id="precheckDateLabel" text="2024-01-01"/>
+            </HBox>
+        </VBox>
+        <!-- 右侧预检比例区域 -->
+        <VBox styleClass="ratio-panel" spacing="15" alignment="TOP_CENTER" HBox.hgrow="NEVER">
+            <Label text="预检信息" styleClass="panel-title"/>
+            <GridPane hgap="10" vgap="5">
+                <Label text="预检比例:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <TextField fx:id="precheckRatioField" promptText="0.0%" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="0" editable="false"/>
+                <Label text="上部叶比例:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <TextField fx:id="upperRatioField" promptText="0.0%" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="1" editable="false"/>
+                <Label text="中部叶比例:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                <TextField fx:id="middleRatioField" promptText="0.0%" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="2" editable="false"/>
+                <Label text="下部叶比例:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                <TextField fx:id="lowerRatioField" promptText="0.0%" 
+                          GridPane.columnIndex="1" GridPane.rowIndex="3" editable="false"/>
+            </GridPane>
+        </VBox>
+    </HBox>
+    <!-- 一级管理员界面（统计区） -->
+    <VBox fx:id="adminTableContainer" styleClass="admin-panel" spacing="15" VBox.vgrow="ALWAYS">
+        <!-- 管理员界面标题和导出按钮 -->
+        <HBox alignment="CENTER_LEFT" spacing="20">
+            <Label text="管理员界面（一级）" styleClass="admin-title-label"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="exportAllDataButton" text="导出所有数据" styleClass="export-button"/>
+        </HBox>
+    </VBox>
+    
+    <!-- 状态栏 -->
+    <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="10">
+        <Label fx:id="statusLabel" text="系统就绪" styleClass="status-label"/>
+        <ProgressBar fx:id="progressBar" visible="false" prefWidth="200"/>
+    </HBox>
+    
+</VBox> 
