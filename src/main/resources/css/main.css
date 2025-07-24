@@ -1,0 +1,294 @@
+/* 主容器样式 */
+.main-container {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 10;
+}
+
+/* 标题栏样式 */
+.title-bar {
+    -fx-background-color: #2196F3;
+    -fx-padding: 10;
+    -fx-min-height: 50;
+}
+
+.title-label {
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* 面板样式 */
+.weighing-panel,
+.admin-panel {
+    -fx-background-color: white;
+    -fx-padding: 15;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+
+.panel-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.admin-title-label {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1976D2;
+}
+
+/* 重量显示样式 */
+.weight-display {
+    -fx-background-color: #e3f2fd;
+    -fx-padding: 20;
+    -fx-border-color: #2196F3;
+    -fx-border-width: 2;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+.weight-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #1976D2;
+}
+
+.weight-value {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1565C0;
+}
+
+/* 按钮样式 */
+.leaf-button {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: #333;
+    -fx-font-size: 12px;
+    -fx-padding: 8 16;
+    -fx-min-width: 80;
+    -fx-cursor: hand;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-border-color: #bdbdbd;
+    -fx-border-width: 1;
+}
+
+.leaf-button.selected {
+    -fx-background-color: #4CAF50;
+    -fx-text-fill: white;
+    -fx-border-color: #388e3c;
+}
+
+.leaf-button:hover {
+    -fx-background-color: #d5d5d5;
+}
+
+.leaf-button.selected:hover {
+    -fx-background-color: #43a047;
+}
+
+.operation-tip-label {
+    -fx-font-size: 15px;
+    -fx-text-fill: #1976D2;
+    -fx-font-weight: bold;
+    -fx-padding: 4 0 4 0;
+}
+
+.operation-tip-label.success {
+    -fx-text-fill: #388e3c;
+}
+
+.operation-tip-label.error {
+    -fx-text-fill: #d32f2f;
+}
+
+.confirm-button {
+    -fx-background-color: #FF9800;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-padding: 10 20;
+    -fx-min-width: 100;
+    -fx-cursor: hand;
+}
+
+.confirm-button:hover {
+    -fx-background-color: #f57c00;
+}
+
+.confirm-button:disabled {
+    -fx-background-color: #ccc;
+    -fx-cursor: default;
+}
+
+.id-card-button {
+    -fx-background-color: #9C27B0;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 8 16;
+    -fx-min-width: 100;
+    -fx-cursor: hand;
+}
+
+.id-card-button:hover {
+    -fx-background-color: #8e24aa;
+}
+
+.id-card-button:disabled {
+    -fx-background-color: #ccc;
+    -fx-cursor: default;
+}
+
+.export-button,
+.folder-button,
+.view-button {
+    -fx-background-color: #607D8B;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 6 12;
+    -fx-min-width: 80;
+    -fx-cursor: hand;
+}
+
+.export-button:hover,
+.folder-button:hover,
+.view-button:hover {
+    -fx-background-color: #546E7A;
+}
+
+/* 文本字段样式 */
+.text-field {
+    -fx-font-size: 12px;
+    -fx-padding: 5;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.text-field:focused {
+    -fx-border-color: #2196F3;
+}
+
+/* 标签样式 */
+.count-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #4CAF50;
+}
+
+.table-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.status-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #666;
+}
+
+/* 表格滚动区域样式 */
+.table-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.table-scroll .viewport {
+    -fx-background-color: white;
+}
+
+/* 烟农数据容器样式 */
+.farmer-data-container {
+    -fx-padding: 5;
+}
+
+/* 状态栏样式 */
+.status-bar {
+    -fx-background-color: #f0f0f0;
+    -fx-padding: 5 10;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* 进度条样式 */
+.progress-bar {
+    -fx-accent: #2196F3;
+}
+
+/* 网格面板样式 */
+.grid-pane {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+}
+
+/* 水平框样式 */
+.hbox {
+    -fx-spacing: 10;
+    -fx-alignment: center;
+}
+
+/* 垂直框样式 */
+.vbox {
+    -fx-spacing: 10;
+}
+
+/* 滚动面板样式 */
+.scroll-pane {
+    -fx-fit-to-width: true;
+    -fx-fit-to-height: true;
+}
+
+/* 标签样式 */
+.label {
+    -fx-font-size: 12px;
+}
+
+/* 表格行样式 */
+.farmer-row {
+    -fx-background-color: white;
+    -fx-padding: 5;
+    -fx-border-color: #eee;
+    -fx-border-width: 0 0 1 0;
+}
+
+.farmer-row:hover {
+    -fx-background-color: #f5f5f5;
+}
+
+.farmer-row:nth-child(even) {
+    -fx-background-color: #fafafa;
+}
+
+/* 表格单元格样式 */
+.table-cell {
+    -fx-padding: 5;
+    -fx-alignment: center;
+    -fx-font-size: 11px;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .main-container {
+        -fx-padding: 5;
+    }
+
+    .weighing-panel,
+    .admin-panel {
+        -fx-padding: 10;
+    }
+
+    .weight-value {
+        -fx-font-size: 20px;
+    }
+
+    .leaf-button,
+    .confirm-button,
+    .id-card-button {
+        -fx-font-size: 11px;
+        -fx-padding: 6 12;
+    }
+}
