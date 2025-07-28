@@ -105,7 +105,8 @@ public class DatabaseManager {
                         operator TEXT,
                         warehouse_number TEXT,
                         status TEXT DEFAULT '正常',
-                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        id_card_number TEXT
                     )
                     """;
 
@@ -124,10 +125,45 @@ public class DatabaseManager {
             stmt.execute(createWeighingTable);
             stmt.execute(createConfigTable);
 
+            // 执行数据库迁移
+            migrateDatabase();
+
             logger.info("数据库表创建完成");
 
         } catch (SQLException e) {
             logger.error("创建数据库表失败", e);
+            throw e;
+        }
+    }
+
+    /**
+     * 数据库迁移
+     */
+    private void migrateDatabase() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+
+            // 检查weighing_records表是否存在id_card_number列
+            try {
+                stmt.execute("SELECT id_card_number FROM weighing_records LIMIT 1");
+                logger.info("数据库表结构已是最新版本");
+            } catch (SQLException e) {
+                // 如果列不存在，添加该列
+                logger.info("检测到旧版本数据库，开始迁移...");
+
+                // 添加id_card_number列
+                stmt.execute("ALTER TABLE weighing_records ADD COLUMN id_card_number TEXT");
+                logger.info("已添加id_card_number列到weighing_records表");
+
+                // 更新系统配置，记录迁移版本
+                stmt.execute("""
+                        INSERT OR REPLACE INTO system_config (config_key, config_value, description)
+                        VALUES ('db_version', '2', '数据库版本号')
+                        """);
+                logger.info("数据库迁移完成，版本更新为2");
+            }
+
+        } catch (SQLException e) {
+            logger.error("数据库迁移失败", e);
             throw e;
         }
     }
@@ -194,6 +230,33 @@ public class DatabaseManager {
         } catch (Exception e) {
             logger.error("重置数据库失败", e);
             throw new RuntimeException("重置数据库失败", e);
+        }
+    }
+
+    /**
+     * 强制重建数据库表结构
+     */
+    public void rebuildTables() {
+        try {
+            closeConnection();
+
+            // 删除现有表
+            try (Connection conn = getConnection();
+                    Statement stmt = conn.createStatement()) {
+
+                stmt.execute("DROP TABLE IF EXISTS weighing_records");
+                stmt.execute("DROP TABLE IF EXISTS farmer_info");
+                stmt.execute("DROP TABLE IF EXISTS system_config");
+                logger.info("已删除现有表结构");
+            }
+
+            // 重新创建表
+            createTables();
+            logger.info("数据库表结构重建完成");
+
+        } catch (Exception e) {
+            logger.error("重建数据库表失败", e);
+            throw new RuntimeException("重建数据库表失败", e);
         }
     }
 

@@ -4,6 +4,7 @@ import com.tobacco.weight.data.FarmerInfo;
 import com.tobacco.weight.data.FarmerStatistics;
 import com.tobacco.weight.data.WeighingRecord;
 import com.tobacco.weight.database.DatabaseManager;
+import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
@@ -52,6 +53,9 @@ public class MainController implements Initializable {
     private ScaleManager scaleManager;
     private PrinterManager printerManager;
     private IdCardReader idCardReader;
+
+    // 数据仓库
+    private WeighingRecordRepository weighingRecordRepository;
 
     // 数据
     private ObservableList<FarmerStatistics> farmerStatisticsList;
@@ -117,6 +121,15 @@ public class MainController implements Initializable {
         // 初始化数据列表
         farmerStatisticsList = FXCollections.observableArrayList();
         weighingRecordsList = FXCollections.observableArrayList();
+
+        // 初始化数据仓库
+        DatabaseManager databaseManager = DatabaseManager.getInstance();
+        weighingRecordRepository = new WeighingRecordRepository(databaseManager);
+
+        // 显示数据库路径
+        String dbPath = databaseManager.getDbPath();
+        logger.info("数据库文件位置: {}", dbPath);
+        System.out.println("数据库文件位置: " + dbPath);
 
         // 初始化硬件管理器
         initializeHardwareManagers();
@@ -476,8 +489,41 @@ public class MainController implements Initializable {
      * 保存称重记录
      */
     private void saveWeighingRecord(WeighingRecord record) {
+        // 添加到内存列表
         weighingRecordsList.add(record);
         System.out.println("称重记录总数: " + weighingRecordsList.size());
+
+        // 保存到数据库
+        if (weighingRecordRepository != null) {
+            weighingRecordRepository.insert(record, new WeighingRecordRepository.OnResultListener<Long>() {
+                @Override
+                public void onSuccess(Long recordId) {
+                    Platform.runLater(() -> {
+                        record.setId(recordId);
+                        updateStatus("称重记录已保存到数据库，ID: " + recordId);
+                        logger.info("称重记录保存成功，数据库ID: {}", recordId);
+                    });
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    Platform.runLater(() -> {
+                        updateStatus("保存失败: " + e.getMessage());
+
+                        // 检查是否是数据库结构问题
+                        if (e.getMessage().contains("id_card_number")) {
+                            handleDatabaseStructureError();
+                        } else {
+                            showError("保存失败", "称重记录保存到数据库失败: " + e.getMessage());
+                        }
+                        logger.error("称重记录保存失败", e);
+                    });
+                }
+            });
+        } else {
+            logger.warn("数据仓库未初始化，无法保存到数据库");
+        }
+
         updateRatios();
         refreshAdminTable();
     }
@@ -519,7 +565,31 @@ public class MainController implements Initializable {
      * 加载称重记录
      */
     private void loadWeighingRecords() {
-        // TODO: 从数据库加载称重记录
+        if (weighingRecordRepository != null) {
+            weighingRecordRepository.findAll(new WeighingRecordRepository.OnResultListener<List<WeighingRecord>>() {
+                @Override
+                public void onSuccess(List<WeighingRecord> records) {
+                    Platform.runLater(() -> {
+                        weighingRecordsList.clear();
+                        weighingRecordsList.addAll(records);
+                        logger.info("从数据库加载了 {} 条称重记录", records.size());
+                        updateStatus("已加载 " + records.size() + " 条称重记录");
+                        refreshAdminTable();
+                    });
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    Platform.runLater(() -> {
+                        logger.error("加载称重记录失败", e);
+                        updateStatus("加载记录失败: " + e.getMessage());
+                        showError("加载失败", "无法从数据库加载称重记录: " + e.getMessage());
+                    });
+                }
+            });
+        } else {
+            logger.warn("数据仓库未初始化，无法从数据库加载记录");
+        }
     }
 
     /**
@@ -576,9 +646,21 @@ public class MainController implements Initializable {
                         sheet.setColumnWidth(i, 15 * 256); // 设置列宽
                     }
 
+                    // 从数据库获取所有记录
+                    final List<WeighingRecord> allRecords;
+                    try {
+                        allRecords = weighingRecordRepository.findAllSync();
+                    } catch (Exception e) {
+                        logger.error("导出时获取记录失败", e);
+                        Platform.runLater(() -> {
+                            showError("导出失败", "无法从数据库获取记录: " + e.getMessage());
+                        });
+                        return;
+                    }
+
                     // 填充数据
                     int rowNum = 1;
-                    for (WeighingRecord record : weighingRecordsList) {
+                    for (WeighingRecord record : allRecords) {
                         Row row = sheet.createRow(rowNum++);
 
                         row.createCell(0).setCellValue(rowNum - 1); // 序号
@@ -623,7 +705,7 @@ public class MainController implements Initializable {
                         alert.setTitle("导出成功");
                         alert.setHeaderText(null);
                         alert.setContentText("所有预检记录已成功导出到:\n" + file.getAbsolutePath() + "\n\n共导出 "
-                                + weighingRecordsList.size() + " 条记录");
+                                + allRecords.size() + " 条记录");
 
                         // 添加打开文件夹的按钮
                         ButtonType openFolderButton = new ButtonType("打开文件夹");
@@ -820,9 +902,125 @@ public class MainController implements Initializable {
     }
 
     private void exportRecord(com.tobacco.weight.data.WeighingRecord record) {
-        // TODO: 实现单条记录导出逻辑
-        // 可弹窗提示“已导出”
-        showInfo("导出", "已导出记录: " + record.getPrecheckId());
+        try {
+            // 显示进度提示
+            updateStatus("正在导出记录: " + record.getPrecheckId());
+
+            // 在后台线程执行导出操作
+            new Thread(() -> {
+                try {
+                    // 创建Excel工作簿
+                    Workbook workbook = new XSSFWorkbook();
+                    Sheet sheet = workbook.createSheet("预检记录详情");
+
+                    // 创建标题行样式
+                    CellStyle headerStyle = workbook.createCellStyle();
+                    Font headerFont = workbook.createFont();
+                    headerFont.setBold(true);
+                    headerFont.setFontHeightInPoints((short) 12);
+                    headerStyle.setFont(headerFont);
+                    headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+                    headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                    headerStyle.setBorderBottom(BorderStyle.THIN);
+                    headerStyle.setBorderTop(BorderStyle.THIN);
+                    headerStyle.setBorderRight(BorderStyle.THIN);
+                    headerStyle.setBorderLeft(BorderStyle.THIN);
+
+                    // 创建数据行样式
+                    CellStyle dataStyle = workbook.createCellStyle();
+                    dataStyle.setBorderBottom(BorderStyle.THIN);
+                    dataStyle.setBorderTop(BorderStyle.THIN);
+                    dataStyle.setBorderRight(BorderStyle.THIN);
+                    dataStyle.setBorderLeft(BorderStyle.THIN);
+
+                    // 创建标题行
+                    Row headerRow = sheet.createRow(0);
+                    String[] headers = { "字段", "值" };
+
+                    for (int i = 0; i < headers.length; i++) {
+                        org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                        cell.setCellValue(headers[i]);
+                        cell.setCellStyle(headerStyle);
+                        sheet.setColumnWidth(i, 20 * 256); // 设置列宽
+                    }
+
+                    // 填充数据
+                    int rowNum = 1;
+                    String[][] data = {
+                            { "预检编号", record.getPrecheckId() },
+                            { "烟农姓名", record.getFarmerName() },
+                            { "身份证号", record.getIdCardNumber() != null ? record.getIdCardNumber() : "" },
+                            { "合同号", record.getContractNumber() != null ? record.getContractNumber() : "" },
+                            { "部叶类型", record.getLeafType() },
+                            { "重量(kg)", String.valueOf(record.getWeight()) },
+                            { "称重时间", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(record.getTimestamp()) },
+                            { "操作员", record.getOperator() != null ? record.getOperator() : "" },
+                            { "仓库编号", record.getWarehouseNumber() != null ? record.getWarehouseNumber() : "" },
+                            { "状态", record.getStatus() != null ? record.getStatus() : "正常" }
+                    };
+
+                    for (String[] rowData : data) {
+                        Row row = sheet.createRow(rowNum++);
+
+                        org.apache.poi.ss.usermodel.Cell fieldCell = row.createCell(0);
+                        fieldCell.setCellValue(rowData[0]);
+                        fieldCell.setCellStyle(dataStyle);
+
+                        org.apache.poi.ss.usermodel.Cell valueCell = row.createCell(1);
+                        valueCell.setCellValue(rowData[1]);
+                        valueCell.setCellStyle(dataStyle);
+                    }
+
+                    // 创建导出文件夹
+                    File exportDir = new File("exports");
+                    if (!exportDir.exists()) {
+                        exportDir.mkdirs();
+                    }
+
+                    // 生成文件名
+                    String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+                    String fileName = "预检记录_" + record.getPrecheckId() + "_" + timestamp + ".xlsx";
+                    File file = new File(exportDir, fileName);
+
+                    // 保存文件
+                    try (FileOutputStream fileOut = new FileOutputStream(file)) {
+                        workbook.write(fileOut);
+                    }
+                    workbook.close();
+
+                    // 在UI线程显示成功消息
+                    Platform.runLater(() -> {
+                        updateStatus("记录导出完成: " + fileName);
+
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("导出成功");
+                        alert.setHeaderText(null);
+                        alert.setContentText("预检记录已成功导出到:\n" + file.getAbsolutePath());
+
+                        // 添加打开文件夹的按钮
+                        ButtonType openFolderButton = new ButtonType("打开文件夹");
+                        alert.getButtonTypes().add(openFolderButton);
+
+                        alert.showAndWait().ifPresent(response -> {
+                            if (response == openFolderButton) {
+                                openExportFolder();
+                            }
+                        });
+                    });
+
+                } catch (Exception e) {
+                    logger.error("导出记录失败", e);
+                    Platform.runLater(() -> {
+                        updateStatus("导出失败: " + e.getMessage());
+                        showError("导出失败", "导出记录时发生错误: " + e.getMessage());
+                    });
+                }
+            }).start();
+
+        } catch (Exception e) {
+            logger.error("导出记录失败", e);
+            showError("导出失败", "导出记录时发生错误: " + e.getMessage());
+        }
     }
 
     private void refreshAdminTable() {
@@ -846,6 +1044,90 @@ public class MainController implements Initializable {
         }
         System.out.println("管理员表分组后总农户数: " + stats.size());
         adminTable.getItems().setAll(stats);
+    }
+
+    /**
+     * 处理数据库结构错误
+     */
+    private void handleDatabaseStructureError() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("数据库结构错误");
+        alert.setHeaderText("检测到数据库结构不匹配");
+        alert.setContentText("数据库表结构需要更新以支持新功能。\n\n" +
+                "选择操作：\n" +
+                "• 自动修复：尝试自动更新数据库结构（推荐）\n" +
+                "• 重建数据库：删除所有数据并重新创建数据库\n" +
+                "• 取消：暂时跳过保存");
+
+        ButtonType autoFixButton = new ButtonType("自动修复");
+        ButtonType rebuildButton = new ButtonType("重建数据库");
+        ButtonType cancelButton = new ButtonType("取消");
+
+        alert.getButtonTypes().setAll(autoFixButton, rebuildButton, cancelButton);
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == autoFixButton) {
+                autoFixDatabase();
+            } else if (response == rebuildButton) {
+                rebuildDatabase();
+            } else {
+                // 用户选择取消，暂时跳过保存
+                updateStatus("已跳过保存，请稍后重试");
+            }
+        });
+    }
+
+    /**
+     * 自动修复数据库
+     */
+    private void autoFixDatabase() {
+        try {
+            updateStatus("正在修复数据库结构...");
+
+            // 重新初始化数据库管理器，触发迁移
+            DatabaseManager databaseManager = DatabaseManager.getInstance();
+            weighingRecordRepository = new WeighingRecordRepository(databaseManager);
+
+            updateStatus("数据库修复完成，请重试保存");
+            showInfo("修复完成", "数据库结构已自动修复，请重新进行称重操作");
+
+        } catch (Exception e) {
+            logger.error("自动修复数据库失败", e);
+            showError("修复失败", "自动修复数据库失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 重建数据库
+     */
+    private void rebuildDatabase() {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("确认重建数据库");
+        confirmAlert.setHeaderText("警告：此操作将删除所有数据");
+        confirmAlert.setContentText("重建数据库将删除所有现有的称重记录和烟农信息。\n\n此操作不可撤销，确定要继续吗？");
+
+        confirmAlert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    updateStatus("正在重建数据库...");
+
+                    DatabaseManager databaseManager = DatabaseManager.getInstance();
+                    databaseManager.rebuildTables();
+                    weighingRecordRepository = new WeighingRecordRepository(databaseManager);
+
+                    // 清空内存数据
+                    weighingRecordsList.clear();
+                    farmerStatisticsList.clear();
+
+                    updateStatus("数据库重建完成");
+                    showInfo("重建完成", "数据库已重建完成，可以开始新的称重操作");
+
+                } catch (Exception e) {
+                    logger.error("重建数据库失败", e);
+                    showError("重建失败", "重建数据库失败: " + e.getMessage());
+                }
+            }
+        });
     }
 
     /**

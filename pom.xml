@@ -145,6 +145,16 @@
                                     <mainClass>com.tobacco.weight.TobaccoWeightApp</mainClass>
                                 </transformer>
                             </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>
@@ -163,6 +173,34 @@
                         <option>--add-opens</option>
                         <option>javafx.controls/javafx.scene.control=ALL-UNNAMED</option>
                     </options>
+                </configuration>
+            </plugin>
+
+            <!-- jpackage插件 - 用于创建Windows安装包 -->
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <name>烟叶称重系统</name>
+                    <appVersion>1.0.0</appVersion>
+                    <vendor>烟草公司</vendor>
+                    <destination>target/dist</destination>
+                    <module>tobacco-weight-windows/com.tobacco.weight.TobaccoWeightApp</module>
+                    <runtimeImage>target/image</runtimeImage>
+                    <javaOptions>
+                        <option>-Dfile.encoding=UTF-8</option>
+                        <option>--add-opens</option>
+                        <option>javafx.graphics/javafx.scene=ALL-UNNAMED</option>
+                        <option>--add-opens</option>
+                        <option>javafx.controls/javafx.scene.control=ALL-UNNAMED</option>
+                    </javaOptions>
+                    <winDirChooser>true</winDirChooser>
+                    <winMenu>true</winMenu>
+                    <winMenuGroup>烟叶称重系统</winMenuGroup>
+                    <winShortcut>true</winShortcut>
+                    <winShortcutPrompt>true</winShortcutPrompt>
+                    <icon>src/main/resources/images/icon.ico</icon>
                 </configuration>
             </plugin>
         </plugins>
