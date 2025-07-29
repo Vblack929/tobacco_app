@@ -140,6 +140,47 @@
     -fx-cursor: default;
 }
 
+/* Status icon styles */
+.status-icon {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #666; /* Default gray */
+}
+
+.status-icon.connected {
+    -fx-text-fill: #4CAF50; /* Green for connected */
+}
+
+.status-icon.disconnected {
+    -fx-text-fill: #f44336; /* Red for disconnected */
+}
+
+.status-icon.connecting {
+    -fx-text-fill: #FF9800; /* Orange for connecting */
+}
+
+/* ID card button connection states */
+.id-card-button.connected {
+    -fx-border-color: #4CAF50;
+    -fx-border-width: 2px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.id-card-button.disconnected {
+    -fx-border-color: #f44336;
+    -fx-border-width: 2px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.id-card-button.connecting {
+    -fx-border-color: #FF9800;
+    -fx-border-width: 2px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
 .export-button,
 .folder-button,
 .view-button {
