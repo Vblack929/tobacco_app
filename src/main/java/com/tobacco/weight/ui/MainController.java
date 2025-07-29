@@ -441,8 +441,32 @@ public class MainController implements Initializable {
      * 更新当前重量显示
      */
     private void updateCurrentWeight(double weight) {
+        logger.info("收到重量更新回调: {} kg", weight);
+
         Platform.runLater(() -> {
+            logger.debug("在UI线程中更新重量显示: {} kg", weight);
+
+            // 更新重量显示
             currentWeightLabel.setText(String.format("%.2f kg", weight));
+            logger.debug("重量标签已更新: {}", currentWeightLabel.getText());
+
+            // 更新状态信息
+            updateStatus(String.format("当前重量: %.2f kg", weight));
+
+            // 检查重量是否稳定（这里可以根据需要添加稳定性检测逻辑）
+            if (weight > 0.01) {
+                // 有重量时启用确认按钮
+                confirmButton.setDisable(false);
+                operationTipLabel.setText("请选择叶位类型");
+                logger.debug("确认按钮已启用");
+            } else {
+                // 无重量时禁用确认按钮
+                confirmButton.setDisable(true);
+                operationTipLabel.setText("请放置物品称重");
+                logger.debug("确认按钮已禁用");
+            }
+
+            logger.info("UI重量更新完成: {} kg", weight);
         });
     }
 
