@@ -8,6 +8,7 @@ import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
+import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -80,6 +81,8 @@ public class MainController implements Initializable {
     private Button readIdCardButton;
     @FXML
     private TextField idCardNumberField;
+    @FXML
+    private Label idCardStatusIcon;
 
     // UI组件 - 统计区域
     @FXML
@@ -111,8 +114,11 @@ public class MainController implements Initializable {
     private ProgressBar progressBar;
     @FXML
     private Label operationTipLabel;
+    @FXML
+    private Button diagnosticsButton;
 
     private int precheckCounter = 100000000;
+    private HardwareDiagnosticsWindow diagnosticsWindow;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -173,6 +179,10 @@ public class MainController implements Initializable {
 
             idCardReader.setOnIdCardRead(this::handleIdCardRead);
             idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
+            idCardReader.setOnErrorOccurred(this::handleIdCardError);
+            
+            // 检查连接状态 - 在注册回调后调用
+            idCardReader.checkConnectionStatus();
 
             logger.info("硬件管理器初始化完成");
 
@@ -204,6 +214,9 @@ public class MainController implements Initializable {
 
         // 导出所有数据按钮
         exportAllDataButton.setOnAction(e -> exportAllData());
+        
+        // 硬件诊断按钮
+        diagnosticsButton.setOnAction(e -> openDiagnosticsWindow());
     }
 
     /**
@@ -220,6 +233,12 @@ public class MainController implements Initializable {
         // 设置按钮状态
         confirmButton.setDisable(true);
         readIdCardButton.setDisable(true);
+        
+        // 设置初始ID卡读卡器状态为未连接
+        if (idCardStatusIcon != null) {
+            idCardStatusIcon.getStyleClass().add("disconnected");
+            readIdCardButton.getStyleClass().add("disconnected");
+        }
 
         // 设置状态栏
         statusLabel.setText("系统就绪");
@@ -438,6 +457,22 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 处理身份证读卡器错误
+     */
+    private void handleIdCardError(String errorMessage) {
+        Platform.runLater(() -> {
+            logger.error("ID卡读卡器发生错误: {}", errorMessage);
+            
+            // 如果诊断窗口打开，将错误添加到日志中
+            if (diagnosticsWindow != null && diagnosticsWindow.isShowing()) {
+                diagnosticsWindow.addErrorLog("身份证读卡器错误: " + errorMessage);
+            }
+            
+            showError("读卡器错误", "ID卡读卡器发生错误: " + errorMessage);
+        });
+    }
+
+    /**
      * 更新当前重量显示
      */
     private void updateCurrentWeight(double weight) {
@@ -489,12 +524,56 @@ public class MainController implements Initializable {
     private void updateIdCardStatus(boolean connected) {
         Platform.runLater(() -> {
             readIdCardButton.setDisable(!connected);
+            
+            // 清除之前的状态样式
+            idCardStatusIcon.getStyleClass().removeAll("connected", "disconnected", "connecting");
+            readIdCardButton.getStyleClass().removeAll("connected", "disconnected", "connecting");
+            
             if (connected) {
                 updateStatus("身份证读卡器已连接");
+                // 添加连接状态样式
+                idCardStatusIcon.getStyleClass().add("connected");
+                readIdCardButton.getStyleClass().add("connected");
+                logger.info("ID卡读卡器连接状态更新: 已连接");
             } else {
                 updateStatus("身份证读卡器未连接");
+                // 添加断开连接状态样式
+                idCardStatusIcon.getStyleClass().add("disconnected");
+                readIdCardButton.getStyleClass().add("disconnected");
+                logger.info("ID卡读卡器连接状态更新: 未连接");
             }
         });
+    }
+
+    /**
+     * 开发者测试方法：模拟各种错误条件（用于测试诊断系统）
+     * 在键盘输入特定快捷键时调用此方法
+     */
+    public void triggerTestErrors() {
+        if (idCardReader != null) {
+            new Thread(() -> {
+                try {
+                    // 模拟设备未找到错误
+                    Thread.sleep(1000);
+                    handleIdCardError("模拟错误: 设备未找到 [错误代码: 1001]");
+                    
+                    Thread.sleep(2000);
+                    // 模拟驱动问题
+                    handleIdCardError("模拟错误: 驱动程序未安装 [错误代码: 1002]");
+                    
+                    Thread.sleep(2000);
+                    // 模拟通信错误
+                    handleIdCardError("模拟错误: 通信失败 [错误代码: 1004]");
+                    
+                    Thread.sleep(2000);
+                    // 模拟读卡失败
+                    handleIdCardError("模拟错误: 身份证读取失败 [错误代码: 2002]");
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }).start();
+        }
     }
 
     /**
@@ -1152,6 +1231,16 @@ public class MainController implements Initializable {
                 }
             }
         });
+    }
+
+    /**
+     * 打开硬件诊断窗口
+     */
+    private void openDiagnosticsWindow() {
+        if (diagnosticsWindow == null) {
+            diagnosticsWindow = new HardwareDiagnosticsWindow(idCardReader, scaleManager, printerManager);
+        }
+        diagnosticsWindow.show();
     }
 
     /**

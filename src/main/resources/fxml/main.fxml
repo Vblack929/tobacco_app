@@ -56,7 +56,14 @@
             <!-- 操作按钮 -->
             <HBox spacing="10" alignment="CENTER">
                 <Button fx:id="confirmButton" text="确认称重" styleClass="confirm-button"/>
-                <Button fx:id="readIdCardButton" text="读取身份证" styleClass="id-card-button"/>
+                <Button fx:id="readIdCardButton" styleClass="id-card-button">
+                    <graphic>
+                        <HBox spacing="5" alignment="CENTER">
+                            <Label fx:id="idCardStatusIcon" text="●" styleClass="status-icon"/>
+                            <Label text="读取身份证"/>
+                        </HBox>
+                    </graphic>
+                </Button>
             </HBox>
             
             <!-- 预检编号和日期 -->
@@ -100,6 +107,8 @@
     <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="10">
         <Label fx:id="statusLabel" text="系统就绪" styleClass="status-label"/>
         <ProgressBar fx:id="progressBar" visible="false" prefWidth="200"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="diagnosticsButton" text="硬件诊断" styleClass="export-button"/>
     </HBox>
     
 </VBox> 
