@@ -22,6 +22,11 @@ public class ScaleManager {
     private boolean isConnected = false;
     private double currentWeight = 0.0;
 
+    // 数据缓冲相关
+    private StringBuilder dataBuffer = new StringBuilder();
+    private long lastDataTime = 0;
+    private static final long DATA_TIMEOUT = 100; // 100ms超时
+
     // 回调函数
     private Consumer<Double> onWeightChanged;
     private Consumer<Boolean> onConnectionStatusChanged;
@@ -143,18 +148,14 @@ public class ScaleManager {
                         int bytesRead = serialPort.readBytes(data, data.length);
 
                         if (bytesRead > 0) {
-                            // 解析重量数据
-                            String dataString = new String(data).trim();
-                            logger.debug("接收到原始数据: '{}'", dataString);
+                            // 将新数据添加到缓冲区
+                            String newData = new String(data);
+                            dataBuffer.append(newData);
 
-                            // 按行分割处理数据
-                            String[] lines = dataString.split("\n");
-                            for (String line : lines) {
-                                String trimmedLine = line.trim();
-                                if (!trimmedLine.isEmpty()) {
-                                    parseWeightData(trimmedLine);
-                                }
-                            }
+                            long currentTime = System.currentTimeMillis();
+
+                            // 检查是否有完整的数据行
+                            processBufferedData(currentTime);
                         }
 
                     } catch (Exception e) {
@@ -163,6 +164,78 @@ public class ScaleManager {
                 }
             }
         });
+    }
+
+    /**
+     * 处理缓冲的数据
+     */
+    private void processBufferedData(long currentTime) {
+        String bufferContent = dataBuffer.toString();
+
+        // 查找完整的数据行（以换行符结尾）
+        int newlineIndex = bufferContent.indexOf('\n');
+
+        if (newlineIndex >= 0) {
+            // 提取完整的数据行
+            String completeLine = bufferContent.substring(0, newlineIndex);
+            String remainingData = bufferContent.substring(newlineIndex + 1);
+
+            // 更新缓冲区
+            dataBuffer.setLength(0);
+            dataBuffer.append(remainingData);
+
+            // 处理完整的数据行
+            if (!completeLine.trim().isEmpty()) {
+                logger.debug("处理完整数据行: '{}'", completeLine);
+                parseWeightData(completeLine.trim());
+            }
+        } else if (currentTime - lastDataTime > DATA_TIMEOUT && bufferContent.trim().length() > 0) {
+            // 超时处理：如果超过100ms没有新数据，且缓冲区有内容，尝试处理
+            String timeoutData = bufferContent.trim();
+            logger.debug("超时处理数据: '{}'", timeoutData);
+
+            // 检查是否是完整的重量数据
+            if (isCompleteWeightData(timeoutData)) {
+                parseWeightData(timeoutData);
+            } else {
+                logger.warn("超时数据不完整，丢弃: '{}'", timeoutData);
+            }
+
+            // 清空缓冲区
+            dataBuffer.setLength(0);
+        }
+
+        lastDataTime = currentTime;
+    }
+
+    /**
+     * 检查是否是完整的重量数据
+     */
+    private boolean isCompleteWeightData(String data) {
+        if (data == null || data.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmed = data.trim();
+
+        // 检查标准格式: "ST, NT, + 0.00kg"
+        if (trimmed.contains(",") && trimmed.contains("kg")) {
+            return true;
+        }
+
+        // 检查简单格式: "5.52kg", "5.52 kg"
+        if (trimmed.toLowerCase().contains("kg")) {
+            // 确保kg前面有数字
+            String beforeKg = trimmed.toLowerCase().substring(0, trimmed.toLowerCase().indexOf("kg"));
+            return beforeKg.matches(".*\\d+.*");
+        }
+
+        // 检查纯数字格式（至少包含小数点）
+        if (trimmed.matches(".*\\d+\\.\\d+.*")) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -181,7 +254,7 @@ public class ScaleManager {
                 logger.debug("解析成功: 重量={}, 状态={}", scaleData.getWeight(), scaleData.getStatus());
 
                 // 更新当前重量
-                if (Math.abs(scaleData.getWeight() - currentWeight) > 0.01) {
+                if (Math.abs(scaleData.getWeight() - currentWeight) > 0.005) {
                     currentWeight = scaleData.getWeight();
                     logger.info("重量变化: {} -> {} kg", currentWeight, scaleData.getWeight());
 
@@ -217,6 +290,7 @@ public class ScaleManager {
 
         try {
             String cleanData = data.trim();
+            logger.debug("开始解析数据: '{}'", cleanData);
 
             // 检查是否是电子秤数据格式
             if (cleanData.contains(",") && cleanData.contains("kg")) {
@@ -228,16 +302,33 @@ public class ScaleManager {
                     String type = parts[1].trim(); // NT
                     String weightPart = parts[2].trim(); // + 0.00kg
 
+                    // 验证数据完整性
+                    if (!isValidStatus(status) || !isValidType(type) || !isValidWeightPart(weightPart)) {
+                        logger.warn("数据格式验证失败: status='{}', type='{}', weightPart='{}'", status, type, weightPart);
+                        return null;
+                    }
+
                     // 提取重量值
-                    String weightStr = weightPart.replaceAll("[^\\d.-]", "");
-                    if (!weightStr.isEmpty()) {
+                    String weightStr = extractWeightFromPart(weightPart);
+                    if (weightStr != null && !weightStr.isEmpty()) {
                         double weight = Double.parseDouble(weightStr);
+
+                        // 验证重量值的合理性
+                        if (weight < 0 || weight > 9999) {
+                            logger.warn("重量值超出合理范围: {} kg", weight);
+                            return null;
+                        }
 
                         // 判断是否稳定
                         boolean isStable = "ST".equals(status);
 
+                        logger.debug("解析成功: 重量={} kg, 状态={}, 类型={}", weight, status, type);
                         return new ScaleData(weight, isStable, status, type);
+                    } else {
+                        logger.warn("无法从重量部分提取数值: '{}'", weightPart);
                     }
+                } else {
+                    logger.warn("数据部分数量不足: 期望>=3, 实际={}", parts.length);
                 }
             }
 
@@ -251,34 +342,158 @@ public class ScaleManager {
     }
 
     /**
+     * 验证状态字段
+     */
+    private boolean isValidStatus(String status) {
+        return "ST".equals(status) || "US".equals(status);
+    }
+
+    /**
+     * 验证类型字段
+     */
+    private boolean isValidType(String type) {
+        return "NT".equals(type) || "GT".equals(type);
+    }
+
+    /**
+     * 验证重量部分格式
+     */
+    private boolean isValidWeightPart(String weightPart) {
+        if (weightPart == null || weightPart.trim().isEmpty()) {
+            return false;
+        }
+
+        // 检查是否包含kg单位
+        if (!weightPart.toLowerCase().contains("kg")) {
+            return false;
+        }
+
+        // 检查是否包含数字
+        return weightPart.matches(".*\\d+.*");
+    }
+
+    /**
+     * 从重量部分提取数值
+     */
+    private String extractWeightFromPart(String weightPart) {
+        if (weightPart == null) {
+            return null;
+        }
+
+        try {
+            // 移除所有非数字、小数点和负号的字符
+            String weightStr = weightPart.replaceAll("[^\\d.-]", "");
+
+            // 验证提取的字符串
+            if (weightStr.isEmpty()) {
+                return null;
+            }
+
+            // 检查是否包含有效的小数点
+            if (weightStr.contains(".")) {
+                String[] parts = weightStr.split("\\.");
+                if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+                    logger.warn("小数点格式无效: '{}'", weightStr);
+                    return null;
+                }
+            }
+
+            // 尝试解析为数字验证格式
+            Double.parseDouble(weightStr);
+            return weightStr;
+
+        } catch (NumberFormatException e) {
+            logger.warn("重量字符串格式无效: '{}'", weightPart);
+            return null;
+        }
+    }
+
+    /**
      * 尝试解析其他格式的重量数据
      */
     private ScaleData tryParseOtherFormats(String data) {
+        if (data == null || data.trim().isEmpty()) {
+            return null;
+        }
+
+        String trimmed = data.trim();
+        logger.debug("尝试解析其他格式: '{}'", trimmed);
+
         // 格式1: 带kg单位 (如: "12.34kg", "5.67 kg")
-        if (data.toLowerCase().contains("kg")) {
+        if (trimmed.toLowerCase().contains("kg")) {
             try {
-                String weightStr = data.replaceAll("[^\\d.-]", "");
-                if (!weightStr.isEmpty()) {
+                // 确保kg前面有完整的数字
+                String beforeKg = trimmed.toLowerCase().substring(0, trimmed.toLowerCase().indexOf("kg"));
+                String weightStr = beforeKg.replaceAll("[^\\d.-]", "");
+
+                if (!weightStr.isEmpty() && isValidWeightString(weightStr)) {
                     double weight = Double.parseDouble(weightStr);
-                    return new ScaleData(weight, true, "ST", "NT");
+
+                    // 验证重量值的合理性
+                    if (weight >= 0 && weight <= 9999) {
+                        logger.debug("解析kg格式成功: {} kg", weight);
+                        return new ScaleData(weight, true, "ST", "NT");
+                    } else {
+                        logger.warn("kg格式重量值超出范围: {} kg", weight);
+                    }
+                } else {
+                    logger.warn("kg格式数据不完整: '{}'", trimmed);
                 }
             } catch (NumberFormatException e) {
-                logger.warn("解析kg格式失败: {}", data);
+                logger.warn("解析kg格式失败: {}", trimmed);
+            } catch (Exception e) {
+                logger.warn("解析kg格式异常: {}", trimmed, e);
             }
         }
 
         // 格式2: 纯数字格式 (如: "12.34", "-5.67", "0.00")
-        try {
-            String weightStr = data.replaceAll("[^\\d.-]", "");
-            if (!weightStr.isEmpty()) {
-                double weight = Double.parseDouble(weightStr);
-                return new ScaleData(weight, true, "ST", "NT");
+        // 只处理包含小数点的数字，避免处理不完整的整数
+        if (trimmed.matches("^[+-]?\\d+\\.\\d+$")) {
+            try {
+                double weight = Double.parseDouble(trimmed);
+
+                // 验证重量值的合理性
+                if (weight >= 0 && weight <= 9999) {
+                    logger.debug("解析纯数字格式成功: {} kg", weight);
+                    return new ScaleData(weight, true, "ST", "NT");
+                } else {
+                    logger.warn("纯数字格式重量值超出范围: {} kg", weight);
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("解析纯数字格式失败: {}", trimmed);
             }
-        } catch (NumberFormatException e) {
-            logger.warn("解析纯数字格式失败: {}", data);
+        } else if (trimmed.matches(".*\\d+.*")) {
+            // 包含数字但不是完整格式，可能是分割的数据
+            logger.warn("检测到可能的分割数据，跳过: '{}'", trimmed);
         }
 
         return null;
+    }
+
+    /**
+     * 验证重量字符串的有效性
+     */
+    private boolean isValidWeightString(String weightStr) {
+        if (weightStr == null || weightStr.isEmpty()) {
+            return false;
+        }
+
+        try {
+            // 检查是否包含有效的小数点
+            if (weightStr.contains(".")) {
+                String[] parts = weightStr.split("\\.");
+                if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+                    return false;
+                }
+            }
+
+            // 尝试解析为数字
+            double weight = Double.parseDouble(weightStr);
+            return weight >= 0 && weight <= 9999;
+
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**
@@ -292,10 +507,22 @@ public class ScaleManager {
 
         isConnected = false;
 
+        // 清理数据缓冲区
+        clearDataBuffer();
+
         // 通知连接状态变化
         if (onConnectionStatusChanged != null) {
             onConnectionStatusChanged.accept(false);
         }
+    }
+
+    /**
+     * 清理数据缓冲区
+     */
+    private void clearDataBuffer() {
+        dataBuffer.setLength(0);
+        lastDataTime = 0;
+        logger.debug("数据缓冲区已清理");
     }
 
     /**
