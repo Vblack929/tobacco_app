@@ -108,6 +108,13 @@
         <Label fx:id="statusLabel" text="系统就绪" styleClass="status-label"/>
         <ProgressBar fx:id="progressBar" visible="false" prefWidth="200"/>
         <Region HBox.hgrow="ALWAYS"/>
+        <!-- 打印机连接状态和按钮 -->
+        <HBox spacing="10" alignment="CENTER">
+            <Label fx:id="printerStatusLabel" text="打印机: 未连接" styleClass="status-label"/>
+            <Button fx:id="printerConnectButton" text="连接打印机" styleClass="printer-button"/>
+            <Button fx:id="printerTestButton" text="串口打印测试" styleClass="printer-button" disable="true"/>
+            <Button fx:id="systemPrintTestButton" text="系统打印测试" styleClass="printer-button"/>
+        </HBox>
         <Button fx:id="diagnosticsButton" text="硬件诊断" styleClass="export-button"/>
     </HBox>
     

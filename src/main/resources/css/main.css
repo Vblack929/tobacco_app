@@ -144,19 +144,23 @@
 .status-icon {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-text-fill: #666; /* Default gray */
+    -fx-text-fill: #666;
+    /* Default gray */
 }
 
 .status-icon.connected {
-    -fx-text-fill: #4CAF50; /* Green for connected */
+    -fx-text-fill: #4CAF50;
+    /* Green for connected */
 }
 
 .status-icon.disconnected {
-    -fx-text-fill: #f44336; /* Red for disconnected */
+    -fx-text-fill: #f44336;
+    /* Red for disconnected */
 }
 
 .status-icon.connecting {
-    -fx-text-fill: #FF9800; /* Orange for connecting */
+    -fx-text-fill: #FF9800;
+    /* Orange for connecting */
 }
 
 /* ID card button connection states */
@@ -328,8 +332,36 @@
 
     .leaf-button,
     .confirm-button,
-    .id-card-button {
+    .id-card-button,
+    .printer-button {
         -fx-font-size: 11px;
         -fx-padding: 6 12;
     }
+}
+
+/* 打印机连接按钮样式 */
+.printer-button {
+    -fx-background-color: #FF9800;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-padding: 8 16;
+    -fx-min-width: 100;
+}
+
+.printer-button:hover {
+    -fx-background-color: #F57C00;
+    -fx-cursor: hand;
+}
+
+.printer-button:pressed {
+    -fx-background-color: #E65100;
+}
+
+.printer-button:disabled {
+    -fx-background-color: #ccc;
+    -fx-text-fill: #666;
+    -fx-cursor: default;
 }
