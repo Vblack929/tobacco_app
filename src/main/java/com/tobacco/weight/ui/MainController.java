@@ -8,6 +8,9 @@ import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
+import com.tobacco.weight.hardware.printer.WindowsSerialPrinter;
+import com.tobacco.weight.hardware.printer.PrinterSimulator;
+import com.tobacco.weight.hardware.printer.esc.EscBuilder;
 import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -54,6 +57,10 @@ public class MainController implements Initializable {
     private ScaleManager scaleManager;
     private PrinterManager printerManager;
     private IdCardReader idCardReader;
+
+    // 新的打印机连接器
+    private WindowsSerialPrinter serialPrinter;
+    private PrinterSimulator printerSimulator;
 
     // 数据仓库
     private WeighingRecordRepository weighingRecordRepository;
@@ -117,6 +124,16 @@ public class MainController implements Initializable {
     @FXML
     private Button diagnosticsButton;
 
+    // 打印机连接UI组件
+    @FXML
+    private Label printerStatusLabel;
+    @FXML
+    private Button printerConnectButton;
+    @FXML
+    private Button printerTestButton;
+    @FXML
+    private Button systemPrintTestButton;
+
     private int precheckCounter = 100000000;
     private HardwareDiagnosticsWindow diagnosticsWindow;
 
@@ -173,6 +190,10 @@ public class MainController implements Initializable {
             printerManager = new PrinterManager();
             idCardReader = new IdCardReader();
 
+            // 初始化新的串口打印机连接器
+            serialPrinter = new WindowsSerialPrinter();
+            printerSimulator = new PrinterSimulator();
+
             // 设置硬件状态监听器
             scaleManager.setOnWeightChanged(this::updateCurrentWeight);
             scaleManager.setOnConnectionStatusChanged(this::updateScaleStatus);
@@ -180,7 +201,7 @@ public class MainController implements Initializable {
             idCardReader.setOnIdCardRead(this::handleIdCardRead);
             idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
             idCardReader.setOnErrorOccurred(this::handleIdCardError);
-            
+
             // 检查连接状态 - 在注册回调后调用
             idCardReader.checkConnectionStatus();
 
@@ -214,9 +235,14 @@ public class MainController implements Initializable {
 
         // 导出所有数据按钮
         exportAllDataButton.setOnAction(e -> exportAllData());
-        
+
         // 硬件诊断按钮
         diagnosticsButton.setOnAction(e -> openDiagnosticsWindow());
+
+        // 打印机连接按钮
+        printerConnectButton.setOnAction(e -> connectPrinter());
+        printerTestButton.setOnAction(e -> testPrinter());
+        systemPrintTestButton.setOnAction(e -> testSystemPrinter());
     }
 
     /**
@@ -233,7 +259,7 @@ public class MainController implements Initializable {
         // 设置按钮状态
         confirmButton.setDisable(true);
         readIdCardButton.setDisable(true);
-        
+
         // 设置初始ID卡读卡器状态为未连接
         if (idCardStatusIcon != null) {
             idCardStatusIcon.getStyleClass().add("disconnected");
@@ -462,12 +488,12 @@ public class MainController implements Initializable {
     private void handleIdCardError(String errorMessage) {
         Platform.runLater(() -> {
             logger.error("ID卡读卡器发生错误: {}", errorMessage);
-            
+
             // 如果诊断窗口打开，将错误添加到日志中
             if (diagnosticsWindow != null && diagnosticsWindow.isShowing()) {
                 diagnosticsWindow.addErrorLog("身份证读卡器错误: " + errorMessage);
             }
-            
+
             showError("读卡器错误", "ID卡读卡器发生错误: " + errorMessage);
         });
     }
@@ -524,11 +550,11 @@ public class MainController implements Initializable {
     private void updateIdCardStatus(boolean connected) {
         Platform.runLater(() -> {
             readIdCardButton.setDisable(!connected);
-            
+
             // 清除之前的状态样式
             idCardStatusIcon.getStyleClass().removeAll("connected", "disconnected", "connecting");
             readIdCardButton.getStyleClass().removeAll("connected", "disconnected", "connecting");
-            
+
             if (connected) {
                 updateStatus("身份证读卡器已连接");
                 // 添加连接状态样式
@@ -556,19 +582,19 @@ public class MainController implements Initializable {
                     // 模拟设备未找到错误
                     Thread.sleep(1000);
                     handleIdCardError("模拟错误: 设备未找到 [错误代码: 1001]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟驱动问题
                     handleIdCardError("模拟错误: 驱动程序未安装 [错误代码: 1002]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟通信错误
                     handleIdCardError("模拟错误: 通信失败 [错误代码: 1004]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟读卡失败
                     handleIdCardError("模拟错误: 身份证读取失败 [错误代码: 2002]");
-                    
+
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -1241,6 +1267,330 @@ public class MainController implements Initializable {
             diagnosticsWindow = new HardwareDiagnosticsWindow(idCardReader, scaleManager, printerManager);
         }
         diagnosticsWindow.show();
+    }
+
+    /**
+     * 连接打印机
+     */
+    private void connectPrinter() {
+        // 如果已经连接，则断开连接
+        if (serialPrinter != null && serialPrinter.isConnected()) {
+            disconnectPrinter();
+            return;
+        }
+
+        try {
+            updateStatus("正在扫描打印机...");
+            printerStatusLabel.setText("打印机: 扫描中...");
+
+            // 在后台线程执行打印机连接
+            new Thread(() -> {
+                try {
+                    // 扫描可用串口
+                    String[] availablePorts = WindowsSerialPrinter.getAvailablePorts();
+                    String[] printerPorts = WindowsSerialPrinter.findPrinterPorts();
+
+                    Platform.runLater(() -> {
+                        logger.info("发现 {} 个串口，{} 个可能的打印机端口",
+                                availablePorts.length, printerPorts.length);
+
+                        // 检查是否有虚拟端口（开发环境）
+                        boolean hasVirtualPorts = false;
+                        for (String port : availablePorts) {
+                            if (port.startsWith("CNCA") || port.startsWith("CNCB")) {
+                                hasVirtualPorts = true;
+                                break;
+                            }
+                        }
+
+                        if (hasVirtualPorts && printerPorts.length == 0) {
+                            // 开发环境：有虚拟端口但没有真实打印机，启动模拟器
+                            logger.info("检测到开发环境（有com0com但无真实打印机），启动模拟器");
+                            startPrinterSimulator();
+                        } else if (printerPorts.length > 0) {
+                            // 生产环境或开发环境有真实打印机：尝试连接所有可能的打印机端口
+                            logger.info("检测到 {} 个可能的打印机端口，开始自动连接", printerPorts.length);
+                            tryConnectAllPrinterPorts(printerPorts);
+                        } else {
+                            // 没有发现任何可用端口
+                            updateStatus("未找到可用的打印机端口，也未找到虚拟端口");
+                            printerStatusLabel.setText("打印机: 无可用端口");
+                        }
+                    });
+
+                } catch (Exception e) {
+                    Platform.runLater(() -> {
+                        logger.error("扫描打印机端口失败", e);
+                        updateStatus("打印机扫描失败: " + e.getMessage());
+                        printerStatusLabel.setText("打印机: 连接失败");
+                    });
+                }
+            }).start();
+
+        } catch (Exception e) {
+            logger.error("连接打印机失败", e);
+            updateStatus("连接打印机失败: " + e.getMessage());
+            printerStatusLabel.setText("打印机: 连接失败");
+        }
+    }
+
+    /**
+     * 穷尽尝试连接所有可能的打印机端口
+     */
+    private void tryConnectAllPrinterPorts(String[] printerPorts) {
+        // 在后台线程尝试连接
+        new Thread(() -> {
+            boolean connected = false;
+            String connectedPort = null;
+
+            Platform.runLater(() -> {
+                updateStatus("正在尝试连接打印机端口...");
+                printerStatusLabel.setText("打印机: 连接中...");
+            });
+
+            // 尝试所有端口，每个端口尝试多种波特率
+            int[] baudRates = { 115200, 9600, 19200, 38400, 57600 };
+
+            for (String port : printerPorts) {
+                boolean portConnected = false;
+
+                for (int baudRate : baudRates) {
+                    try {
+                        Platform.runLater(() -> {
+                            updateStatus("正在尝试连接: " + port + " (波特率: " + baudRate + ")");
+                            logger.info("尝试连接端口: {} 波特率: {}", port, baudRate);
+                        });
+
+                        // 尝试连接端口
+                        if (serialPrinter.open(port, baudRate)) {
+                            // 测试连接
+                            if (serialPrinter.testConnection()) {
+                                connected = true;
+                                connectedPort = port + " (波特率: " + baudRate + ")";
+                                portConnected = true;
+                                logger.info("成功连接到打印机端口: {} 波特率: {}", port, baudRate);
+                                break;
+                            } else {
+                                // 连接失败，关闭端口
+                                serialPrinter.close();
+                                logger.debug("端口 {} 波特率 {} 连接成功但测试失败", port, baudRate);
+                            }
+                        } else {
+                            logger.debug("无法打开端口: {} 波特率: {}", port, baudRate);
+                        }
+
+                        // 稍微延时避免过快切换
+                        Thread.sleep(200);
+
+                    } catch (Exception e) {
+                        logger.debug("尝试连接端口 {} 波特率 {} 时出现异常: {}", port, baudRate, e.getMessage());
+                        try {
+                            serialPrinter.close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+
+                // 如果这个端口成功连接，则退出端口循环
+                if (portConnected) {
+                    break;
+                }
+            }
+
+            // 更新最终结果
+            final boolean finalConnected = connected;
+            final String finalPort = connectedPort;
+
+            Platform.runLater(() -> {
+                if (finalConnected) {
+                    updateStatus("已连接到打印机: " + finalPort);
+                    printerStatusLabel.setText("打印机: 已连接 (" + finalPort + ")");
+                    printerTestButton.setDisable(false);
+                    printerConnectButton.setText("断开连接");
+                    logger.info("打印机连接成功: {}", finalPort);
+                } else {
+                    updateStatus("尝试了所有端口，均无法连接到打印机");
+                    printerStatusLabel.setText("打印机: 连接失败");
+                    logger.warn("穷尽尝试 {} 个端口后仍无法连接到打印机", printerPorts.length);
+                }
+            });
+
+        }).start();
+    }
+
+    /**
+     * 启动打印机模拟器
+     */
+    private void startPrinterSimulator() {
+        try {
+            // 查找com0com端口
+            String[] availablePorts = WindowsSerialPrinter.getAvailablePorts();
+            String simulatorPort = null;
+            String clientPort = null;
+
+            // 寻找成对的com0com端口
+            for (String port : availablePorts) {
+                if (port.startsWith("CNCA") || port.startsWith("CNCB")) {
+                    if (port.endsWith("0")) {
+                        simulatorPort = port;
+                        clientPort = port.startsWith("CNCA") ? "CNCB0" : "CNCA0";
+                    } else if (port.endsWith("4")) {
+                        simulatorPort = port;
+                        clientPort = port.startsWith("CNCA") ? "CNCB4" : "CNCA4";
+                    }
+                    if (simulatorPort != null)
+                        break;
+                }
+            }
+
+            if (simulatorPort != null) {
+                // 启动模拟器
+                printerSimulator.start(simulatorPort);
+
+                // 连接到对应端口
+                if (serialPrinter.open(clientPort)) {
+                    updateStatus("已连接到打印机模拟器");
+                    printerStatusLabel.setText("打印机: 已连接 (模拟器)");
+                    printerTestButton.setDisable(false);
+                    printerConnectButton.setText("断开连接");
+
+                    logger.info("打印机模拟器已启动，监听端口: {}，客户端连接: {}", simulatorPort, clientPort);
+                } else {
+                    updateStatus("无法连接到模拟器端口: " + clientPort);
+                    printerStatusLabel.setText("打印机: 连接失败");
+                }
+            } else {
+                updateStatus("未找到com0com虚拟端口，请安装com0com");
+                printerStatusLabel.setText("打印机: 需要com0com");
+            }
+
+        } catch (Exception e) {
+            logger.error("启动打印机模拟器失败", e);
+            updateStatus("启动模拟器失败: " + e.getMessage());
+            printerStatusLabel.setText("打印机: 模拟器失败");
+        }
+    }
+
+    /**
+     * 连接到串口打印机
+     */
+    private void connectToSerialPrinter(String port) {
+        try {
+            if (serialPrinter.open(port)) {
+                // 测试连接
+                if (serialPrinter.testConnection()) {
+                    updateStatus("已连接到打印机: " + port);
+                    printerStatusLabel.setText("打印机: 已连接 (" + port + ")");
+                    printerTestButton.setDisable(false);
+                    printerConnectButton.setText("断开连接");
+
+                    logger.info("成功连接到打印机端口: {}", port);
+                } else {
+                    serialPrinter.close();
+                    updateStatus("打印机响应测试失败: " + port);
+                    printerStatusLabel.setText("打印机: 测试失败");
+                }
+            } else {
+                updateStatus("无法打开端口: " + port);
+                printerStatusLabel.setText("打印机: 端口失败");
+            }
+
+        } catch (Exception e) {
+            logger.error("连接串口打印机失败", e);
+            updateStatus("连接失败: " + e.getMessage());
+            printerStatusLabel.setText("打印机: 连接错误");
+        }
+    }
+
+    /**
+     * 断开打印机连接
+     */
+    private void disconnectPrinter() {
+        try {
+            if (serialPrinter != null) {
+                serialPrinter.close();
+            }
+            if (printerSimulator != null) {
+                printerSimulator.stop();
+            }
+
+            updateStatus("打印机已断开连接");
+            printerStatusLabel.setText("打印机: 未连接");
+            printerTestButton.setDisable(true);
+            printerConnectButton.setText("连接打印机");
+
+            logger.info("打印机连接已断开");
+
+        } catch (Exception e) {
+            logger.error("断开打印机连接失败", e);
+            updateStatus("断开连接失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试打印机
+     */
+    private void testPrinter() {
+        if (serialPrinter == null || !serialPrinter.isConnected()) {
+            showError("测试失败", "打印机未连接");
+            return;
+        }
+
+        try {
+            updateStatus("正在测试打印...");
+
+            // 生成测试小票
+            EscBuilder esc = new EscBuilder();
+            byte[] testReceipt = esc.reset()
+                    .align(1).bold(true).fontSize(2, 2)
+                    .text("打印机测试").feed()
+                    .reset().align(0).fontSize(1, 1)
+                    .text("测试时间: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date())).feed()
+                    .text("系统: 烟叶称重系统 - Windows版").feed()
+                    .separator('-', 32).feed()
+                    .text("✓ 连接正常").feed()
+                    .text("✓ 指令发送成功").feed()
+                    .text("✓ 测试完成").feed()
+                    .separator('=', 32).feed(3)
+                    .cut()
+                    .build();
+
+            // 发送到打印机
+            if (serialPrinter.write(testReceipt)) {
+                updateStatus("测试打印完成");
+                showInfo("测试成功", "打印机测试完成，请检查打印输出");
+                logger.info("打印机测试完成，发送了 {} 字节", testReceipt.length);
+            } else {
+                updateStatus("测试打印失败");
+                showError("测试失败", "无法发送测试数据到打印机");
+            }
+
+        } catch (Exception e) {
+            logger.error("测试打印失败", e);
+            updateStatus("测试打印失败: " + e.getMessage());
+            showError("测试失败", "打印机测试失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 系统打印机测试
+     */
+    private void testSystemPrinter() {
+        try {
+            updateStatus("正在执行系统打印测试...");
+            boolean ok = printerManager.testPrinter();
+            if (ok) {
+                updateStatus("系统打印测试完成");
+                showInfo("系统打印", "已将测试内容发送至默认打印机队列，请检查POS80 Printer输出");
+            } else {
+                updateStatus("系统打印测试失败");
+                showError("系统打印", "无法发送测试内容，请检查系统打印机配置");
+            }
+        } catch (Exception e) {
+            logger.error("系统打印测试失败", e);
+            updateStatus("系统打印测试失败: " + e.getMessage());
+            showError("系统打印", "测试失败: " + e.getMessage());
+        }
     }
 
     /**
