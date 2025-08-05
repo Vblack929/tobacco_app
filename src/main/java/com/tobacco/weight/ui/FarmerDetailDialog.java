@@ -29,11 +29,13 @@ public class FarmerDetailDialog extends Stage {
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
         TableColumn<WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
+        TableColumn<WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
+        bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
         TableColumn<WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
         TableColumn<WeighingRecord, String> timeCol = new TableColumn<>("时间");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
-        table.getColumns().addAll(precheckCol, leafCol, weightCol, timeCol);
+        table.getColumns().addAll(precheckCol, leafCol, bundleCol, weightCol, timeCol);
         table.getItems().addAll(stats.getRecords());
         root.setCenter(table);
 

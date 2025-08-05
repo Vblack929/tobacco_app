@@ -18,6 +18,7 @@ public class WeighingRecord {
     private String warehouseNumber; // 仓库编号
     private String status; // 状态
     private String idCardNumber; // 身份证号
+    private int bundleCount; // 捆数
 
     public WeighingRecord() {
         this.timestamp = new Date();
@@ -121,6 +122,14 @@ public class WeighingRecord {
 
     public void setIdCardNumber(String idCardNumber) {
         this.idCardNumber = idCardNumber;
+    }
+
+    public int getBundleCount() {
+        return bundleCount;
+    }
+
+    public void setBundleCount(int bundleCount) {
+        this.bundleCount = bundleCount;
     }
 
     @Override

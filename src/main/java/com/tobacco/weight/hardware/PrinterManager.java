@@ -10,6 +10,13 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.function.Consumer;
+import javax.print.DocFlavor;
+import javax.print.DocPrintJob;
+import javax.print.PrintService;
+import javax.print.PrintServiceLookup;
+import javax.print.SimpleDoc;
+import javax.print.attribute.DocAttributeSet;
+import javax.print.attribute.HashDocAttributeSet;
 
 /**
  * 打印机管理器
@@ -63,10 +70,26 @@ public class PrinterManager {
      */
     public boolean printWeighingReceipt(String farmerName, String contractNumber,
             String leafType, double weight, String operator) {
+        return printWeighingReceipt(farmerName, contractNumber, leafType, weight, operator, 1);
+    }
+
+    /**
+     * 打印称重小票（包含捆数）
+     */
+    public boolean printWeighingReceipt(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount) {
+        return printWeighingReceipt(farmerName, contractNumber, leafType, weight, operator, bundleCount, null);
+    }
+
+    /**
+     * 打印称重小票（包含捆数和预检编号）
+     */
+    public boolean printWeighingReceipt(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount, String precheckId) {
         try {
             // 生成小票内容
             String receiptContent = generateReceiptContent(farmerName, contractNumber,
-                    leafType, weight, operator);
+                    leafType, weight, operator, bundleCount, precheckId);
 
             // 打印小票
             return printText(receiptContent);
@@ -85,6 +108,22 @@ public class PrinterManager {
      */
     private String generateReceiptContent(String farmerName, String contractNumber,
             String leafType, double weight, String operator) {
+        return generateReceiptContent(farmerName, contractNumber, leafType, weight, operator, 1, null);
+    }
+
+    /**
+     * 生成小票内容（包含捆数）
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount) {
+        return generateReceiptContent(farmerName, contractNumber, leafType, weight, operator, bundleCount, null);
+    }
+
+    /**
+     * 生成小票内容（包含捆数和预检编号）
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount, String precheckId) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String currentTime = sdf.format(new Date());
 
@@ -93,10 +132,14 @@ public class PrinterManager {
         content.append("        烟叶称重小票\n");
         content.append("=".repeat(32)).append("\n");
         content.append("时间: ").append(currentTime).append("\n");
+        if (precheckId != null && !precheckId.isEmpty()) {
+            content.append("预检编号: ").append(precheckId).append("\n");
+        }
         content.append("烟农: ").append(farmerName).append("\n");
         content.append("合同号: ").append(contractNumber).append("\n");
         content.append("部叶类型: ").append(leafType).append("\n");
         content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
+        content.append("捆数: ").append(bundleCount).append("\n");
         content.append("操作员: ").append(operator).append("\n");
         content.append("=".repeat(32)).append("\n");
         content.append("        谢谢使用\n");
@@ -110,40 +153,80 @@ public class PrinterManager {
      */
     public boolean printText(String text) {
         try {
-            // 创建临时文件
-            File tempFile = File.createTempFile("print_", ".txt");
-            try (FileWriter writer = new FileWriter(tempFile)) {
-                writer.write(text);
+            // 查找可用的打印服务
+            javax.print.PrintService[] services = javax.print.PrintServiceLookup.lookupPrintServices(null, null);
+            javax.print.PrintService targetService = null;
+
+            // 优先查找POS80或相关打印机
+            for (javax.print.PrintService service : services) {
+                String name = service.getName().toLowerCase();
+                if (name.contains("pos80") || name.contains("pos") ||
+                        name.contains("receipt") || name.contains("thermal")) {
+                    targetService = service;
+                    logger.info("找到POS打印机: {}", service.getName());
+                    break;
+                }
             }
 
-            // 使用系统默认程序打印
-            ProcessBuilder pb = new ProcessBuilder("notepad", "/p", tempFile.getAbsolutePath());
-            Process process = pb.start();
-
-            // 等待打印完成
-            int exitCode = process.waitFor();
-
-            // 删除临时文件
-            tempFile.delete();
-
-            if (exitCode == 0) {
-                logger.info("打印成功");
-                if (onPrintStatus != null) {
-                    onPrintStatus.accept("打印成功");
+            // 如果没找到POS打印机，使用默认打印机
+            if (targetService == null && services.length > 0) {
+                targetService = javax.print.PrintServiceLookup.lookupDefaultPrintService();
+                if (targetService != null) {
+                    logger.info("使用默认打印机: {}", targetService.getName());
+                } else {
+                    targetService = services[0];
+                    logger.info("使用第一个可用打印机: {}", targetService.getName());
                 }
-                return true;
-            } else {
-                logger.error("打印失败，退出码: {}", exitCode);
+            }
+
+            if (targetService == null) {
+                logger.error("未找到可用的打印机");
                 if (onPrintStatus != null) {
-                    onPrintStatus.accept("打印失败");
+                    onPrintStatus.accept("未找到可用打印机");
                 }
                 return false;
             }
 
-        } catch (Exception e) {
-            logger.error("打印文本失败", e);
+            // 创建打印任务
+            javax.print.DocPrintJob printJob = targetService.createPrintJob();
+
+            // 创建文档
+            javax.print.attribute.DocAttributeSet docAttribs = new javax.print.attribute.HashDocAttributeSet();
+            javax.print.DocFlavor flavor = javax.print.DocFlavor.BYTE_ARRAY.AUTOSENSE;
+
+            // 对于POS打印机，尝试发送原始字节数据
+            byte[] printData;
+            if (targetService.getName().toLowerCase().contains("pos")) {
+                // 为POS打印机添加基本的ESC/POS指令
+                StringBuilder escText = new StringBuilder();
+                escText.append("\u001B@"); // ESC @ - 初始化打印机
+                escText.append("\u001Ba\u0001"); // ESC a 1 - 居中对齐
+                escText.append("=== 系统打印测试 ===\n");
+                escText.append("\u001Ba\u0000"); // ESC a 0 - 左对齐
+                escText.append(text);
+                escText.append("\n\n\n");
+                escText.append("\u001Bi"); // ESC i - 切纸
+                printData = escText.toString().getBytes("GBK");
+            } else {
+                // 普通打印机使用UTF-8编码
+                printData = text.getBytes("UTF-8");
+            }
+
+            javax.print.SimpleDoc doc = new javax.print.SimpleDoc(printData, flavor, docAttribs);
+
+            // 执行打印
+            printJob.print(doc, null);
+
+            logger.info("系统打印任务已提交到: {}", targetService.getName());
             if (onPrintStatus != null) {
-                onPrintStatus.accept("打印失败: " + e.getMessage());
+                onPrintStatus.accept("打印成功 - " + targetService.getName());
+            }
+            return true;
+
+        } catch (Exception e) {
+            logger.error("系统打印失败", e);
+            if (onPrintStatus != null) {
+                onPrintStatus.accept("系统打印失败: " + e.getMessage());
             }
             return false;
         }
