@@ -156,14 +156,27 @@
             </VBox>
         </VBox>
     </HBox>
-    <!-- 一级管理员界面（统计区） -->
-    <VBox fx:id="adminTableContainer" styleClass="admin-panel" spacing="5" VBox.vgrow="ALWAYS">
-        <!-- 管理员界面标题和导出按钮 -->
-        <HBox alignment="CENTER_LEFT" spacing="20">
-            <Label text="管理员界面（一级）" styleClass="admin-title-label"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Button fx:id="exportAllDataButton" text="导出所有数据" styleClass="export-button"/>
+    <!-- 管理员登录区域 -->
+    <VBox styleClass="admin-panel" spacing="10" VBox.vgrow="ALWAYS" alignment="CENTER">
+        <VBox spacing="5" alignment="CENTER">
+            <Label text="管理员功能" styleClass="admin-title-label"/>
+            <Label text="请登录管理员账户以访问管理功能" styleClass="admin-subtitle-label"/>
+        </VBox>
+        
+        <HBox spacing="15" alignment="CENTER">
+            <Button fx:id="adminLoginButton" text="管理员登录" styleClass="admin-login-button"/>
+            <Button fx:id="farmerRegistrationButton" text="农户注册管理" styleClass="export-button"/>
         </HBox>
+        
+        <!-- 登录状态显示 -->
+        <VBox fx:id="adminStatusContainer" spacing="5" alignment="CENTER" visible="false">
+            <Label fx:id="adminStatusLabel" text="" styleClass="admin-status-label"/>
+            <HBox spacing="10" alignment="CENTER">
+                <Button fx:id="openAdminPanelButton" text="打开管理面板" styleClass="export-button" visible="false"/>
+                <Button fx:id="exportAllDataButton" text="导出所有数据" styleClass="export-button" visible="false"/>
+                <Button fx:id="adminLogoutButton" text="登出" styleClass="logout-button" visible="false"/>
+            </HBox>
+        </VBox>
     </VBox>
     
     <!-- 状态栏 -->
