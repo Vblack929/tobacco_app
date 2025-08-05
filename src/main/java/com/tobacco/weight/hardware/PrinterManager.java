@@ -70,10 +70,26 @@ public class PrinterManager {
      */
     public boolean printWeighingReceipt(String farmerName, String contractNumber,
             String leafType, double weight, String operator) {
+        return printWeighingReceipt(farmerName, contractNumber, leafType, weight, operator, 1);
+    }
+
+    /**
+     * 打印称重小票（包含捆数）
+     */
+    public boolean printWeighingReceipt(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount) {
+        return printWeighingReceipt(farmerName, contractNumber, leafType, weight, operator, bundleCount, null);
+    }
+
+    /**
+     * 打印称重小票（包含捆数和预检编号）
+     */
+    public boolean printWeighingReceipt(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount, String precheckId) {
         try {
             // 生成小票内容
             String receiptContent = generateReceiptContent(farmerName, contractNumber,
-                    leafType, weight, operator);
+                    leafType, weight, operator, bundleCount, precheckId);
 
             // 打印小票
             return printText(receiptContent);
@@ -92,6 +108,22 @@ public class PrinterManager {
      */
     private String generateReceiptContent(String farmerName, String contractNumber,
             String leafType, double weight, String operator) {
+        return generateReceiptContent(farmerName, contractNumber, leafType, weight, operator, 1, null);
+    }
+
+    /**
+     * 生成小票内容（包含捆数）
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount) {
+        return generateReceiptContent(farmerName, contractNumber, leafType, weight, operator, bundleCount, null);
+    }
+
+    /**
+     * 生成小票内容（包含捆数和预检编号）
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber,
+            String leafType, double weight, String operator, int bundleCount, String precheckId) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String currentTime = sdf.format(new Date());
 
@@ -100,10 +132,14 @@ public class PrinterManager {
         content.append("        烟叶称重小票\n");
         content.append("=".repeat(32)).append("\n");
         content.append("时间: ").append(currentTime).append("\n");
+        if (precheckId != null && !precheckId.isEmpty()) {
+            content.append("预检编号: ").append(precheckId).append("\n");
+        }
         content.append("烟农: ").append(farmerName).append("\n");
         content.append("合同号: ").append(contractNumber).append("\n");
         content.append("部叶类型: ").append(leafType).append("\n");
         content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
+        content.append("捆数: ").append(bundleCount).append("\n");
         content.append("操作员: ").append(operator).append("\n");
         content.append("=".repeat(32)).append("\n");
         content.append("        谢谢使用\n");

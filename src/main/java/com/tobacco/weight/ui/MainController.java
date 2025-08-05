@@ -8,9 +8,7 @@ import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
-import com.tobacco.weight.hardware.printer.WindowsSerialPrinter;
-import com.tobacco.weight.hardware.printer.PrinterSimulator;
-import com.tobacco.weight.hardware.printer.esc.EscBuilder;
+
 import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -58,10 +56,6 @@ public class MainController implements Initializable {
     private PrinterManager printerManager;
     private IdCardReader idCardReader;
 
-    // 新的打印机连接器
-    private WindowsSerialPrinter serialPrinter;
-    private PrinterSimulator printerSimulator;
-
     // 数据仓库
     private WeighingRecordRepository weighingRecordRepository;
 
@@ -90,6 +84,8 @@ public class MainController implements Initializable {
     private TextField idCardNumberField;
     @FXML
     private Label idCardStatusIcon;
+    @FXML
+    private TextField bundleCountField;
 
     // UI组件 - 统计区域
     @FXML
@@ -124,15 +120,15 @@ public class MainController implements Initializable {
     @FXML
     private Button diagnosticsButton;
 
-    // 打印机连接UI组件
-    @FXML
-    private Label printerStatusLabel;
-    @FXML
-    private Button printerConnectButton;
-    @FXML
-    private Button printerTestButton;
+    // 打印机测试UI组件
     @FXML
     private Button systemPrintTestButton;
+
+    // 数字键盘按钮
+    @FXML
+    private Button key0, key1, key2, key3, key4, key5, key6, key7, key8, key9;
+    @FXML
+    private Button keyClear, keyBack;
 
     private int precheckCounter = 100000000;
     private HardwareDiagnosticsWindow diagnosticsWindow;
@@ -190,10 +186,6 @@ public class MainController implements Initializable {
             printerManager = new PrinterManager();
             idCardReader = new IdCardReader();
 
-            // 初始化新的串口打印机连接器
-            serialPrinter = new WindowsSerialPrinter();
-            printerSimulator = new PrinterSimulator();
-
             // 设置硬件状态监听器
             scaleManager.setOnWeightChanged(this::updateCurrentWeight);
             scaleManager.setOnConnectionStatusChanged(this::updateScaleStatus);
@@ -239,10 +231,11 @@ public class MainController implements Initializable {
         // 硬件诊断按钮
         diagnosticsButton.setOnAction(e -> openDiagnosticsWindow());
 
-        // 打印机连接按钮
-        printerConnectButton.setOnAction(e -> connectPrinter());
-        printerTestButton.setOnAction(e -> testPrinter());
+        // 系统打印测试按钮
         systemPrintTestButton.setOnAction(e -> testSystemPrinter());
+
+        // 数字键盘事件处理
+        setupNumberKeypad();
     }
 
     /**
@@ -255,6 +248,7 @@ public class MainController implements Initializable {
         upperRatioField.setText("0.0%");
         middleRatioField.setText("0.0%");
         lowerRatioField.setText("0.0%");
+        bundleCountField.setText("1");
 
         // 设置按钮状态
         confirmButton.setDisable(true);
@@ -372,6 +366,20 @@ public class MainController implements Initializable {
                 return;
             }
 
+            // 验证捆数
+            String bundleCountText = bundleCountField.getText().trim();
+            int bundleCount = 1;
+            try {
+                bundleCount = Integer.parseInt(bundleCountText);
+                if (bundleCount <= 0) {
+                    showError("输入错误", "捆数必须为正整数");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showError("输入错误", "请输入有效的捆数");
+                return;
+            }
+
             // 获取当前重量
             double weight = scaleManager.getCurrentWeight();
             if (weight <= 0) {
@@ -406,6 +414,7 @@ public class MainController implements Initializable {
             // 设置预检编号
             record.setPrecheckId(newPrecheckId);
             record.setIdCardNumber(idCardNumber);
+            record.setBundleCount(bundleCount);
 
             System.out.println("记录创建完成: " + record.getFarmerName() + ", " + record.getIdCardNumber());
 
@@ -415,9 +424,39 @@ public class MainController implements Initializable {
             resetWeighingUI();
             updateRatios();
 
-            // 显示提示
-            showInfo("称重完成", "称重完成 - 预检号: " + record.getPrecheckId() + " | " + leafType + " "
-                    + String.format("%.2f", weight) + "kg");
+            // 显示提示并询问是否打印小票
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            alert.setTitle("称重完成");
+            alert.setHeaderText("称重完成 - 预检号: " + record.getPrecheckId());
+            alert.setContentText(
+                    leafType + " " + String.format("%.2f", weight) + "kg" + " (捆数: " + bundleCount + ")\n\n是否打印称重小票？");
+
+            javafx.scene.control.ButtonType previewButton = new javafx.scene.control.ButtonType("预览小票");
+            javafx.scene.control.ButtonType printButton = new javafx.scene.control.ButtonType("打印小票");
+            javafx.scene.control.ButtonType skipButton = new javafx.scene.control.ButtonType("跳过",
+                    javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+            alert.getButtonTypes().setAll(previewButton, printButton, skipButton);
+
+            java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+            if (result.isPresent()) {
+                if (result.get() == previewButton) {
+                    // 用户选择预览小票
+                    showReceiptPreview(farmerName, contractNumber, leafType, weight, "操作员", bundleCount,
+                            record.getPrecheckId());
+                } else if (result.get() == printButton) {
+                    // 用户选择打印小票
+                    boolean printSuccess = printerManager.printWeighingReceipt(
+                            farmerName, contractNumber, leafType, weight, "操作员", bundleCount, record.getPrecheckId());
+
+                    if (printSuccess) {
+                        updateStatus("小票打印完成");
+                    } else {
+                        updateStatus("小票打印失败");
+                        showError("打印失败", "小票打印失败，请检查打印机连接");
+                    }
+                }
+            }
 
             System.out.println("=== 确认称重完成 ===");
 
@@ -902,7 +941,9 @@ public class MainController implements Initializable {
      * 更新状态栏
      */
     private void updateStatus(String status) {
-        statusLabel.setText(status);
+        if (operationTipLabel != null) {
+            operationTipLabel.setText(status);
+        }
         logger.info("状态更新: {}", status);
     }
 
@@ -1002,6 +1043,8 @@ public class MainController implements Initializable {
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
+        TableColumn<com.tobacco.weight.data.WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
+        bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> timeCol = new TableColumn<>("时间");
@@ -1022,7 +1065,7 @@ public class MainController implements Initializable {
                 setGraphic(empty ? null : btn);
             }
         });
-        recordTable.getColumns().addAll(precheckCol, leafCol, weightCol, timeCol, exportCol);
+        recordTable.getColumns().addAll(precheckCol, leafCol, bundleCol, weightCol, timeCol, exportCol);
         recordTable.getItems().setAll(stats.getRecords());
         dialog.setScene(new javafx.scene.Scene(new VBox(recordTable)));
         dialog.setWidth(700);
@@ -1270,309 +1313,6 @@ public class MainController implements Initializable {
     }
 
     /**
-     * 连接打印机
-     */
-    private void connectPrinter() {
-        // 如果已经连接，则断开连接
-        if (serialPrinter != null && serialPrinter.isConnected()) {
-            disconnectPrinter();
-            return;
-        }
-
-        try {
-            updateStatus("正在扫描打印机...");
-            printerStatusLabel.setText("打印机: 扫描中...");
-
-            // 在后台线程执行打印机连接
-            new Thread(() -> {
-                try {
-                    // 扫描可用串口
-                    String[] availablePorts = WindowsSerialPrinter.getAvailablePorts();
-                    String[] printerPorts = WindowsSerialPrinter.findPrinterPorts();
-
-                    Platform.runLater(() -> {
-                        logger.info("发现 {} 个串口，{} 个可能的打印机端口",
-                                availablePorts.length, printerPorts.length);
-
-                        // 检查是否有虚拟端口（开发环境）
-                        boolean hasVirtualPorts = false;
-                        for (String port : availablePorts) {
-                            if (port.startsWith("CNCA") || port.startsWith("CNCB")) {
-                                hasVirtualPorts = true;
-                                break;
-                            }
-                        }
-
-                        if (hasVirtualPorts && printerPorts.length == 0) {
-                            // 开发环境：有虚拟端口但没有真实打印机，启动模拟器
-                            logger.info("检测到开发环境（有com0com但无真实打印机），启动模拟器");
-                            startPrinterSimulator();
-                        } else if (printerPorts.length > 0) {
-                            // 生产环境或开发环境有真实打印机：尝试连接所有可能的打印机端口
-                            logger.info("检测到 {} 个可能的打印机端口，开始自动连接", printerPorts.length);
-                            tryConnectAllPrinterPorts(printerPorts);
-                        } else {
-                            // 没有发现任何可用端口
-                            updateStatus("未找到可用的打印机端口，也未找到虚拟端口");
-                            printerStatusLabel.setText("打印机: 无可用端口");
-                        }
-                    });
-
-                } catch (Exception e) {
-                    Platform.runLater(() -> {
-                        logger.error("扫描打印机端口失败", e);
-                        updateStatus("打印机扫描失败: " + e.getMessage());
-                        printerStatusLabel.setText("打印机: 连接失败");
-                    });
-                }
-            }).start();
-
-        } catch (Exception e) {
-            logger.error("连接打印机失败", e);
-            updateStatus("连接打印机失败: " + e.getMessage());
-            printerStatusLabel.setText("打印机: 连接失败");
-        }
-    }
-
-    /**
-     * 穷尽尝试连接所有可能的打印机端口
-     */
-    private void tryConnectAllPrinterPorts(String[] printerPorts) {
-        // 在后台线程尝试连接
-        new Thread(() -> {
-            boolean connected = false;
-            String connectedPort = null;
-
-            Platform.runLater(() -> {
-                updateStatus("正在尝试连接打印机端口...");
-                printerStatusLabel.setText("打印机: 连接中...");
-            });
-
-            // 尝试所有端口，每个端口尝试多种波特率
-            int[] baudRates = { 115200, 9600, 19200, 38400, 57600 };
-
-            for (String port : printerPorts) {
-                boolean portConnected = false;
-
-                for (int baudRate : baudRates) {
-                    try {
-                        Platform.runLater(() -> {
-                            updateStatus("正在尝试连接: " + port + " (波特率: " + baudRate + ")");
-                            logger.info("尝试连接端口: {} 波特率: {}", port, baudRate);
-                        });
-
-                        // 尝试连接端口
-                        if (serialPrinter.open(port, baudRate)) {
-                            // 测试连接
-                            if (serialPrinter.testConnection()) {
-                                connected = true;
-                                connectedPort = port + " (波特率: " + baudRate + ")";
-                                portConnected = true;
-                                logger.info("成功连接到打印机端口: {} 波特率: {}", port, baudRate);
-                                break;
-                            } else {
-                                // 连接失败，关闭端口
-                                serialPrinter.close();
-                                logger.debug("端口 {} 波特率 {} 连接成功但测试失败", port, baudRate);
-                            }
-                        } else {
-                            logger.debug("无法打开端口: {} 波特率: {}", port, baudRate);
-                        }
-
-                        // 稍微延时避免过快切换
-                        Thread.sleep(200);
-
-                    } catch (Exception e) {
-                        logger.debug("尝试连接端口 {} 波特率 {} 时出现异常: {}", port, baudRate, e.getMessage());
-                        try {
-                            serialPrinter.close();
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-
-                // 如果这个端口成功连接，则退出端口循环
-                if (portConnected) {
-                    break;
-                }
-            }
-
-            // 更新最终结果
-            final boolean finalConnected = connected;
-            final String finalPort = connectedPort;
-
-            Platform.runLater(() -> {
-                if (finalConnected) {
-                    updateStatus("已连接到打印机: " + finalPort);
-                    printerStatusLabel.setText("打印机: 已连接 (" + finalPort + ")");
-                    printerTestButton.setDisable(false);
-                    printerConnectButton.setText("断开连接");
-                    logger.info("打印机连接成功: {}", finalPort);
-                } else {
-                    updateStatus("尝试了所有端口，均无法连接到打印机");
-                    printerStatusLabel.setText("打印机: 连接失败");
-                    logger.warn("穷尽尝试 {} 个端口后仍无法连接到打印机", printerPorts.length);
-                }
-            });
-
-        }).start();
-    }
-
-    /**
-     * 启动打印机模拟器
-     */
-    private void startPrinterSimulator() {
-        try {
-            // 查找com0com端口
-            String[] availablePorts = WindowsSerialPrinter.getAvailablePorts();
-            String simulatorPort = null;
-            String clientPort = null;
-
-            // 寻找成对的com0com端口
-            for (String port : availablePorts) {
-                if (port.startsWith("CNCA") || port.startsWith("CNCB")) {
-                    if (port.endsWith("0")) {
-                        simulatorPort = port;
-                        clientPort = port.startsWith("CNCA") ? "CNCB0" : "CNCA0";
-                    } else if (port.endsWith("4")) {
-                        simulatorPort = port;
-                        clientPort = port.startsWith("CNCA") ? "CNCB4" : "CNCA4";
-                    }
-                    if (simulatorPort != null)
-                        break;
-                }
-            }
-
-            if (simulatorPort != null) {
-                // 启动模拟器
-                printerSimulator.start(simulatorPort);
-
-                // 连接到对应端口
-                if (serialPrinter.open(clientPort)) {
-                    updateStatus("已连接到打印机模拟器");
-                    printerStatusLabel.setText("打印机: 已连接 (模拟器)");
-                    printerTestButton.setDisable(false);
-                    printerConnectButton.setText("断开连接");
-
-                    logger.info("打印机模拟器已启动，监听端口: {}，客户端连接: {}", simulatorPort, clientPort);
-                } else {
-                    updateStatus("无法连接到模拟器端口: " + clientPort);
-                    printerStatusLabel.setText("打印机: 连接失败");
-                }
-            } else {
-                updateStatus("未找到com0com虚拟端口，请安装com0com");
-                printerStatusLabel.setText("打印机: 需要com0com");
-            }
-
-        } catch (Exception e) {
-            logger.error("启动打印机模拟器失败", e);
-            updateStatus("启动模拟器失败: " + e.getMessage());
-            printerStatusLabel.setText("打印机: 模拟器失败");
-        }
-    }
-
-    /**
-     * 连接到串口打印机
-     */
-    private void connectToSerialPrinter(String port) {
-        try {
-            if (serialPrinter.open(port)) {
-                // 测试连接
-                if (serialPrinter.testConnection()) {
-                    updateStatus("已连接到打印机: " + port);
-                    printerStatusLabel.setText("打印机: 已连接 (" + port + ")");
-                    printerTestButton.setDisable(false);
-                    printerConnectButton.setText("断开连接");
-
-                    logger.info("成功连接到打印机端口: {}", port);
-                } else {
-                    serialPrinter.close();
-                    updateStatus("打印机响应测试失败: " + port);
-                    printerStatusLabel.setText("打印机: 测试失败");
-                }
-            } else {
-                updateStatus("无法打开端口: " + port);
-                printerStatusLabel.setText("打印机: 端口失败");
-            }
-
-        } catch (Exception e) {
-            logger.error("连接串口打印机失败", e);
-            updateStatus("连接失败: " + e.getMessage());
-            printerStatusLabel.setText("打印机: 连接错误");
-        }
-    }
-
-    /**
-     * 断开打印机连接
-     */
-    private void disconnectPrinter() {
-        try {
-            if (serialPrinter != null) {
-                serialPrinter.close();
-            }
-            if (printerSimulator != null) {
-                printerSimulator.stop();
-            }
-
-            updateStatus("打印机已断开连接");
-            printerStatusLabel.setText("打印机: 未连接");
-            printerTestButton.setDisable(true);
-            printerConnectButton.setText("连接打印机");
-
-            logger.info("打印机连接已断开");
-
-        } catch (Exception e) {
-            logger.error("断开打印机连接失败", e);
-            updateStatus("断开连接失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 测试打印机
-     */
-    private void testPrinter() {
-        if (serialPrinter == null || !serialPrinter.isConnected()) {
-            showError("测试失败", "打印机未连接");
-            return;
-        }
-
-        try {
-            updateStatus("正在测试打印...");
-
-            // 生成测试小票
-            EscBuilder esc = new EscBuilder();
-            byte[] testReceipt = esc.reset()
-                    .align(1).bold(true).fontSize(2, 2)
-                    .text("打印机测试").feed()
-                    .reset().align(0).fontSize(1, 1)
-                    .text("测试时间: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date())).feed()
-                    .text("系统: 烟叶称重系统 - Windows版").feed()
-                    .separator('-', 32).feed()
-                    .text("✓ 连接正常").feed()
-                    .text("✓ 指令发送成功").feed()
-                    .text("✓ 测试完成").feed()
-                    .separator('=', 32).feed(3)
-                    .cut()
-                    .build();
-
-            // 发送到打印机
-            if (serialPrinter.write(testReceipt)) {
-                updateStatus("测试打印完成");
-                showInfo("测试成功", "打印机测试完成，请检查打印输出");
-                logger.info("打印机测试完成，发送了 {} 字节", testReceipt.length);
-            } else {
-                updateStatus("测试打印失败");
-                showError("测试失败", "无法发送测试数据到打印机");
-            }
-
-        } catch (Exception e) {
-            logger.error("测试打印失败", e);
-            updateStatus("测试打印失败: " + e.getMessage());
-            showError("测试失败", "打印机测试失败: " + e.getMessage());
-        }
-    }
-
-    /**
      * 系统打印机测试
      */
     private void testSystemPrinter() {
@@ -1594,9 +1334,141 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 设置数字键盘事件处理
+     */
+    private void setupNumberKeypad() {
+        // 数字键 0-9
+        key0.setOnAction(e -> appendToBundleCount("0"));
+        key1.setOnAction(e -> appendToBundleCount("1"));
+        key2.setOnAction(e -> appendToBundleCount("2"));
+        key3.setOnAction(e -> appendToBundleCount("3"));
+        key4.setOnAction(e -> appendToBundleCount("4"));
+        key5.setOnAction(e -> appendToBundleCount("5"));
+        key6.setOnAction(e -> appendToBundleCount("6"));
+        key7.setOnAction(e -> appendToBundleCount("7"));
+        key8.setOnAction(e -> appendToBundleCount("8"));
+        key9.setOnAction(e -> appendToBundleCount("9"));
+
+        // 清除按钮
+        keyClear.setOnAction(e -> clearBundleCount());
+
+        // 退格按钮
+        keyBack.setOnAction(e -> backspaceBundleCount());
+    }
+
+    /**
+     * 向捆数输入框追加数字
+     */
+    private void appendToBundleCount(String digit) {
+        String currentText = bundleCountField.getText();
+        // 限制最大输入长度为3位数
+        if (currentText.length() < 3) {
+            bundleCountField.setText(currentText + digit);
+        }
+    }
+
+    /**
+     * 清除捆数输入框
+     */
+    private void clearBundleCount() {
+        bundleCountField.setText("");
+    }
+
+    /**
+     * 退格删除捆数输入框的最后一个字符
+     */
+    private void backspaceBundleCount() {
+        String currentText = bundleCountField.getText();
+        if (!currentText.isEmpty()) {
+            bundleCountField.setText(currentText.substring(0, currentText.length() - 1));
+        }
+    }
+
+    /**
      * 设置主舞台
      */
     public void setPrimaryStage(Stage primaryStage) {
         this.primaryStage = primaryStage;
+    }
+
+    /**
+     * 显示小票预览对话框
+     */
+    private void showReceiptPreview(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        try {
+            // 生成小票内容
+            String receiptContent = generateReceiptContent(farmerName, contractNumber, leafType,
+                    weight, operator, bundleCount, precheckId);
+
+            // 创建预览对话框
+            javafx.scene.control.Alert previewAlert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.INFORMATION);
+            previewAlert.setTitle("小票预览");
+            previewAlert.setHeaderText("称重小票预览");
+
+            // 创建文本区域显示小票内容
+            javafx.scene.control.TextArea textArea = new javafx.scene.control.TextArea(receiptContent);
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setPrefRowCount(15);
+            textArea.setPrefColumnCount(40);
+            textArea.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 14px;");
+
+            // 设置对话框内容
+            previewAlert.getDialogPane().setContent(textArea);
+
+            // 添加打印按钮
+            javafx.scene.control.ButtonType printFromPreviewButton = new javafx.scene.control.ButtonType("打印小票");
+            javafx.scene.control.ButtonType closeButton = new javafx.scene.control.ButtonType("关闭",
+                    javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+            previewAlert.getButtonTypes().setAll(printFromPreviewButton, closeButton);
+
+            // 显示预览对话框
+            java.util.Optional<javafx.scene.control.ButtonType> previewResult = previewAlert.showAndWait();
+            if (previewResult.isPresent() && previewResult.get() == printFromPreviewButton) {
+                // 从预览对话框直接打印
+                boolean printSuccess = printerManager.printWeighingReceipt(
+                        farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
+
+                if (printSuccess) {
+                    updateStatus("小票打印完成");
+                } else {
+                    updateStatus("小票打印失败");
+                    showError("打印失败", "小票打印失败，请检查打印机连接");
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("显示小票预览失败", e);
+            showError("预览失败", "显示小票预览失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成小票内容
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(new java.util.Date());
+
+        StringBuilder content = new StringBuilder();
+        content.append("=".repeat(32)).append("\n");
+        content.append("        烟叶称重小票\n");
+        content.append("=".repeat(32)).append("\n");
+        content.append("时间: ").append(currentTime).append("\n");
+        content.append("预检编号: ").append(precheckId).append("\n");
+        content.append("烟农: ").append(farmerName).append("\n");
+        content.append("合同号: ").append(contractNumber).append("\n");
+        content.append("部叶类型: ").append(leafType).append("\n");
+        content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
+        content.append("捆数: ").append(bundleCount).append("\n");
+        content.append("操作员: ").append(operator).append("\n");
+        content.append("=".repeat(32)).append("\n");
+        content.append("        谢谢使用\n");
+        content.append("=".repeat(32)).append("\n");
+
+        return content.toString();
     }
 }
