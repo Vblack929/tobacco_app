@@ -8,6 +8,7 @@ import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
+
 import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -83,6 +84,8 @@ public class MainController implements Initializable {
     private TextField idCardNumberField;
     @FXML
     private Label idCardStatusIcon;
+    @FXML
+    private TextField bundleCountField;
 
     // UI组件 - 统计区域
     @FXML
@@ -116,6 +119,16 @@ public class MainController implements Initializable {
     private Label operationTipLabel;
     @FXML
     private Button diagnosticsButton;
+
+    // 打印机测试UI组件
+    @FXML
+    private Button systemPrintTestButton;
+
+    // 数字键盘按钮
+    @FXML
+    private Button key0, key1, key2, key3, key4, key5, key6, key7, key8, key9;
+    @FXML
+    private Button keyClear, keyBack;
 
     private int precheckCounter = 100000000;
     private HardwareDiagnosticsWindow diagnosticsWindow;
@@ -180,7 +193,7 @@ public class MainController implements Initializable {
             idCardReader.setOnIdCardRead(this::handleIdCardRead);
             idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
             idCardReader.setOnErrorOccurred(this::handleIdCardError);
-            
+
             // 检查连接状态 - 在注册回调后调用
             idCardReader.checkConnectionStatus();
 
@@ -214,9 +227,15 @@ public class MainController implements Initializable {
 
         // 导出所有数据按钮
         exportAllDataButton.setOnAction(e -> exportAllData());
-        
+
         // 硬件诊断按钮
         diagnosticsButton.setOnAction(e -> openDiagnosticsWindow());
+
+        // 系统打印测试按钮
+        systemPrintTestButton.setOnAction(e -> testSystemPrinter());
+
+        // 数字键盘事件处理
+        setupNumberKeypad();
     }
 
     /**
@@ -229,11 +248,12 @@ public class MainController implements Initializable {
         upperRatioField.setText("0.0%");
         middleRatioField.setText("0.0%");
         lowerRatioField.setText("0.0%");
+        bundleCountField.setText("1");
 
         // 设置按钮状态
         confirmButton.setDisable(true);
         readIdCardButton.setDisable(true);
-        
+
         // 设置初始ID卡读卡器状态为未连接
         if (idCardStatusIcon != null) {
             idCardStatusIcon.getStyleClass().add("disconnected");
@@ -346,6 +366,20 @@ public class MainController implements Initializable {
                 return;
             }
 
+            // 验证捆数
+            String bundleCountText = bundleCountField.getText().trim();
+            int bundleCount = 1;
+            try {
+                bundleCount = Integer.parseInt(bundleCountText);
+                if (bundleCount <= 0) {
+                    showError("输入错误", "捆数必须为正整数");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showError("输入错误", "请输入有效的捆数");
+                return;
+            }
+
             // 获取当前重量
             double weight = scaleManager.getCurrentWeight();
             if (weight <= 0) {
@@ -380,6 +414,7 @@ public class MainController implements Initializable {
             // 设置预检编号
             record.setPrecheckId(newPrecheckId);
             record.setIdCardNumber(idCardNumber);
+            record.setBundleCount(bundleCount);
 
             System.out.println("记录创建完成: " + record.getFarmerName() + ", " + record.getIdCardNumber());
 
@@ -389,9 +424,39 @@ public class MainController implements Initializable {
             resetWeighingUI();
             updateRatios();
 
-            // 显示提示
-            showInfo("称重完成", "称重完成 - 预检号: " + record.getPrecheckId() + " | " + leafType + " "
-                    + String.format("%.2f", weight) + "kg");
+            // 显示提示并询问是否打印小票
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            alert.setTitle("称重完成");
+            alert.setHeaderText("称重完成 - 预检号: " + record.getPrecheckId());
+            alert.setContentText(
+                    leafType + " " + String.format("%.2f", weight) + "kg" + " (捆数: " + bundleCount + ")\n\n是否打印称重小票？");
+
+            javafx.scene.control.ButtonType previewButton = new javafx.scene.control.ButtonType("预览小票");
+            javafx.scene.control.ButtonType printButton = new javafx.scene.control.ButtonType("打印小票");
+            javafx.scene.control.ButtonType skipButton = new javafx.scene.control.ButtonType("跳过",
+                    javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+            alert.getButtonTypes().setAll(previewButton, printButton, skipButton);
+
+            java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+            if (result.isPresent()) {
+                if (result.get() == previewButton) {
+                    // 用户选择预览小票
+                    showReceiptPreview(farmerName, contractNumber, leafType, weight, "操作员", bundleCount,
+                            record.getPrecheckId());
+                } else if (result.get() == printButton) {
+                    // 用户选择打印小票
+                    boolean printSuccess = printerManager.printWeighingReceipt(
+                            farmerName, contractNumber, leafType, weight, "操作员", bundleCount, record.getPrecheckId());
+
+                    if (printSuccess) {
+                        updateStatus("小票打印完成");
+                    } else {
+                        updateStatus("小票打印失败");
+                        showError("打印失败", "小票打印失败，请检查打印机连接");
+                    }
+                }
+            }
 
             System.out.println("=== 确认称重完成 ===");
 
@@ -462,12 +527,12 @@ public class MainController implements Initializable {
     private void handleIdCardError(String errorMessage) {
         Platform.runLater(() -> {
             logger.error("ID卡读卡器发生错误: {}", errorMessage);
-            
+
             // 如果诊断窗口打开，将错误添加到日志中
             if (diagnosticsWindow != null && diagnosticsWindow.isShowing()) {
                 diagnosticsWindow.addErrorLog("身份证读卡器错误: " + errorMessage);
             }
-            
+
             showError("读卡器错误", "ID卡读卡器发生错误: " + errorMessage);
         });
     }
@@ -524,11 +589,11 @@ public class MainController implements Initializable {
     private void updateIdCardStatus(boolean connected) {
         Platform.runLater(() -> {
             readIdCardButton.setDisable(!connected);
-            
+
             // 清除之前的状态样式
             idCardStatusIcon.getStyleClass().removeAll("connected", "disconnected", "connecting");
             readIdCardButton.getStyleClass().removeAll("connected", "disconnected", "connecting");
-            
+
             if (connected) {
                 updateStatus("身份证读卡器已连接");
                 // 添加连接状态样式
@@ -556,19 +621,19 @@ public class MainController implements Initializable {
                     // 模拟设备未找到错误
                     Thread.sleep(1000);
                     handleIdCardError("模拟错误: 设备未找到 [错误代码: 1001]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟驱动问题
                     handleIdCardError("模拟错误: 驱动程序未安装 [错误代码: 1002]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟通信错误
                     handleIdCardError("模拟错误: 通信失败 [错误代码: 1004]");
-                    
+
                     Thread.sleep(2000);
                     // 模拟读卡失败
                     handleIdCardError("模拟错误: 身份证读取失败 [错误代码: 2002]");
-                    
+
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -876,7 +941,9 @@ public class MainController implements Initializable {
      * 更新状态栏
      */
     private void updateStatus(String status) {
-        statusLabel.setText(status);
+        if (operationTipLabel != null) {
+            operationTipLabel.setText(status);
+        }
         logger.info("状态更新: {}", status);
     }
 
@@ -976,6 +1043,8 @@ public class MainController implements Initializable {
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
+        TableColumn<com.tobacco.weight.data.WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
+        bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> timeCol = new TableColumn<>("时间");
@@ -996,7 +1065,7 @@ public class MainController implements Initializable {
                 setGraphic(empty ? null : btn);
             }
         });
-        recordTable.getColumns().addAll(precheckCol, leafCol, weightCol, timeCol, exportCol);
+        recordTable.getColumns().addAll(precheckCol, leafCol, bundleCol, weightCol, timeCol, exportCol);
         recordTable.getItems().setAll(stats.getRecords());
         dialog.setScene(new javafx.scene.Scene(new VBox(recordTable)));
         dialog.setWidth(700);
@@ -1244,9 +1313,162 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 系统打印机测试
+     */
+    private void testSystemPrinter() {
+        try {
+            updateStatus("正在执行系统打印测试...");
+            boolean ok = printerManager.testPrinter();
+            if (ok) {
+                updateStatus("系统打印测试完成");
+                showInfo("系统打印", "已将测试内容发送至默认打印机队列，请检查POS80 Printer输出");
+            } else {
+                updateStatus("系统打印测试失败");
+                showError("系统打印", "无法发送测试内容，请检查系统打印机配置");
+            }
+        } catch (Exception e) {
+            logger.error("系统打印测试失败", e);
+            updateStatus("系统打印测试失败: " + e.getMessage());
+            showError("系统打印", "测试失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 设置数字键盘事件处理
+     */
+    private void setupNumberKeypad() {
+        // 数字键 0-9
+        key0.setOnAction(e -> appendToBundleCount("0"));
+        key1.setOnAction(e -> appendToBundleCount("1"));
+        key2.setOnAction(e -> appendToBundleCount("2"));
+        key3.setOnAction(e -> appendToBundleCount("3"));
+        key4.setOnAction(e -> appendToBundleCount("4"));
+        key5.setOnAction(e -> appendToBundleCount("5"));
+        key6.setOnAction(e -> appendToBundleCount("6"));
+        key7.setOnAction(e -> appendToBundleCount("7"));
+        key8.setOnAction(e -> appendToBundleCount("8"));
+        key9.setOnAction(e -> appendToBundleCount("9"));
+
+        // 清除按钮
+        keyClear.setOnAction(e -> clearBundleCount());
+
+        // 退格按钮
+        keyBack.setOnAction(e -> backspaceBundleCount());
+    }
+
+    /**
+     * 向捆数输入框追加数字
+     */
+    private void appendToBundleCount(String digit) {
+        String currentText = bundleCountField.getText();
+        // 限制最大输入长度为3位数
+        if (currentText.length() < 3) {
+            bundleCountField.setText(currentText + digit);
+        }
+    }
+
+    /**
+     * 清除捆数输入框
+     */
+    private void clearBundleCount() {
+        bundleCountField.setText("");
+    }
+
+    /**
+     * 退格删除捆数输入框的最后一个字符
+     */
+    private void backspaceBundleCount() {
+        String currentText = bundleCountField.getText();
+        if (!currentText.isEmpty()) {
+            bundleCountField.setText(currentText.substring(0, currentText.length() - 1));
+        }
+    }
+
+    /**
      * 设置主舞台
      */
     public void setPrimaryStage(Stage primaryStage) {
         this.primaryStage = primaryStage;
+    }
+
+    /**
+     * 显示小票预览对话框
+     */
+    private void showReceiptPreview(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        try {
+            // 生成小票内容
+            String receiptContent = generateReceiptContent(farmerName, contractNumber, leafType,
+                    weight, operator, bundleCount, precheckId);
+
+            // 创建预览对话框
+            javafx.scene.control.Alert previewAlert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.INFORMATION);
+            previewAlert.setTitle("小票预览");
+            previewAlert.setHeaderText("称重小票预览");
+
+            // 创建文本区域显示小票内容
+            javafx.scene.control.TextArea textArea = new javafx.scene.control.TextArea(receiptContent);
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setPrefRowCount(15);
+            textArea.setPrefColumnCount(40);
+            textArea.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 14px;");
+
+            // 设置对话框内容
+            previewAlert.getDialogPane().setContent(textArea);
+
+            // 添加打印按钮
+            javafx.scene.control.ButtonType printFromPreviewButton = new javafx.scene.control.ButtonType("打印小票");
+            javafx.scene.control.ButtonType closeButton = new javafx.scene.control.ButtonType("关闭",
+                    javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+            previewAlert.getButtonTypes().setAll(printFromPreviewButton, closeButton);
+
+            // 显示预览对话框
+            java.util.Optional<javafx.scene.control.ButtonType> previewResult = previewAlert.showAndWait();
+            if (previewResult.isPresent() && previewResult.get() == printFromPreviewButton) {
+                // 从预览对话框直接打印
+                boolean printSuccess = printerManager.printWeighingReceipt(
+                        farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
+
+                if (printSuccess) {
+                    updateStatus("小票打印完成");
+                } else {
+                    updateStatus("小票打印失败");
+                    showError("打印失败", "小票打印失败，请检查打印机连接");
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("显示小票预览失败", e);
+            showError("预览失败", "显示小票预览失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成小票内容
+     */
+    private String generateReceiptContent(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(new java.util.Date());
+
+        StringBuilder content = new StringBuilder();
+        content.append("=".repeat(32)).append("\n");
+        content.append("        烟叶称重小票\n");
+        content.append("=".repeat(32)).append("\n");
+        content.append("时间: ").append(currentTime).append("\n");
+        content.append("预检编号: ").append(precheckId).append("\n");
+        content.append("烟农: ").append(farmerName).append("\n");
+        content.append("合同号: ").append(contractNumber).append("\n");
+        content.append("部叶类型: ").append(leafType).append("\n");
+        content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
+        content.append("捆数: ").append(bundleCount).append("\n");
+        content.append("操作员: ").append(operator).append("\n");
+        content.append("=".repeat(32)).append("\n");
+        content.append("        谢谢使用\n");
+        content.append("=".repeat(32)).append("\n");
+
+        return content.toString();
     }
 }
