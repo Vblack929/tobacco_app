@@ -8,8 +8,10 @@ import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
+import com.tobacco.weight.service.AdminAuthService;
 
 import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
+import com.tobacco.weight.ui.FarmerStats;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -59,6 +61,9 @@ public class MainController implements Initializable {
     // 数据仓库
     private WeighingRecordRepository weighingRecordRepository;
 
+    // 服务
+    private AdminAuthService adminAuthService;
+
     // 数据
     private ObservableList<FarmerStatistics> farmerStatisticsList;
     private ObservableList<WeighingRecord> weighingRecordsList;
@@ -105,9 +110,21 @@ public class MainController implements Initializable {
     @FXML
     private VBox farmerDataContainer;
     @FXML
-    private VBox adminTableContainer;
+    private Button adminLoginButton;
+    @FXML
+    private VBox adminStatusContainer;
+    @FXML
+    private Label adminStatusLabel;
+    @FXML
+    private Button openAdminPanelButton;
     @FXML
     private Button exportAllDataButton;
+    @FXML
+    private Button adminLogoutButton;
+    @FXML
+    private VBox adminTableContainer;
+    
+    // Admin table for farmer statistics
     private TableView<FarmerStats> adminTable;
 
     // UI组件 - 状态栏
@@ -123,6 +140,10 @@ public class MainController implements Initializable {
     // 打印机测试UI组件
     @FXML
     private Button systemPrintTestButton;
+    
+    // 农户注册管理按钮
+    @FXML
+    private Button farmerRegistrationButton;
 
     // 数字键盘按钮
     @FXML
@@ -141,9 +162,10 @@ public class MainController implements Initializable {
         farmerStatisticsList = FXCollections.observableArrayList();
         weighingRecordsList = FXCollections.observableArrayList();
 
-        // 初始化数据仓库
+        // 初始化数据仓库和服务
         DatabaseManager databaseManager = DatabaseManager.getInstance();
         weighingRecordRepository = new WeighingRecordRepository(databaseManager);
+        adminAuthService = AdminAuthService.getInstance();
 
         // 显示数据库路径
         String dbPath = databaseManager.getDbPath();
@@ -162,7 +184,8 @@ public class MainController implements Initializable {
         // 加载初始数据
         loadInitialData();
 
-        setupAdminTable();
+        // 初始化管理员状态
+        updateAdminLoginStatus();
 
         logger.info("主界面控制器初始化完成");
 
@@ -233,6 +256,14 @@ public class MainController implements Initializable {
 
         // 系统打印测试按钮
         systemPrintTestButton.setOnAction(e -> testSystemPrinter());
+
+        // 农户注册管理按钮
+        farmerRegistrationButton.setOnAction(e -> openFarmerRegistrationWindow());
+
+        // 管理员登录相关按钮
+        adminLoginButton.setOnAction(e -> openAdminLogin());
+        openAdminPanelButton.setOnAction(e -> openAdminPanel());
+        adminLogoutButton.setOnAction(e -> handleAdminLogout());
 
         // 数字键盘事件处理
         setupNumberKeypad();
@@ -1334,6 +1365,22 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 打开农户注册管理窗口
+     */
+    private void openFarmerRegistrationWindow() {
+        try {
+            updateStatus("正在打开农户注册管理窗口...");
+            FarmerRegistrationWindow farmerWindow = new FarmerRegistrationWindow();
+            farmerWindow.show();
+            updateStatus("农户注册管理窗口已打开");
+        } catch (Exception e) {
+            logger.error("打开农户注册管理窗口失败", e);
+            updateStatus("打开农户注册管理窗口失败: " + e.getMessage());
+            showError("窗口错误", "无法打开农户注册管理窗口: " + e.getMessage());
+        }
+    }
+
+    /**
      * 设置数字键盘事件处理
      */
     private void setupNumberKeypad() {
@@ -1470,5 +1517,113 @@ public class MainController implements Initializable {
         content.append("=".repeat(32)).append("\n");
 
         return content.toString();
+    }
+
+    /**
+     * 打开管理员登录窗口
+     */
+    private void openAdminLogin() {
+        try {
+            AdminLoginWindow loginWindow = new AdminLoginWindow();
+            loginWindow.showAndWait();
+            
+            // 更新登录状态
+            updateAdminLoginStatus();
+            
+        } catch (Exception e) {
+            logger.error("打开管理员登录窗口失败", e);
+            showError("错误", "无法打开登录窗口: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 打开管理员面板
+     */
+    private void openAdminPanel() {
+        try {
+            if (!adminAuthService.isLoggedIn()) {
+                showError("权限错误", "请先登录管理员账户");
+                return;
+            }
+
+            if (!adminAuthService.hasPermission("VIEW_ADMIN_PANEL")) {
+                showError("权限不足", "您没有访问管理员面板的权限");
+                return;
+            }
+
+            // 获取所有称重记录
+            weighingRecordRepository.findAll(new WeighingRecordRepository.OnResultListener<java.util.List<WeighingRecord>>() {
+                @Override
+                public void onSuccess(java.util.List<WeighingRecord> records) {
+                    Platform.runLater(() -> {
+                        AdminWindow adminWindow = new AdminWindow(records);
+                        adminWindow.show();
+                    });
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    Platform.runLater(() -> {
+                        logger.error("加载称重记录失败", e);
+                        showError("加载失败", "无法加载称重记录: " + e.getMessage());
+                    });
+                }
+            });
+
+        } catch (Exception e) {
+            logger.error("打开管理员面板失败", e);
+            showError("错误", "无法打开管理员面板: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理管理员登出
+     */
+    private void handleAdminLogout() {
+        try {
+            adminAuthService.logout();
+            updateAdminLoginStatus();
+            updateStatus("管理员已登出");
+        } catch (Exception e) {
+            logger.error("管理员登出失败", e);
+            showError("错误", "登出失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新管理员登录状态显示
+     */
+    private void updateAdminLoginStatus() {
+        try {
+            if (adminAuthService.isLoggedIn()) {
+                // 已登录状态
+                var currentAdmin = adminAuthService.getCurrentAdmin();
+                adminStatusLabel.setText("已登录: " + currentAdmin.getFullName() + " (" + currentAdmin.getRole() + ")");
+                
+                // 显示登录状态区域
+                adminStatusContainer.setVisible(true);
+                openAdminPanelButton.setVisible(true);
+                exportAllDataButton.setVisible(true);
+                adminLogoutButton.setVisible(true);
+                
+                // 隐藏登录按钮
+                adminLoginButton.setVisible(false);
+                
+            } else {
+                // 未登录状态
+                adminStatusLabel.setText("");
+                
+                // 隐藏登录状态区域
+                adminStatusContainer.setVisible(false);
+                openAdminPanelButton.setVisible(false);
+                exportAllDataButton.setVisible(false);
+                adminLogoutButton.setVisible(false);
+                
+                // 显示登录按钮
+                adminLoginButton.setVisible(true);
+            }
+        } catch (Exception e) {
+            logger.error("更新管理员登录状态失败", e);
+        }
     }
 }
