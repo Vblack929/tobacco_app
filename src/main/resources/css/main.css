@@ -1,3 +1,10 @@
+/* 根节点 - 全局字体设置 */
+.root {
+    -fx-font-family: "Microsoft YaHei", "SimHei", sans-serif;
+    -fx-font-size: 20px;
+    /* 进一步增大全局字体 */
+}
+
 /* 主容器样式 */
 .main-container {
     -fx-background-color: #f5f5f5;
@@ -13,7 +20,8 @@
 
 .title-label {
     -fx-text-fill: white;
-    -fx-font-size: 18px;
+    -fx-font-size: 28px;
+    /* 更大的标题字体 */
     -fx-font-weight: bold;
 }
 
@@ -21,7 +29,8 @@
 .weighing-panel,
 .admin-panel {
     -fx-background-color: white;
-    -fx-padding: 15;
+    -fx-padding: 5;
+    /* 进一步减少内边距 */
     -fx-border-color: #ddd;
     -fx-border-width: 1;
     -fx-border-radius: 5;
@@ -29,13 +38,15 @@
 }
 
 .panel-title {
-    -fx-font-size: 16px;
+    -fx-font-size: 28px;
+    /* 进一步增大面板标题字体 */
     -fx-font-weight: bold;
     -fx-text-fill: #333;
 }
 
 .admin-title-label {
-    -fx-font-size: 18px;
+    -fx-font-size: 26px;
+    /* 更大的管理员标题字体 */
     -fx-font-weight: bold;
     -fx-text-fill: #1976D2;
 }
@@ -51,12 +62,14 @@
 }
 
 .weight-label {
-    -fx-font-size: 14px;
+    -fx-font-size: 22px;
+    /* 更大的重量标签字体 */
     -fx-text-fill: #1976D2;
 }
 
 .weight-value {
-    -fx-font-size: 24px;
+    -fx-font-size: 48px;
+    /* 进一步增大重量数值字体 */
     -fx-font-weight: bold;
     -fx-text-fill: #1565C0;
 }
@@ -65,9 +78,11 @@
 .leaf-button {
     -fx-background-color: #e0e0e0;
     -fx-text-fill: #333;
-    -fx-font-size: 12px;
-    -fx-padding: 8 16;
-    -fx-min-width: 80;
+    -fx-font-size: 24px;
+    /* 进一步增大按钮字体 */
+    -fx-padding: 10 20;
+    /* 增加内边距以适应更大字体 */
+    -fx-min-width: 120;
     -fx-cursor: hand;
     -fx-border-radius: 4;
     -fx-background-radius: 4;
@@ -90,10 +105,12 @@
 }
 
 .operation-tip-label {
-    -fx-font-size: 15px;
+    -fx-font-size: 18px;
+    /* 增大操作提示字体 */
     -fx-text-fill: #1976D2;
     -fx-font-weight: bold;
-    -fx-padding: 4 0 4 0;
+    -fx-padding: 3 0 3 0;
+    /* 减少内边距以节省空间 */
 }
 
 .operation-tip-label.success {
@@ -107,9 +124,11 @@
 .confirm-button {
     -fx-background-color: #FF9800;
     -fx-text-fill: white;
-    -fx-font-size: 14px;
-    -fx-padding: 10 20;
-    -fx-min-width: 100;
+    -fx-font-size: 26px;
+    /* 进一步增大确认按钮字体 */
+    -fx-padding: 12 25;
+    /* 增加内边距以适应更大字体 */
+    -fx-min-width: 150;
     -fx-cursor: hand;
 }
 
@@ -125,9 +144,11 @@
 .id-card-button {
     -fx-background-color: #9C27B0;
     -fx-text-fill: white;
-    -fx-font-size: 12px;
-    -fx-padding: 8 16;
-    -fx-min-width: 100;
+    -fx-font-size: 24px;
+    /* 增大身份证按钮字体 */
+    -fx-padding: 12 25;
+    /* 增加内边距以适应更大字体 */
+    -fx-min-width: 150;
     -fx-cursor: hand;
 }
 
@@ -204,8 +225,10 @@
 
 /* 文本字段样式 */
 .text-field {
-    -fx-font-size: 12px;
-    -fx-padding: 5;
+    -fx-font-size: 18px;
+    /* 增大输入框字体 */
+    -fx-padding: 8;
+    /* 增加内边距适应更大字体 */
     -fx-border-color: #ddd;
     -fx-border-width: 1;
     -fx-border-radius: 3;
@@ -223,13 +246,15 @@
 }
 
 .table-title {
-    -fx-font-size: 14px;
+    -fx-font-size: 20px;
+    /* 增大表格标题字体 */
     -fx-font-weight: bold;
     -fx-text-fill: #333;
 }
 
 .status-label {
-    -fx-font-size: 12px;
+    -fx-font-size: 18px;
+    /* 增大状态标签字体 */
     -fx-text-fill: #666;
 }
 
@@ -310,9 +335,11 @@
 
 /* 表格单元格样式 */
 .table-cell {
-    -fx-padding: 5;
+    -fx-padding: 8;
+    /* 增加内边距 */
     -fx-alignment: center;
-    -fx-font-size: 11px;
+    -fx-font-size: 16px;
+    /* 增大表格单元格字体 */
 }
 
 /* 响应式设计 */
@@ -364,4 +391,284 @@
     -fx-background-color: #ccc;
     -fx-text-fill: #666;
     -fx-cursor: default;
+}
+
+/* 输入框标签样式 */
+.input-label {
+    -fx-font-size: 24px;
+    /* 进一步增大输入标签字体 */
+    -fx-font-weight: bold;
+    -fx-text-fill: #555;
+}
+
+/* 重量显示和键盘容器 */
+.weight-keypad-container {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 2px;
+    -fx-border-radius: 12px;
+    -fx-padding: 20px;
+    -fx-min-height: 220px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 15, 0, 0, 3);
+}
+
+/* 数字键盘容器 */
+.number-keypad {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #007bff;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+    -fx-padding: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 2);
+}
+
+/* 键盘标题 */
+.keypad-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #007bff;
+    -fx-alignment: center;
+}
+
+/* 数字键盘按钮 */
+.keypad-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #007bff;
+    -fx-border-width: 2px;
+    -fx-border-radius: 6px;
+    -fx-text-fill: #007bff;
+    -fx-font-size: 1.4em;
+    /* 自适应键盘按钮字体 */
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 1);
+}
+
+.keypad-button:hover {
+    -fx-background-color: #e6f3ff;
+    -fx-border-color: #0056b3;
+    -fx-text-fill: #0056b3;
+}
+
+.keypad-button:pressed {
+    -fx-background-color: #cce7ff;
+    -fx-border-color: #004085;
+    -fx-text-fill: #004085;
+}
+
+/* 清除按钮 */
+.keypad-clear-button {
+    -fx-background-color: #dc3545;
+    -fx-border-color: #dc3545;
+    -fx-border-width: 2px;
+    -fx-border-radius: 6px;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 1);
+}
+
+.keypad-clear-button:hover {
+    -fx-background-color: #c82333;
+    -fx-border-color: #c82333;
+}
+
+.keypad-clear-button:pressed {
+    -fx-background-color: #bd2130;
+    -fx-border-color: #bd2130;
+}
+
+/* 退格按钮 */
+.keypad-back-button {
+    -fx-background-color: #ffc107;
+    -fx-border-color: #ffc107;
+    -fx-border-width: 2px;
+    -fx-border-radius: 6px;
+    -fx-text-fill: #212529;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 1);
+}
+
+.keypad-back-button:hover {
+    -fx-background-color: #e0a800;
+    -fx-border-color: #e0a800;
+}
+
+.keypad-back-button:pressed {
+    -fx-background-color: #d39e00;
+    -fx-border-color: #d39e00;
+}
+
+/* 大尺寸数字键盘容器 */
+.number-keypad-large {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #007bff;
+    -fx-border-width: 3px;
+    -fx-border-radius: 12px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 15, 0, 0, 3);
+}
+
+/* 大尺寸键盘标题 */
+.keypad-title-large {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #007bff;
+    -fx-alignment: center;
+}
+
+/* 大尺寸数字键盘按钮 */
+.keypad-button-large {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #007bff;
+    -fx-border-width: 3px;
+    -fx-border-radius: 10px;
+    -fx-text-fill: #007bff;
+    -fx-font-size: 24px;
+    /* 减小键盘按钮字体以节省空间 */
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+}
+
+.keypad-button-large:hover {
+    -fx-background-color: #e6f3ff;
+    -fx-border-color: #0056b3;
+    -fx-text-fill: #0056b3;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.keypad-button-large:pressed {
+    -fx-background-color: #cce7ff;
+    -fx-border-color: #004085;
+    -fx-text-fill: #004085;
+    -fx-scale-x: 0.95;
+    -fx-scale-y: 0.95;
+}
+
+/* 大尺寸清除按钮 */
+.keypad-clear-button-large {
+    -fx-background-color: #dc3545;
+    -fx-border-color: #dc3545;
+    -fx-border-width: 3px;
+    -fx-border-radius: 10px;
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+}
+
+.keypad-clear-button-large:hover {
+    -fx-background-color: #c82333;
+    -fx-border-color: #c82333;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.keypad-clear-button-large:pressed {
+    -fx-background-color: #bd2130;
+    -fx-border-color: #bd2130;
+    -fx-scale-x: 0.95;
+    -fx-scale-y: 0.95;
+}
+
+/* 大尺寸退格按钮 */
+.keypad-back-button-large {
+    -fx-background-color: #ffc107;
+    -fx-border-color: #ffc107;
+    -fx-border-width: 3px;
+    -fx-border-radius: 10px;
+    -fx-text-fill: #212529;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+}
+
+.keypad-back-button-large:hover {
+    -fx-background-color: #e0a800;
+    -fx-border-color: #e0a800;
+    -fx-scale-x: 1.05;
+    -fx-scale-y: 1.05;
+}
+
+.keypad-back-button-large:pressed {
+    -fx-background-color: #d39e00;
+    -fx-border-color: #d39e00;
+    -fx-scale-x: 0.95;
+    -fx-scale-y: 0.95;
+}
+
+/* 输入面板 */
+.input-panel {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 5px;
+    /* 进一步减少内边距 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 2);
+}
+
+/* 控制面板 */
+.control-panel {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 5px;
+    /* 进一步减少内边距 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 2);
+}
+
+/* 大尺寸重量显示 */
+.weight-display-large {
+    -fx-background-color: #e3f2fd;
+    -fx-border-color: #2196f3;
+    -fx-border-width: 3px;
+    -fx-border-radius: 12px;
+    -fx-padding: 30px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 10, 0, 0, 3);
+}
+
+/* 信息标签和值 */
+.info-label {
+    -fx-font-size: 20px;
+    /* 增大信息标签字体 */
+    -fx-font-weight: bold;
+    -fx-text-fill: #666;
+}
+
+.info-value {
+    -fx-font-size: 20px;
+    /* 增大信息数值字体 */
+    -fx-text-fill: #333;
+    -fx-font-weight: bold;
+}
+
+/* 比例标签和值 */
+.ratio-label {
+    -fx-font-size: 18px;
+    /* 比例标签字体 */
+    -fx-font-weight: bold;
+    -fx-text-fill: #555;
+}
+
+.ratio-value {
+    -fx-font-size: 22px;
+    /* 比例数值字体 */
+    -fx-font-weight: bold;
+    -fx-text-fill: #1976D2;
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8 12;
+    -fx-alignment: center;
 }
