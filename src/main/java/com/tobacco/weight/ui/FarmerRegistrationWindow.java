@@ -4,6 +4,7 @@ import com.tobacco.weight.data.FarmerInfo;
 import com.tobacco.weight.data.LocationData;
 import com.tobacco.weight.database.FarmerInfoRepository;
 import com.tobacco.weight.database.DatabaseManager;
+import com.tobacco.weight.service.FarmerImportService;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -14,13 +15,16 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
 
 /**
  * 农户注册管理窗口
@@ -32,7 +36,7 @@ public class FarmerRegistrationWindow {
 
     private Stage stage;
     private FarmerInfoRepository farmerInfoRepository;
-    
+
     // UI组件
     private TextField searchField;
     private ComboBox<String> townshipFilter;
@@ -65,8 +69,8 @@ public class FarmerRegistrationWindow {
         stage = new Stage();
         stage.setTitle("农户注册管理");
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setWidth(1000);
-        stage.setHeight(700);
+        stage.setWidth(1300);
+        stage.setHeight(750);
 
         // 创建主布局
         BorderPane root = new BorderPane();
@@ -103,8 +107,8 @@ public class FarmerRegistrationWindow {
         searchLabel.setMinWidth(80);
 
         searchField = new TextField();
-        searchField.setPromptText("输入农户姓名或合同号进行搜索...");
-        searchField.setPrefWidth(300);
+        searchField.setPromptText("输入农户姓名、合同号或身份证号进行搜索...");
+        searchField.setPrefWidth(450);
         searchField.textProperty().addListener((obs, oldText, newText) -> performSearch());
 
         Button clearSearchButton = new Button("清除");
@@ -116,7 +120,7 @@ public class FarmerRegistrationWindow {
         searchBox.getChildren().addAll(searchLabel, searchField, clearSearchButton);
 
         // 筛选栏
-        HBox filterBox = new HBox(10);
+        HBox filterBox = new HBox(15);
         filterBox.setAlignment(Pos.CENTER_LEFT);
 
         Label filterLabel = new Label("地区筛选:");
@@ -126,7 +130,8 @@ public class FarmerRegistrationWindow {
         Label townshipLabel = new Label("乡镇:");
         townshipFilter = new ComboBox<>();
         townshipFilter.setPromptText("选择乡镇");
-        townshipFilter.setPrefWidth(120);
+        townshipFilter.setPrefWidth(180);
+        townshipFilter.setMaxWidth(Double.MAX_VALUE);
         townshipFilter.getItems().add("全部");
         townshipFilter.setValue("全部");
         townshipFilter.setOnAction(e -> onTownshipChanged());
@@ -135,7 +140,8 @@ public class FarmerRegistrationWindow {
         Label villageLabel = new Label("村庄:");
         villageFilter = new ComboBox<>();
         villageFilter.setPromptText("选择村庄");
-        villageFilter.setPrefWidth(120);
+        villageFilter.setPrefWidth(180);
+        villageFilter.setMaxWidth(Double.MAX_VALUE);
         villageFilter.getItems().add("全部");
         villageFilter.setValue("全部");
         villageFilter.setOnAction(e -> performFilter());
@@ -154,8 +160,11 @@ public class FarmerRegistrationWindow {
         Button refreshLocationButton = new Button("刷新地区");
         refreshLocationButton.setOnAction(e -> refreshLocationData());
 
-        filterBox.getChildren().addAll(filterLabel, townshipLabel, townshipFilter, 
-                                      villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton);
+        Button importExcelButton = new Button("导入Excel");
+        importExcelButton.setOnAction(e -> showImportExcelDialog());
+
+        filterBox.getChildren().addAll(filterLabel, townshipLabel, townshipFilter,
+                villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton, importExcelButton);
 
         topSection.getChildren().addAll(searchBox, filterBox);
         return topSection;
@@ -214,34 +223,37 @@ public class FarmerRegistrationWindow {
         // 农户姓名列
         TableColumn<FarmerDisplayInfo, String> nameCol = new TableColumn<>("农户姓名");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("farmerName"));
-        nameCol.setPrefWidth(120);
+        nameCol.setPrefWidth(150);
 
         // 身份证号列（脱敏）
         TableColumn<FarmerDisplayInfo, String> idCardCol = new TableColumn<>("身份证号");
         idCardCol.setCellValueFactory(new PropertyValueFactory<>("idCardMasked"));
-        idCardCol.setPrefWidth(150);
+        idCardCol.setPrefWidth(200);
 
         // 合同号列
         TableColumn<FarmerDisplayInfo, String> contractCol = new TableColumn<>("合同号");
         contractCol.setCellValueFactory(new PropertyValueFactory<>("contractNumber"));
-        contractCol.setPrefWidth(120);
+        contractCol.setPrefWidth(180);
 
         // 地址列
         TableColumn<FarmerDisplayInfo, String> addressCol = new TableColumn<>("地址");
         addressCol.setCellValueFactory(new PropertyValueFactory<>("address"));
-        addressCol.setPrefWidth(200);
+        addressCol.setPrefWidth(250);
 
         // 性别列
         TableColumn<FarmerDisplayInfo, String> genderCol = new TableColumn<>("性别");
         genderCol.setCellValueFactory(new PropertyValueFactory<>("gender"));
-        genderCol.setPrefWidth(60);
+        genderCol.setPrefWidth(80);
 
         // 注册状态列
         TableColumn<FarmerDisplayInfo, String> statusCol = new TableColumn<>("状态");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        statusCol.setPrefWidth(80);
+        statusCol.setPrefWidth(100);
 
         farmerTable.getColumns().addAll(nameCol, idCardCol, contractCol, addressCol, genderCol, statusCol);
+
+        // 设置表格列宽策略为自动调整
+        farmerTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
     /**
@@ -307,7 +319,7 @@ public class FarmerRegistrationWindow {
         try {
             // 刷新地区数据缓存以确保最新数据
             LocationData.refreshCache();
-            
+
             // 初始化乡镇筛选器
             townshipFilter.getItems().clear();
             townshipFilter.getItems().add("全部");
@@ -319,7 +331,7 @@ public class FarmerRegistrationWindow {
             villageFilter.getItems().add("全部");
             villageFilter.setValue("全部");
             villageFilter.setDisable(true);
-            
+
             logger.info("地区筛选器初始化完成，乡镇数量: {}", LocationData.getAllTownships().size());
         } catch (Exception e) {
             logger.error("初始化地区筛选器失败", e);
@@ -332,7 +344,7 @@ public class FarmerRegistrationWindow {
      */
     private void onTownshipChanged() {
         String selectedTownship = townshipFilter.getValue();
-        
+
         // 清空村庄选择
         villageFilter.getItems().clear();
         villageFilter.getItems().add("全部");
@@ -364,26 +376,27 @@ public class FarmerRegistrationWindow {
 
         updateStatus("正在搜索...");
 
-        farmerInfoRepository.searchByNameOrContract(searchTerm.trim(), new FarmerInfoRepository.OnResultListener<List<FarmerInfo>>() {
-            @Override
-            public void onSuccess(List<FarmerInfo> farmers) {
-                Platform.runLater(() -> {
-                    // 如果有地区筛选，需要进一步筛选结果
-                    List<FarmerInfo> filteredFarmers = applyLocationFilter(farmers);
-                    updateFarmerTable(filteredFarmers);
-                    updateStatus("搜索到 " + filteredFarmers.size() + " 个农户");
-                });
-            }
+        farmerInfoRepository.searchByNameOrContract(searchTerm.trim(),
+                new FarmerInfoRepository.OnResultListener<List<FarmerInfo>>() {
+                    @Override
+                    public void onSuccess(List<FarmerInfo> farmers) {
+                        Platform.runLater(() -> {
+                            // 如果有地区筛选，需要进一步筛选结果
+                            List<FarmerInfo> filteredFarmers = applyLocationFilter(farmers);
+                            updateFarmerTable(filteredFarmers);
+                            updateStatus("搜索到 " + filteredFarmers.size() + " 个农户");
+                        });
+                    }
 
-            @Override
-            public void onError(Exception e) {
-                Platform.runLater(() -> {
-                    logger.error("搜索失败", e);
-                    showAlert("搜索失败: " + e.getMessage());
-                    updateStatus("搜索失败");
+                    @Override
+                    public void onError(Exception e) {
+                        Platform.runLater(() -> {
+                            logger.error("搜索失败", e);
+                            showAlert("搜索失败: " + e.getMessage());
+                            updateStatus("搜索失败");
+                        });
+                    }
                 });
-            }
-        });
     }
 
     /**
@@ -424,13 +437,13 @@ public class FarmerRegistrationWindow {
         String searchTerm = searchField.getText();
         if (searchTerm != null && !searchTerm.trim().isEmpty()) {
             filteredFarmers = filteredFarmers.stream()
-                    .filter(f -> f.getFarmerName().contains(searchTerm.trim()) || 
-                               f.getContractNumber().contains(searchTerm.trim()))
+                    .filter(f -> f.getFarmerName().contains(searchTerm.trim()) ||
+                            f.getContractNumber().contains(searchTerm.trim()))
                     .toList();
         }
 
         updateFarmerTable(filteredFarmers);
-        
+
         // 更新状态信息
         StringBuilder statusText = new StringBuilder();
         if (selectedTownship != null && !"全部".equals(selectedTownship)) {
@@ -486,8 +499,8 @@ public class FarmerRegistrationWindow {
     private void showFarmerDetails(FarmerDisplayInfo displayInfo) {
         // 找到对应的完整FarmerInfo对象
         FarmerInfo farmerInfo = allFarmers.stream()
-                .filter(f -> f.getFarmerName().equals(displayInfo.getFarmerName()) && 
-                           f.getContractNumber().equals(displayInfo.getContractNumber()))
+                .filter(f -> f.getFarmerName().equals(displayInfo.getFarmerName()) &&
+                        f.getContractNumber().equals(displayInfo.getContractNumber()))
                 .findFirst()
                 .orElse(null);
 
@@ -506,31 +519,159 @@ public class FarmerRegistrationWindow {
     }
 
     /**
+     * 显示导入Excel对话框
+     */
+    private void showImportExcelDialog() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("选择Excel文件");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel文件", "*.xlsx", "*.xls"),
+                new FileChooser.ExtensionFilter("所有文件", "*.*"));
+
+        File selectedFile = fileChooser.showOpenDialog(stage);
+        if (selectedFile == null) {
+            return;
+        }
+
+        // 询问工作表名称
+        TextInputDialog sheetDialog = new TextInputDialog("明细表");
+        sheetDialog.setTitle("选择工作表");
+        sheetDialog.setHeaderText("请输入要导入的工作表名称");
+        sheetDialog.setContentText("工作表名称:");
+
+        Optional<String> sheetResult = sheetDialog.showAndWait();
+        if (!sheetResult.isPresent()) {
+            return;
+        }
+
+        String sheetName = sheetResult.get().trim();
+        showImportProgressDialog(selectedFile, sheetName);
+    }
+
+    /**
+     * 显示导入进度对话框
+     */
+    private void showImportProgressDialog(File excelFile, String sheetName) {
+        // 创建进度对话框
+        Stage progressStage = new Stage();
+        progressStage.setTitle("导入Excel");
+        progressStage.initModality(Modality.APPLICATION_MODAL);
+        progressStage.initOwner(stage);
+        progressStage.setWidth(400);
+        progressStage.setHeight(250);
+
+        VBox layout = new VBox(15);
+        layout.setPadding(new Insets(20));
+        layout.setAlignment(Pos.CENTER);
+
+        Label titleLabel = new Label("正在导入Excel文件");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        Label fileLabel = new Label("文件: " + excelFile.getName());
+
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(300);
+
+        Label statusLabel = new Label("准备导入...");
+        statusLabel.setStyle("-fx-text-fill: #666666;");
+
+        Button cancelButton = new Button("取消");
+        cancelButton.setOnAction(e -> progressStage.close());
+
+        layout.getChildren().addAll(titleLabel, fileLabel, progressBar, statusLabel, cancelButton);
+
+        Scene scene = new Scene(layout);
+        progressStage.setScene(scene);
+        progressStage.show();
+
+        // 开始导入
+        FarmerImportService importService = new FarmerImportService(DatabaseManager.getInstance());
+
+        Thread importThread = new Thread(() -> {
+            try {
+                Platform.runLater(() -> {
+                    statusLabel.setText("正在读取Excel文件...");
+                    progressBar.setProgress(0.1);
+                });
+
+                FarmerImportService.ImportResult result = importService.importFromExcel(
+                        excelFile, "明细表");
+
+                Platform.runLater(() -> {
+                    progressBar.setProgress(1.0);
+                    progressStage.close();
+
+                    // 显示导入结果
+                    showImportResultDialog(result);
+
+                    // 刷新数据
+                    loadData();
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    progressStage.close();
+                    logger.error("导入Excel失败", e);
+                    showAlert("导入失败: " + e.getMessage());
+                });
+            }
+        });
+
+        importThread.setDaemon(true);
+        importThread.start();
+    }
+
+    /**
+     * 显示导入结果对话框
+     */
+    private void showImportResultDialog(FarmerImportService.ImportResult result) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("导入结果");
+        alert.setHeaderText("Excel导入完成");
+
+        StringBuilder content = new StringBuilder();
+        content.append("总行数: ").append(result.getTotalRows()).append("\n");
+        content.append("成功导入: ").append(result.getSuccessCount()).append("\n");
+        content.append("失败: ").append(result.getFailureCount()).append("\n");
+        content.append("重复: ").append(result.getDuplicateCount()).append("\n");
+
+        if (!result.getErrorMessages().isEmpty()) {
+            content.append("\n错误信息:\n");
+            for (String error : result.getErrorMessages()) {
+                content.append("- ").append(error).append("\n");
+            }
+        }
+
+        alert.setContentText(content.toString());
+        alert.showAndWait();
+    }
+
+    /**
      * 刷新地区数据
      */
     private void refreshLocationData() {
         try {
             updateStatus("正在刷新地区数据...");
-            
+
             // 刷新LocationData缓存
             LocationData.refreshCache();
-            
+
             // 重新初始化地区筛选器
             String currentTownship = townshipFilter.getValue();
             String currentVillage = villageFilter.getValue();
-            
+
             // 重新加载乡镇数据
             townshipFilter.getItems().clear();
             townshipFilter.getItems().add("全部");
             townshipFilter.getItems().addAll(LocationData.getAllTownships());
-            
+
             // 恢复之前的选择（如果还存在）
             if (currentTownship != null && townshipFilter.getItems().contains(currentTownship)) {
                 townshipFilter.setValue(currentTownship);
-                
+
                 // 重新加载村庄数据
                 onTownshipChanged();
-                
+
                 // 恢复村庄选择
                 if (currentVillage != null && villageFilter.getItems().contains(currentVillage)) {
                     villageFilter.setValue(currentVillage);
@@ -542,10 +683,10 @@ public class FarmerRegistrationWindow {
                 villageFilter.setValue("全部");
                 villageFilter.setDisable(true);
             }
-            
+
             updateStatus("地区数据刷新完成，当前乡镇数量: " + LocationData.getAllTownships().size());
             logger.info("地区数据刷新完成");
-            
+
         } catch (Exception e) {
             logger.error("刷新地区数据失败", e);
             updateStatus("刷新地区数据失败: " + e.getMessage());
@@ -609,19 +750,53 @@ public class FarmerRegistrationWindow {
         }
 
         // Getters for TableView
-        public String getFarmerName() { return farmerName.get(); }
-        public String getIdCardMasked() { return idCardMasked.get(); }
-        public String getContractNumber() { return contractNumber.get(); }
-        public String getAddress() { return address.get(); }
-        public String getGender() { return gender.get(); }
-        public String getStatus() { return status.get(); }
+        public String getFarmerName() {
+            return farmerName.get();
+        }
+
+        public String getIdCardMasked() {
+            return idCardMasked.get();
+        }
+
+        public String getContractNumber() {
+            return contractNumber.get();
+        }
+
+        public String getAddress() {
+            return address.get();
+        }
+
+        public String getGender() {
+            return gender.get();
+        }
+
+        public String getStatus() {
+            return status.get();
+        }
 
         // Property getters for TableView
-        public SimpleStringProperty farmerNameProperty() { return farmerName; }
-        public SimpleStringProperty idCardMaskedProperty() { return idCardMasked; }
-        public SimpleStringProperty contractNumberProperty() { return contractNumber; }
-        public SimpleStringProperty addressProperty() { return address; }
-        public SimpleStringProperty genderProperty() { return gender; }
-        public SimpleStringProperty statusProperty() { return status; }
+        public SimpleStringProperty farmerNameProperty() {
+            return farmerName;
+        }
+
+        public SimpleStringProperty idCardMaskedProperty() {
+            return idCardMasked;
+        }
+
+        public SimpleStringProperty contractNumberProperty() {
+            return contractNumber;
+        }
+
+        public SimpleStringProperty addressProperty() {
+            return address;
+        }
+
+        public SimpleStringProperty genderProperty() {
+            return gender;
+        }
+
+        public SimpleStringProperty statusProperty() {
+            return status;
+        }
     }
 }
