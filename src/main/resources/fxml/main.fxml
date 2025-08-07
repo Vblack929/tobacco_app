@@ -7,41 +7,43 @@
 
 <VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
       fx:controller="com.tobacco.weight.ui.MainController"
-      spacing="5" styleClass="main-container">
+      spacing="1" styleClass="main-container" minHeight="800" prefHeight="800">
     
+
+
     <!-- 主要内容区域 -->
-    <HBox spacing="10" prefHeight="250" VBox.vgrow="NEVER">
+    <HBox spacing="3" prefHeight="480" VBox.vgrow="NEVER">
         
         <!-- 左侧：主要操作区域 -->
-        <VBox spacing="5" HBox.hgrow="ALWAYS">
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
             
             <!-- 上部：输入和重量显示区域 -->
-            <HBox spacing="10">
+            <HBox spacing="3">
                 <!-- 左侧：烟农信息输入 -->
-                <VBox styleClass="input-panel" spacing="5" prefWidth="450">
+                <VBox styleClass="input-panel" spacing="2" prefWidth="420">
                 <Label text="烟农信息" styleClass="panel-title"/>
                 
                 <!-- 烟农信息 - 紧凑布局 -->
-                <VBox spacing="5">
+                <VBox spacing="2">
                     <!-- 第一行：烟农姓名和合同号 -->
-                    <HBox spacing="10" alignment="CENTER_LEFT">
-                        <VBox spacing="3">
+                    <HBox spacing="5" alignment="CENTER_LEFT">
+                        <VBox spacing="2">
                             <Label text="烟农姓名:" styleClass="input-label"/>
                             <TextField fx:id="farmerNameField" promptText="请输入烟农姓名" prefWidth="150"/>
                         </VBox>
-                        <VBox spacing="3">
+                        <VBox spacing="2">
                             <Label text="合同号:" styleClass="input-label"/>
                             <TextField fx:id="contractNumberField" promptText="合同号" prefWidth="150"/>
                         </VBox>
                     </HBox>
                     
                     <!-- 第二行：身份证号和捆数 -->
-                    <HBox spacing="10" alignment="CENTER_LEFT">
-                        <VBox spacing="3">
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <VBox spacing="2">
                             <Label text="身份证号:" styleClass="input-label"/>
                             <TextField fx:id="idCardNumberField" promptText="请输入身份证号" prefWidth="180"/>
                         </VBox>
-                        <VBox spacing="3">
+                        <VBox spacing="2">
                             <Label text="捆数:" styleClass="input-label"/>
                             <TextField fx:id="bundleCountField" promptText="请输入捆数" prefWidth="80"/>
                         </VBox>
@@ -50,7 +52,7 @@
             </VBox>
             
                 <!-- 右侧：重量显示 -->
-                <VBox alignment="CENTER" styleClass="weight-display-large" spacing="3" HBox.hgrow="ALWAYS">
+                <VBox alignment="CENTER" styleClass="weight-display-large" spacing="2">
                     <!-- 操作提示信息 -->
                     <Label fx:id="operationTipLabel" text="请选择叶位类型" styleClass="operation-tip-label"/>
                     <Label text="当前重量" styleClass="weight-label"/>
@@ -59,45 +61,44 @@
         </HBox>
         
             <!-- 中部：软键盘和操作区域 -->
-            <HBox spacing="8" VBox.vgrow="ALWAYS">
+            <HBox spacing="3" VBox.vgrow="NEVER">
                 <!-- 左侧：数字软键盘 -->
-                <VBox fx:id="numberKeypadContainer" spacing="5" styleClass="number-keypad-large" alignment="CENTER" prefWidth="280">
-                <Label text="捆数输入键盘" styleClass="keypad-title-large"/>
-                <GridPane hgap="5" vgap="5" alignment="CENTER">
-                    <Button fx:id="key1" text="1" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                    <Button fx:id="key2" text="2" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                    <Button fx:id="key3" text="3" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                <VBox fx:id="numberKeypadContainer" spacing="2" styleClass="number-keypad-large" alignment="CENTER" prefWidth="250">
+                <GridPane hgap="2" vgap="2" alignment="CENTER">
+                    <Button fx:id="key1" text="1" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <Button fx:id="key2" text="2" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                    <Button fx:id="key3" text="3" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
                     
-                    <Button fx:id="key4" text="4" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                    <Button fx:id="key5" text="5" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                    <Button fx:id="key6" text="6" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                    <Button fx:id="key4" text="4" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <Button fx:id="key5" text="5" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    <Button fx:id="key6" text="6" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
                     
-                    <Button fx:id="key7" text="7" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-                    <Button fx:id="key8" text="8" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-                    <Button fx:id="key9" text="9" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                    <Button fx:id="key7" text="7" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <Button fx:id="key8" text="8" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    <Button fx:id="key9" text="9" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
                     
-                    <Button fx:id="keyClear" text="清除" styleClass="keypad-clear-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-                    <Button fx:id="key0" text="0" styleClass="keypad-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-                    <Button fx:id="keyBack" text="退格" styleClass="keypad-back-button-large" prefWidth="70" prefHeight="50" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+                    <Button fx:id="keyClear" text="C" styleClass="keypad-clear-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <Button fx:id="key0" text="0" styleClass="keypad-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                    <Button fx:id="keyBack" text="⌫" styleClass="keypad-back-button-large" prefWidth="80" prefHeight="60" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
                 </GridPane>
             </VBox>
             
-                            <!-- 右侧：操作控制区域 -->
-                <VBox styleClass="control-panel" spacing="5" alignment="CENTER" HBox.hgrow="ALWAYS">
+                <!-- 右侧：操作控制区域 -->
+                <VBox styleClass="control-panel" spacing="2" alignment="CENTER" HBox.hgrow="ALWAYS">
                 <Label text="称重操作" styleClass="panel-title"/>
                 
                 <!-- 部叶选择按钮 -->
-                <VBox spacing="5" alignment="CENTER">
+                <VBox spacing="2" alignment="CENTER">
                     <Label text="请选择部叶类型:" styleClass="input-label"/>
-                                            <HBox spacing="5" alignment="CENTER">
-                        <Button fx:id="upperLeafButton" text="上部叶" styleClass="leaf-button" prefWidth="130"/>
-                        <Button fx:id="middleLeafButton" text="中部叶" styleClass="leaf-button" prefWidth="130"/>
-                        <Button fx:id="lowerLeafButton" text="下部叶" styleClass="leaf-button" prefWidth="130"/>
+                                            <HBox spacing="2" alignment="CENTER">
+                        <Button fx:id="upperLeafButton" text="上部叶" styleClass="leaf-button" prefWidth="120"/>
+                        <Button fx:id="middleLeafButton" text="中部叶" styleClass="leaf-button" prefWidth="120"/>
+                        <Button fx:id="lowerLeafButton" text="下部叶" styleClass="leaf-button" prefWidth="120"/>
                     </HBox>
                 </VBox>
                 
                                     <!-- 操作按钮 -->
-                    <VBox spacing="5" alignment="CENTER">
+                    <VBox spacing="2" alignment="CENTER">
                     <Button fx:id="confirmButton" text="确认称重" styleClass="confirm-button" prefWidth="180"/>
                     <Button fx:id="readIdCardButton" styleClass="id-card-button" prefWidth="180">
                         <graphic>
@@ -109,13 +110,13 @@
                     </Button>
                 </VBox>
                 
-                                    <!-- 预检编号和日期 -->
-                    <VBox spacing="3" alignment="CENTER">
-                                            <HBox spacing="5" alignment="CENTER">
+                    <!-- 预检编号和日期 -->
+                    <VBox spacing="2" alignment="CENTER" styleClass="precheck-info-panel">
+                                        <HBox spacing="3" alignment="CENTER">
                             <Label text="预检编号:" styleClass="info-label"/>
                             <Label fx:id="precheckIdLabel" text="YJ100000000" styleClass="info-value"/>
                         </HBox>
-                        <HBox spacing="5" alignment="CENTER">
+                        <HBox spacing="3" alignment="CENTER">
                             <Label text="日期:" styleClass="info-label"/>
                             <Label fx:id="precheckDateLabel" text="2024-01-01" styleClass="info-value"/>
                         </HBox>
@@ -125,31 +126,31 @@
         </VBox>
         
         <!-- 右侧：预检信息区域 -->
-        <VBox styleClass="ratio-panel" spacing="5" alignment="TOP_CENTER" prefWidth="320" HBox.hgrow="NEVER">
+        <VBox styleClass="ratio-panel" spacing="3" alignment="TOP_CENTER" prefWidth="320" HBox.hgrow="NEVER">
             <Label text="预检信息" styleClass="panel-title"/>
             
-                        <!-- 预检比例显示 -->
-            <VBox spacing="8">
+            <!-- 预检比例显示 -->
+            <VBox spacing="4">
                 <!-- 预检比例 -->
-                <VBox spacing="3">
+                <VBox spacing="2">
                     <Label text="预检比例:" styleClass="ratio-label"/>
                     <TextField fx:id="precheckRatioField" promptText="0.0%" styleClass="ratio-value" editable="false"/>
                 </VBox>
                 
                 <!-- 上部叶比例 -->
-                <VBox spacing="3">
+                <VBox spacing="2">
                     <Label text="上部叶比例:" styleClass="ratio-label"/>
                     <TextField fx:id="upperRatioField" promptText="0.0%" styleClass="ratio-value" editable="false"/>
                 </VBox>
                 
                 <!-- 中部叶比例 -->
-                <VBox spacing="3">
+                <VBox spacing="2">
                     <Label text="中部叶比例:" styleClass="ratio-label"/>
                     <TextField fx:id="middleRatioField" promptText="0.0%" styleClass="ratio-value" editable="false"/>
                 </VBox>
                 
                 <!-- 下部叶比例 -->
-                <VBox spacing="3">
+                <VBox spacing="2">
                     <Label text="下部叶比例:" styleClass="ratio-label"/>
                     <TextField fx:id="lowerRatioField" promptText="0.0%" styleClass="ratio-value" editable="false"/>
                 </VBox>
@@ -157,7 +158,7 @@
         </VBox>
     </HBox>
     <!-- 管理员登录区域 -->
-    <VBox styleClass="admin-panel" spacing="10" VBox.vgrow="ALWAYS" alignment="CENTER">
+    <VBox styleClass="admin-panel" spacing="10" VBox.vgrow="NEVER" alignment="CENTER" prefHeight="270" maxHeight="270">
         <VBox spacing="5" alignment="CENTER">
             <Label text="管理员功能" styleClass="admin-title-label"/>
             <Label text="请登录管理员账户以访问管理功能" styleClass="admin-subtitle-label"/>
@@ -179,12 +180,14 @@
         </VBox>
     </VBox>
     
-    <!-- 状态栏 -->
-    <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="10">
+    <!-- 分隔区域 -->
+    <Region VBox.vgrow="ALWAYS" minHeight="10"/>
+    
+    <!-- 状态栏 - 固定在底部 -->
+    <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="10" VBox.vgrow="NEVER" prefHeight="40" minHeight="40" maxHeight="40">
         <Label fx:id="statusLabel" text="系统就绪" styleClass="status-label"/>
         <ProgressBar fx:id="progressBar" visible="false" prefWidth="200"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <!-- 打印机测试按钮 -->
         <Button fx:id="systemPrintTestButton" text="系统打印测试" styleClass="printer-button"/>
         <Button fx:id="diagnosticsButton" text="硬件诊断" styleClass="export-button"/>
     </HBox>

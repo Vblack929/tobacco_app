@@ -34,7 +34,7 @@ public class FarmerInfoDao {
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, farmerInfo.getFarmerName());
             stmt.setString(2, farmerInfo.getContractNumber());
@@ -69,14 +69,14 @@ public class FarmerInfoDao {
     public int update(FarmerInfo farmerInfo, long id) throws SQLException {
         String sql = """
                 UPDATE farmer_info SET
-                    farmer_name = ?, contract_number = ?, id_card_number = ?, gender = ?, 
-                    nationality = ?, birth_date = ?, address = ?, department = ?, 
+                    farmer_name = ?, contract_number = ?, id_card_number = ?, gender = ?,
+                    nationality = ?, birth_date = ?, address = ?, department = ?,
                     start_date = ?, end_date = ?, photo = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, farmerInfo.getFarmerName());
             stmt.setString(2, farmerInfo.getContractNumber());
@@ -102,7 +102,7 @@ public class FarmerInfoDao {
         String sql = "DELETE FROM farmer_info WHERE id = ?";
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, id);
             return stmt.executeUpdate();
@@ -116,7 +116,7 @@ public class FarmerInfoDao {
         String sql = "SELECT * FROM farmer_info WHERE id = ?";
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, id);
 
@@ -134,28 +134,37 @@ public class FarmerInfoDao {
      */
     public List<FarmerInfo> findAll() throws SQLException {
         String sql = """
-                SELECT DISTINCT 
-                    wr.farmer_name,
-                    wr.contract_number,
-                    wr.id_card_number,
+                SELECT DISTINCT
+                    COALESCE(fi.farmer_name, wr.farmer_name) as farmer_name,
+                    COALESCE(fi.contract_number, wr.contract_number) as contract_number,
+                    COALESCE(fi.id_card_number, wr.id_card_number) as id_card_number,
                     fi.gender,
                     fi.nationality,
                     fi.birth_date,
-                    fi.address,
+                    COALESCE(fi.address, '') as address,
                     fi.department,
                     fi.start_date,
                     fi.end_date,
                     fi.photo
-                FROM weighing_records wr
-                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number 
-                    OR (wr.farmer_name = fi.farmer_name AND wr.contract_number = fi.contract_number)
-                WHERE wr.farmer_name IS NOT NULL AND wr.farmer_name != ''
-                ORDER BY wr.farmer_name
+                FROM (
+                    -- 从farmer_info表查询所有农户
+                    SELECT farmer_name, contract_number, id_card_number FROM farmer_info
+                    WHERE farmer_name IS NOT NULL AND farmer_name != ''
+                    UNION
+                    -- 从weighing_records表查询农户
+                    SELECT farmer_name, contract_number, id_card_number FROM weighing_records
+                    WHERE farmer_name IS NOT NULL AND farmer_name != ''
+                ) combined_farmers
+                LEFT JOIN farmer_info fi ON combined_farmers.id_card_number = fi.id_card_number
+                    OR (combined_farmers.farmer_name = fi.farmer_name AND combined_farmers.contract_number = fi.contract_number)
+                LEFT JOIN weighing_records wr ON combined_farmers.id_card_number = wr.id_card_number
+                    OR (combined_farmers.farmer_name = wr.farmer_name AND combined_farmers.contract_number = wr.contract_number)
+                ORDER BY farmer_name
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             List<FarmerInfo> farmers = new ArrayList<>();
             while (rs.next()) {
@@ -166,36 +175,52 @@ public class FarmerInfoDao {
     }
 
     /**
-     * 根据姓名或合同号搜索烟农 - 从称重记录搜索
+     * 根据姓名、合同号或身份证号搜索烟农 - 从称重记录和农户信息表合并搜索
      */
     public List<FarmerInfo> searchByNameOrContract(String searchTerm) throws SQLException {
         String sql = """
-                SELECT DISTINCT 
-                    wr.farmer_name,
-                    wr.contract_number,
-                    wr.id_card_number,
+                SELECT DISTINCT
+                    COALESCE(fi.farmer_name, wr.farmer_name) as farmer_name,
+                    COALESCE(fi.contract_number, wr.contract_number) as contract_number,
+                    COALESCE(fi.id_card_number, wr.id_card_number) as id_card_number,
                     fi.gender,
                     fi.nationality,
                     fi.birth_date,
-                    fi.address,
+                    COALESCE(fi.address, '') as address,
                     fi.department,
                     fi.start_date,
                     fi.end_date,
                     fi.photo
-                FROM weighing_records wr
-                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number 
-                    OR (wr.farmer_name = fi.farmer_name AND wr.contract_number = fi.contract_number)
-                WHERE (wr.farmer_name LIKE ? OR wr.contract_number LIKE ?)
-                    AND wr.farmer_name IS NOT NULL AND wr.farmer_name != ''
-                ORDER BY wr.farmer_name
+                FROM (
+                    -- 从farmer_info表搜索
+                    SELECT farmer_name, contract_number, id_card_number FROM farmer_info
+                    WHERE (farmer_name LIKE ? OR contract_number LIKE ? OR id_card_number LIKE ?)
+                        AND farmer_name IS NOT NULL AND farmer_name != ''
+                    UNION
+                    -- 从weighing_records表搜索
+                    SELECT farmer_name, contract_number, id_card_number FROM weighing_records
+                    WHERE (farmer_name LIKE ? OR contract_number LIKE ? OR id_card_number LIKE ?)
+                        AND farmer_name IS NOT NULL AND farmer_name != ''
+                ) search_results
+                LEFT JOIN farmer_info fi ON search_results.id_card_number = fi.id_card_number
+                    OR (search_results.farmer_name = fi.farmer_name AND search_results.contract_number = fi.contract_number)
+                LEFT JOIN weighing_records wr ON search_results.id_card_number = wr.id_card_number
+                    OR (search_results.farmer_name = wr.farmer_name AND search_results.contract_number = wr.contract_number)
+                ORDER BY farmer_name
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             String likeTerm = "%" + searchTerm + "%";
-            stmt.setString(1, likeTerm);
-            stmt.setString(2, likeTerm);
+            // 为farmer_info表的3个搜索条件设置参数
+            stmt.setString(1, likeTerm); // farmer_name
+            stmt.setString(2, likeTerm); // contract_number
+            stmt.setString(3, likeTerm); // id_card_number
+            // 为weighing_records表的3个搜索条件设置参数
+            stmt.setString(4, likeTerm); // farmer_name
+            stmt.setString(5, likeTerm); // contract_number
+            stmt.setString(6, likeTerm); // id_card_number
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FarmerInfo> farmers = new ArrayList<>();
@@ -212,7 +237,7 @@ public class FarmerInfoDao {
      */
     public List<FarmerInfo> findByLocation(String location) throws SQLException {
         String sql = """
-                SELECT DISTINCT 
+                SELECT DISTINCT
                     wr.farmer_name,
                     wr.contract_number,
                     wr.id_card_number,
@@ -225,7 +250,7 @@ public class FarmerInfoDao {
                     fi.end_date,
                     fi.photo
                 FROM weighing_records wr
-                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number 
+                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number
                     OR (wr.farmer_name = fi.farmer_name AND wr.contract_number = fi.contract_number)
                 WHERE fi.address LIKE ?
                     AND wr.farmer_name IS NOT NULL AND wr.farmer_name != ''
@@ -233,7 +258,7 @@ public class FarmerInfoDao {
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             String likeTerm = "%" + location + "%";
             stmt.setString(1, likeTerm);
@@ -255,7 +280,7 @@ public class FarmerInfoDao {
         String sql = "SELECT * FROM farmer_info WHERE id_card_number = ?";
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, idCardNumber);
 
@@ -273,17 +298,17 @@ public class FarmerInfoDao {
      */
     public List<String> getAllDistinctLocations() throws SQLException {
         String sql = """
-                SELECT DISTINCT fi.address 
+                SELECT DISTINCT fi.address
                 FROM weighing_records wr
-                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number 
+                LEFT JOIN farmer_info fi ON wr.id_card_number = fi.id_card_number
                     OR (wr.farmer_name = fi.farmer_name AND wr.contract_number = fi.contract_number)
                 WHERE fi.address IS NOT NULL AND fi.address != ''
                 ORDER BY fi.address
                 """;
 
         try (Connection conn = databaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             List<String> locations = new ArrayList<>();
             while (rs.next()) {
@@ -303,8 +328,8 @@ public class FarmerInfoDao {
         String sql = "SELECT COUNT(*) FROM farmer_info";
 
         try (Connection conn = databaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             if (rs.next()) {
                 return rs.getLong(1);
@@ -328,8 +353,7 @@ public class FarmerInfoDao {
                 rs.getString("department"),
                 rs.getString("start_date"),
                 rs.getString("end_date"),
-                rs.getBytes("photo")
-        );
+                rs.getBytes("photo"));
     }
 
     /**
@@ -347,7 +371,6 @@ public class FarmerInfoDao {
                 rs.getString("department") != null ? rs.getString("department") : "",
                 rs.getString("start_date") != null ? rs.getString("start_date") : "",
                 rs.getString("end_date") != null ? rs.getString("end_date") : "",
-                rs.getBytes("photo")
-        );
+                rs.getBytes("photo"));
     }
 }
