@@ -60,6 +60,10 @@ public class MainController implements Initializable {
 
     // 数据仓库
     private WeighingRecordRepository weighingRecordRepository;
+    private DatabaseManager databaseManager;
+
+    // 当前活动的文本框（用于数字键盘输入）
+    private TextField currentActiveTextField;
 
     // 服务
     private AdminAuthService adminAuthService;
@@ -123,7 +127,7 @@ public class MainController implements Initializable {
     private Button adminLogoutButton;
     @FXML
     private VBox adminTableContainer;
-    
+
     // Admin table for farmer statistics
     private TableView<FarmerStats> adminTable;
 
@@ -140,7 +144,7 @@ public class MainController implements Initializable {
     // 打印机测试UI组件
     @FXML
     private Button systemPrintTestButton;
-    
+
     // 农户注册管理按钮
     @FXML
     private Button farmerRegistrationButton;
@@ -163,7 +167,7 @@ public class MainController implements Initializable {
         weighingRecordsList = FXCollections.observableArrayList();
 
         // 初始化数据仓库和服务
-        DatabaseManager databaseManager = DatabaseManager.getInstance();
+        databaseManager = DatabaseManager.getInstance();
         weighingRecordRepository = new WeighingRecordRepository(databaseManager);
         adminAuthService = AdminAuthService.getInstance();
 
@@ -253,6 +257,8 @@ public class MainController implements Initializable {
 
         // 硬件诊断按钮
         diagnosticsButton.setOnAction(e -> openDiagnosticsWindow());
+
+        // 农户管理按钮
 
         // 系统打印测试按钮
         systemPrintTestButton.setOnAction(e -> testSystemPrinter());
@@ -1227,6 +1233,17 @@ public class MainController implements Initializable {
     }
 
     private void refreshAdminTable() {
+        // 检查容器是否存在，如果不存在则跳过表格更新
+        if (adminTableContainer == null) {
+            logger.warn("adminTableContainer为null，跳过管理员表格更新");
+            return;
+        }
+
+        // 确保表格已初始化
+        if (adminTable == null) {
+            setupAdminTable();
+        }
+
         // 以身份证号为主键分组，若无身份证则用姓名分组
         Map<String, List<WeighingRecord>> grouped = weighingRecordsList.stream()
                 .collect(java.util.stream.Collectors.groupingBy(r -> {
@@ -1288,7 +1305,6 @@ public class MainController implements Initializable {
             updateStatus("正在修复数据库结构...");
 
             // 重新初始化数据库管理器，触发迁移
-            DatabaseManager databaseManager = DatabaseManager.getInstance();
             weighingRecordRepository = new WeighingRecordRepository(databaseManager);
 
             updateStatus("数据库修复完成，请重试保存");
@@ -1314,7 +1330,6 @@ public class MainController implements Initializable {
                 try {
                     updateStatus("正在重建数据库...");
 
-                    DatabaseManager databaseManager = DatabaseManager.getInstance();
                     databaseManager.rebuildTables();
                     weighingRecordRepository = new WeighingRecordRepository(databaseManager);
 
@@ -1385,50 +1400,108 @@ public class MainController implements Initializable {
      */
     private void setupNumberKeypad() {
         // 数字键 0-9
-        key0.setOnAction(e -> appendToBundleCount("0"));
-        key1.setOnAction(e -> appendToBundleCount("1"));
-        key2.setOnAction(e -> appendToBundleCount("2"));
-        key3.setOnAction(e -> appendToBundleCount("3"));
-        key4.setOnAction(e -> appendToBundleCount("4"));
-        key5.setOnAction(e -> appendToBundleCount("5"));
-        key6.setOnAction(e -> appendToBundleCount("6"));
-        key7.setOnAction(e -> appendToBundleCount("7"));
-        key8.setOnAction(e -> appendToBundleCount("8"));
-        key9.setOnAction(e -> appendToBundleCount("9"));
+        key0.setOnAction(e -> appendToActiveTextField("0"));
+        key1.setOnAction(e -> appendToActiveTextField("1"));
+        key2.setOnAction(e -> appendToActiveTextField("2"));
+        key3.setOnAction(e -> appendToActiveTextField("3"));
+        key4.setOnAction(e -> appendToActiveTextField("4"));
+        key5.setOnAction(e -> appendToActiveTextField("5"));
+        key6.setOnAction(e -> appendToActiveTextField("6"));
+        key7.setOnAction(e -> appendToActiveTextField("7"));
+        key8.setOnAction(e -> appendToActiveTextField("8"));
+        key9.setOnAction(e -> appendToActiveTextField("9"));
 
         // 清除按钮
-        keyClear.setOnAction(e -> clearBundleCount());
+        keyClear.setOnAction(e -> clearActiveTextField());
 
         // 退格按钮
-        keyBack.setOnAction(e -> backspaceBundleCount());
+        keyBack.setOnAction(e -> backspaceActiveTextField());
+
+        // 设置文本框焦点监听器
+        setupTextFieldFocusListeners();
     }
 
     /**
-     * 向捆数输入框追加数字
+     * 设置文本框焦点监听器
      */
-    private void appendToBundleCount(String digit) {
-        String currentText = bundleCountField.getText();
-        // 限制最大输入长度为3位数
-        if (currentText.length() < 3) {
-            bundleCountField.setText(currentText + digit);
+    private void setupTextFieldFocusListeners() {
+        // 为所有数字输入文本框添加焦点监听器
+        addFocusListener(farmerNameField);
+        addFocusListener(contractNumberField);
+        addFocusListener(idCardNumberField);
+        addFocusListener(bundleCountField);
+
+        // 默认激活捆数输入框
+        currentActiveTextField = bundleCountField;
+    }
+
+    /**
+     * 为文本框添加焦点监听器
+     */
+    private void addFocusListener(TextField textField) {
+        textField.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                currentActiveTextField = textField;
+                logger.debug("当前活动文本框: {}", textField.getId());
+            }
+        });
+    }
+
+    /**
+     * 向当前活动的文本框追加数字
+     */
+    private void appendToActiveTextField(String digit) {
+        if (currentActiveTextField == null) {
+            return;
+        }
+
+        String currentText = currentActiveTextField.getText();
+
+        // 根据不同的文本框设置不同的输入限制
+        int maxLength = getMaxLengthForTextField(currentActiveTextField);
+
+        if (currentText.length() < maxLength) {
+            currentActiveTextField.setText(currentText + digit);
         }
     }
 
     /**
-     * 清除捆数输入框
+     * 清除当前活动的文本框
      */
-    private void clearBundleCount() {
-        bundleCountField.setText("");
+    private void clearActiveTextField() {
+        if (currentActiveTextField != null) {
+            currentActiveTextField.clear();
+        }
     }
 
     /**
-     * 退格删除捆数输入框的最后一个字符
+     * 退格当前活动的文本框
      */
-    private void backspaceBundleCount() {
-        String currentText = bundleCountField.getText();
+    private void backspaceActiveTextField() {
+        if (currentActiveTextField == null) {
+            return;
+        }
+
+        String currentText = currentActiveTextField.getText();
         if (!currentText.isEmpty()) {
-            bundleCountField.setText(currentText.substring(0, currentText.length() - 1));
+            currentActiveTextField.setText(currentText.substring(0, currentText.length() - 1));
         }
+    }
+
+    /**
+     * 获取文本框的最大输入长度
+     */
+    private int getMaxLengthForTextField(TextField textField) {
+        if (textField == bundleCountField) {
+            return 3; // 捆数最多3位数
+        } else if (textField == idCardNumberField) {
+            return 18; // 身份证号18位
+        } else if (textField == contractNumberField) {
+            return 20; // 合同号最多20位
+        } else if (textField == farmerNameField) {
+            return 10; // 姓名最多10个字符
+        }
+        return 50; // 默认长度
     }
 
     /**
@@ -1526,10 +1599,10 @@ public class MainController implements Initializable {
         try {
             AdminLoginWindow loginWindow = new AdminLoginWindow();
             loginWindow.showAndWait();
-            
+
             // 更新登录状态
             updateAdminLoginStatus();
-            
+
         } catch (Exception e) {
             logger.error("打开管理员登录窗口失败", e);
             showError("错误", "无法打开登录窗口: " + e.getMessage());
@@ -1552,23 +1625,24 @@ public class MainController implements Initializable {
             }
 
             // 获取所有称重记录
-            weighingRecordRepository.findAll(new WeighingRecordRepository.OnResultListener<java.util.List<WeighingRecord>>() {
-                @Override
-                public void onSuccess(java.util.List<WeighingRecord> records) {
-                    Platform.runLater(() -> {
-                        AdminWindow adminWindow = new AdminWindow(records);
-                        adminWindow.show();
-                    });
-                }
+            weighingRecordRepository
+                    .findAll(new WeighingRecordRepository.OnResultListener<java.util.List<WeighingRecord>>() {
+                        @Override
+                        public void onSuccess(java.util.List<WeighingRecord> records) {
+                            Platform.runLater(() -> {
+                                AdminWindow adminWindow = new AdminWindow(records);
+                                adminWindow.show();
+                            });
+                        }
 
-                @Override
-                public void onError(Exception e) {
-                    Platform.runLater(() -> {
-                        logger.error("加载称重记录失败", e);
-                        showError("加载失败", "无法加载称重记录: " + e.getMessage());
+                        @Override
+                        public void onError(Exception e) {
+                            Platform.runLater(() -> {
+                                logger.error("加载称重记录失败", e);
+                                showError("加载失败", "无法加载称重记录: " + e.getMessage());
+                            });
+                        }
                     });
-                }
-            });
 
         } catch (Exception e) {
             logger.error("打开管理员面板失败", e);
@@ -1599,26 +1673,26 @@ public class MainController implements Initializable {
                 // 已登录状态
                 var currentAdmin = adminAuthService.getCurrentAdmin();
                 adminStatusLabel.setText("已登录: " + currentAdmin.getFullName() + " (" + currentAdmin.getRole() + ")");
-                
+
                 // 显示登录状态区域
                 adminStatusContainer.setVisible(true);
                 openAdminPanelButton.setVisible(true);
                 exportAllDataButton.setVisible(true);
                 adminLogoutButton.setVisible(true);
-                
+
                 // 隐藏登录按钮
                 adminLoginButton.setVisible(false);
-                
+
             } else {
                 // 未登录状态
                 adminStatusLabel.setText("");
-                
+
                 // 隐藏登录状态区域
                 adminStatusContainer.setVisible(false);
                 openAdminPanelButton.setVisible(false);
                 exportAllDataButton.setVisible(false);
                 adminLogoutButton.setVisible(false);
-                
+
                 // 显示登录按钮
                 adminLoginButton.setVisible(true);
             }
