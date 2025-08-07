@@ -4,6 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.print.PrinterJob;
+import java.awt.print.Printable;
+import java.awt.print.PageFormat;
+import java.awt.print.PrinterException;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Font;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -365,5 +373,157 @@ public class PrinterManager {
                     printerName, isConnected ? "已连接" : "未连接");
         }
         return "未连接";
+    }
+
+    /**
+     * 打印带二维码的70x70mm标签
+     * 
+     * @param qrCodeImage 二维码图片
+     * @param labelInfo   标签信息
+     * @return 打印是否成功
+     */
+    public boolean printLabelWithQRCode(BufferedImage qrCodeImage, LabelInfo labelInfo) {
+        try {
+            if (!isConnected) {
+                logger.error("打印机未连接，无法打印标签");
+                return false;
+            }
+
+            PrinterJob printerJob = PrinterJob.getPrinterJob();
+
+            // 创建自定义的Printable对象
+            Printable printable = new Printable() {
+                @Override
+                public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
+                    if (pageIndex > 0) {
+                        return NO_SUCH_PAGE;
+                    }
+
+                    Graphics2D g2d = (Graphics2D) graphics;
+                    g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+
+                    // 70x70mm = 约198x198像素 (72 DPI)
+                    int labelWidth = 198;
+                    int labelHeight = 198;
+
+                    // 绘制二维码 (上半部分)
+                    if (qrCodeImage != null) {
+                        int qrSize = 80; // 二维码大小
+                        int qrX = (labelWidth - qrSize) / 2; // 居中
+                        int qrY = 5; // 距离顶部5像素
+                        g2d.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize, null);
+                    }
+
+                    // 设置字体
+                    Font font = new Font("SimSun", Font.PLAIN, 8);
+                    g2d.setFont(font);
+                    g2d.setColor(Color.BLACK);
+
+                    // 绘制文本信息 (下半部分)
+                    int textY = 95; // 二维码下方
+                    int lineHeight = 12;
+
+                    // 绘制各个字段
+                    if (labelInfo.getLocation() != null) {
+                        g2d.drawString("地址:" + truncateString(labelInfo.getLocation(), 12), 5, textY);
+                        textY += lineHeight;
+                    }
+
+                    if (labelInfo.getContractNumber() != null) {
+                        g2d.drawString("合同:" + truncateString(labelInfo.getContractNumber(), 12), 5, textY);
+                        textY += lineHeight;
+                    }
+
+                    if (labelInfo.getFarmerName() != null) {
+                        g2d.drawString("姓名:" + truncateString(labelInfo.getFarmerName(), 12), 5, textY);
+                        textY += lineHeight;
+                    }
+
+                    if (labelInfo.getPrecheckId() != null) {
+                        g2d.drawString("预检:" + truncateString(labelInfo.getPrecheckId(), 12), 5, textY);
+                        textY += lineHeight;
+                    }
+
+                    if (labelInfo.getLeafType() != null) {
+                        g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 12), 5, textY);
+                        textY += lineHeight;
+                    }
+
+                    if (labelInfo.getInspector() != null) {
+                        g2d.drawString("检验:" + truncateString(labelInfo.getInspector(), 12), 5, textY);
+                    }
+
+                    return PAGE_EXISTS;
+                }
+            };
+
+            printerJob.setPrintable(printable);
+            printerJob.print();
+
+            logger.info("标签打印完成");
+            return true;
+
+        } catch (Exception e) {
+            logger.error("打印标签失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 截断字符串到指定长度
+     */
+    private String truncateString(String str, int maxLength) {
+        if (str == null)
+            return "";
+        if (str.length() <= maxLength)
+            return str;
+        return str.substring(0, maxLength - 2) + "..";
+    }
+
+    /**
+     * 标签信息类
+     */
+    public static class LabelInfo {
+        private String location;
+        private String contractNumber;
+        private String farmerName;
+        private String precheckId;
+        private String leafType;
+        private String inspector;
+
+        public LabelInfo(String location, String contractNumber, String farmerName,
+                String precheckId, String leafType, String inspector) {
+            this.location = location;
+            this.contractNumber = contractNumber;
+            this.farmerName = farmerName;
+            this.precheckId = precheckId;
+            this.leafType = leafType;
+            this.inspector = inspector;
+        }
+
+        // Getters
+        public String getLocation() {
+            return location;
+        }
+
+        public String getContractNumber() {
+            return contractNumber;
+        }
+
+        public String getFarmerName() {
+            return farmerName;
+        }
+
+        public String getPrecheckId() {
+            return precheckId;
+        }
+
+        public String getLeafType() {
+            return leafType;
+        }
+
+        public String getInspector() {
+            return inspector;
+        }
     }
 }

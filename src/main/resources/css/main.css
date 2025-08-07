@@ -9,6 +9,14 @@
 .main-container {
     -fx-background-color: #f5f5f5;
     -fx-padding: 3;
+    /* 启用响应式布局 */
+    -fx-fill-width: true;
+    -fx-fill-height: true;
+}
+
+/* 主要内容区域 - 使用FXML固定高度 */
+.main-content-area {
+    /* 高度由FXML控制 */
 }
 
 /* 标题栏样式 */
@@ -39,13 +47,16 @@
 /* 管理员面板样式 */
 .admin-panel {
     -fx-background-color: #f8f9fa;
-    -fx-padding: 20;
+    -fx-padding: 12;
+    /* 平衡内边距避免覆盖 */
     -fx-border-color: #dee2e6;
     -fx-border-width: 1;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
+    /* 高度由FXML控制 */
 }
 
+/* 区域标题样式 - 保持重要性 */
 .panel-title {
     -fx-font-size: 24px;
     /* 增大面板标题字体 */
@@ -53,28 +64,50 @@
     -fx-text-fill: #333;
 }
 
+/* 节区标题样式 - 稍微小一些 */
+.section-title {
+    -fx-font-size: 18px;
+    /* 减小节区标题字体 */
+    -fx-font-weight: bold;
+    -fx-text-fill: #444;
+}
+
+/* 字段标签样式 - 非重要文字，更小 */
+.field-label {
+    -fx-font-size: 14px;
+    /* 减小字段标签字体 */
+    -fx-font-weight: normal;
+    -fx-text-fill: #666;
+}
+
 .admin-title-label {
-    -fx-font-size: 36px;
-    /* 增大管理员标题字体 */
+    -fx-font-size: 28px;
+    /* 减小标题字体避免占用过多空间 */
     -fx-font-weight: bold;
     -fx-text-fill: #007bff;
 }
 
 .admin-subtitle-label {
-    -fx-font-size: 22px;
+    -fx-font-size: 18px;
+    /* 减小副标题字体 */
     -fx-text-fill: #666;
-    -fx-padding: 10 0;
+    -fx-padding: 5 0;
+    /* 减少内边距 */
 }
 
 .admin-login-button {
     -fx-background-color: #3498db;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-font-size: 18px;
-    -fx-padding: 12 20;
-    -fx-min-width: 160;
-    -fx-pref-width: 160;
-    -fx-min-height: 50;
+    -fx-font-size: 22px;
+    /* 减小字体确保文字不溢出 */
+    -fx-padding: 10 20;
+    /* 减少内边距以适应更多文字 */
+    -fx-min-width: 150;
+    -fx-pref-width: 200;
+    /* 增加首选宽度以容纳文字 */
+    -fx-max-width: 250;
+    -fx-min-height: 45;
     -fx-pref-height: 50;
     -fx-background-radius: 6;
     -fx-border-radius: 6;
@@ -85,20 +118,24 @@
 }
 
 .admin-status-label {
-    -fx-font-size: 24px;
+    -fx-font-size: 20px;
+    /* 稍微减小字体节省空间 */
     -fx-font-weight: bold;
     -fx-text-fill: #27ae60;
-    -fx-padding: 10 0;
+    -fx-padding: 3 0;
+    /* 减少内边距 */
 }
 
 .logout-button {
     -fx-background-color: #e74c3c;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-font-size: 18px;
-    -fx-padding: 12 20;
-    -fx-min-width: 160;
-    -fx-pref-width: 160;
+    -fx-font-size: 24px;
+    /* 调整字体适应较小面板 */
+    -fx-padding: 12 25;
+    /* 调整内边距适应190px面板高度 */
+    -fx-min-width: 180;
+    -fx-pref-width: 180;
     -fx-min-height: 50;
     -fx-pref-height: 50;
     -fx-background-radius: 6;
@@ -136,20 +173,23 @@
 
 /* 按钮样式 */
 .leaf-button {
-    -fx-background-color: #e0e0e0;
-    -fx-text-fill: #333;
-    -fx-font-size: 18px;
-    /* 减小按钮字体 */
-    -fx-padding: 8 15;
-    /* 减小内边距 */
-    -fx-min-width: 120;
-    -fx-pref-width: 120;
-    -fx-min-height: 40;
-    -fx-pref-height: 40;
+    -fx-background-color: #f5f5f5;
+    -fx-text-fill: #2c2c2c;
+    -fx-font-size: 36px;
+    /* 大幅增大字体确保铺满边框 */
+    -fx-font-weight: bold;
+    /* 增加字体粗细，提高对比度 */
+    -fx-padding: 4 15;
+    /* 进一步减少内边距为更大字体腾出空间 */
+    -fx-min-width: 140;
+    -fx-pref-width: 140;
+    -fx-min-height: 65;
+    -fx-pref-height: 65;
+    /* 进一步增加按钮高度以容纳更大的字体 */
     -fx-cursor: hand;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
-    -fx-border-color: #bdbdbd;
+    -fx-border-color: #757575;
     -fx-border-width: 2;
 }
 
@@ -160,7 +200,9 @@
 }
 
 .leaf-button:hover {
-    -fx-background-color: #d5d5d5;
+    -fx-background-color: #e8e8e8;
+    -fx-text-fill: #1a1a1a;
+    -fx-border-color: #616161;
 }
 
 .leaf-button.selected:hover {
@@ -187,14 +229,16 @@
 .confirm-button {
     -fx-background-color: #FF9800;
     -fx-text-fill: white;
-    -fx-font-size: 20px;
-    /* 减小确认按钮字体 */
-    -fx-padding: 10 20;
-    /* 减小内边距 */
+    -fx-font-size: 26px;
+    /* 调整为与读取身份证按钮一致的字体大小 */
+    -fx-font-weight: bold;
+    /* 增加字体粗细，保持一致性 */
+    -fx-padding: 15 30;
+    /* 增加内边距与其他按钮保持一致 */
     -fx-min-width: 200;
     -fx-pref-width: 200;
-    -fx-min-height: 45;
-    -fx-pref-height: 45;
+    -fx-min-height: 60;
+    -fx-pref-height: 60;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-cursor: hand;
@@ -213,14 +257,16 @@
 .id-card-button {
     -fx-background-color: #9C27B0;
     -fx-text-fill: white;
-    -fx-font-size: 18px;
-    /* 减小身份证按钮字体 */
-    -fx-padding: 10 20;
-    /* 减小内边距 */
+    -fx-font-size: 26px;
+    /* 统一的按钮字体大小 */
+    -fx-font-weight: bold;
+    /* 增加字体粗细，保持一致性 */
+    -fx-padding: 15 30;
+    /* 增加内边距与其他按钮保持一致 */
     -fx-min-width: 200;
     -fx-pref-width: 200;
-    -fx-min-height: 45;
-    -fx-pref-height: 45;
+    -fx-min-height: 60;
+    -fx-pref-height: 60;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
     -fx-cursor: hand;
@@ -286,11 +332,18 @@
 .view-button {
     -fx-background-color: #607D8B;
     -fx-text-fill: white;
-    -fx-font-size: 22px;
-    -fx-padding: 12 20;
-    -fx-min-width: 160;
-    -fx-pref-width: 160;
-    -fx-min-height: 50;
+    -fx-font-size: 20px;
+    /* 减小字体确保长文字能完整显示 */
+    -fx-font-weight: bold;
+    /* 增加字体粗细保持一致性 */
+    -fx-padding: 8 15;
+    /* 减少内边距为更多文字腾出空间 */
+    -fx-min-width: 120;
+    -fx-pref-width: 180;
+    /* 保持合理的首选宽度 */
+    -fx-max-width: 220;
+    /* 允许更大的最大宽度 */
+    -fx-min-height: 45;
     -fx-pref-height: 50;
     -fx-background-radius: 6;
     -fx-border-radius: 6;
@@ -333,9 +386,11 @@
 }
 
 .status-label {
-    -fx-font-size: 14px;
-    /* 状态标签字体 */
-    -fx-text-fill: #666;
+    -fx-font-size: 18px;
+    /* 增大状态标签字体以提高可读性 */
+    -fx-text-fill: #333;
+    /* 调整颜色使其更清晰 */
+    -fx-font-weight: normal;
 }
 
 /* 表格滚动区域样式 */
@@ -359,12 +414,15 @@
 /* 状态栏样式 */
 .status-bar {
     -fx-background-color: #f0f0f0;
-    -fx-padding: 8 15;
+    -fx-padding: 15 15;
+    /* 固定高度确保可见性 */
     -fx-border-color: #ccc;
     -fx-border-width: 1 0 0 0;
-    -fx-min-height: 40;
-    -fx-pref-height: 40;
-    -fx-max-height: 40;
+    -fx-min-height: 70;
+    -fx-pref-height: 70;
+    -fx-max-height: 70;
+    /* 确保状态栏始终可见 */
+    -fx-fill-width: true;
 }
 
 /* 进度条样式 */
@@ -467,8 +525,27 @@
     .confirm-button,
     .id-card-button,
     .printer-button {
-        -fx-font-size: 11px;
-        -fx-padding: 6 12;
+        -fx-font-size: 24px;
+        /* 在小屏幕上稍微减小字体 */
+        -fx-padding: 12 20;
+        /* 调整小屏幕下的内边距 */
+        -fx-min-width: 160;
+        /* 在小屏幕上减小按钮宽度 */
+    }
+
+    /* 管理员面板按钮在小屏幕上保持较小尺寸 */
+    .admin-login-button,
+    .export-button,
+    .logout-button {
+        -fx-font-size: 18px;
+        /* 在小屏幕上进一步减小字体适应更小面板 */
+        -fx-padding: 8 12;
+        /* 进一步减少内边距 */
+        -fx-min-width: 100;
+        -fx-pref-width: 140;
+        -fx-max-width: 180;
+        -fx-min-height: 40;
+        -fx-pref-height: 45;
     }
 }
 
@@ -499,12 +576,12 @@
     -fx-cursor: default;
 }
 
-/* 输入框标签样式 */
+/* 输入框标签样式 - 已替换为field-label */
 .input-label {
-    -fx-font-size: 18px;
-    /* 增大输入标签字体 */
-    -fx-font-weight: bold;
-    -fx-text-fill: #555;
+    -fx-font-size: 14px;
+    /* 减小输入标签字体 */
+    -fx-font-weight: normal;
+    -fx-text-fill: #666;
 }
 
 /* 重量显示和键盘容器 */
@@ -513,8 +590,10 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 2px;
     -fx-border-radius: 12px;
-    -fx-padding: 20px;
-    -fx-min-height: 220px;
+    -fx-padding: 10px;
+    /* 减少内边距以增大可用空间 */
+    -fx-min-height: 280px;
+    /* 增加最小高度以容纳更大的按钮 */
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 15, 0, 0, 3);
 }
 
@@ -614,10 +693,12 @@
     -fx-border-color: #007bff;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 15px;
-    -fx-pref-width: 400px;
-    -fx-max-width: 400px;
-    -fx-min-width: 400px;
+    -fx-padding: 3px 3px 3px 8px;
+    /* 增加左侧内边距向右平移 */
+    -fx-pref-width: 280px;
+    -fx-max-width: 280px;
+    -fx-min-width: 280px;
+    /* 缩小键盘容器宽度 */
 }
 
 /* 大尺寸键盘标题 */
@@ -635,10 +716,12 @@
     -fx-border-width: 1px;
     -fx-border-radius: 4px;
     -fx-text-fill: #007bff;
-    -fx-font-size: 24px;
-    /* 减小键盘按钮字体 */
+    -fx-font-size: 48px;
+    /* 大幅增大键盘按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
+    -fx-padding: 0;
+    /* 移除内边距减少留白 */
 }
 
 .keypad-button-large:hover {
@@ -661,13 +744,16 @@
 .keypad-clear-button-large {
     -fx-background-color: #dc3545;
     -fx-border-color: #dc3545;
-    -fx-border-width: 3px;
-    -fx-border-radius: 10px;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
     -fx-text-fill: white;
-    -fx-font-size: 24px;
+    -fx-font-size: 48px;
+    /* 大幅增大清除按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+    -fx-padding: 0;
+    /* 移除内边距减少留白 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 1);
 }
 
 .keypad-clear-button-large:hover {
@@ -688,13 +774,16 @@
 .keypad-back-button-large {
     -fx-background-color: #ffc107;
     -fx-border-color: #ffc107;
-    -fx-border-width: 3px;
-    -fx-border-radius: 10px;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
     -fx-text-fill: #212529;
-    -fx-font-size: 24px;
+    -fx-font-size: 44px;
+    /* 大幅增大退格按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+    -fx-padding: 0;
+    /* 移除内边距减少留白 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 1);
 }
 
 .keypad-back-button-large:hover {
@@ -717,8 +806,8 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 1px;
     -fx-border-radius: 8px;
-    -fx-padding: 3px;
-    /* 进一步减少内边距 */
+    -fx-padding: 8px 5px 8px 15px;
+    /* 增加左侧内边距向右平移，减少右侧内边距 */
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 2);
 }
 
@@ -728,11 +817,24 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 8px;
-    -fx-pref-width: 600px;
-    -fx-max-width: 600px;
-    -fx-min-width: 600px;
-    -fx-pref-height: 150px;
+    -fx-padding: 5px 5px 5px 12px;
+    /* 增加左侧内边距向右平移 */
+    -fx-pref-width: 450px;
+    -fx-max-width: 500px;
+    -fx-min-width: 400px;
+    /* 设置合理的宽度范围 */
+    -fx-pref-height: 200px;
+    /* 增加高度以容纳更大的按钮 */
+}
+
+/* 比例面板 */
+.ratio-panel {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-padding: 3px 5px 3px 5px;
+    /* 大幅减少垂直内边距，让内容更紧凑 */
 }
 
 /* 大尺寸重量显示 */
@@ -742,9 +844,10 @@
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
     -fx-padding: 8px;
-    -fx-pref-width: 600px;
-    -fx-max-width: 600px;
-    -fx-min-width: 600px;
+    -fx-pref-width: 240px;
+    -fx-max-width: 240px;
+    -fx-min-width: 240px;
+    /* 进一步减少重量显示区域宽度 */
     -fx-pref-height: 80px;
 }
 
@@ -754,18 +857,20 @@
     -fx-border-color: #ff9800;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 15px;
+    -fx-padding: 8px;
+    /* 减少内边距节省空间 */
     -fx-pref-width: 450px;
     -fx-max-width: 450px;
     -fx-min-width: 280px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 10, 0, 0, 3);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 2);
+    /* 减少阴影效果 */
 }
 
-/* 信息标签和值 */
+/* 信息标签和值 - 已替换为field-label */
 .info-label {
-    -fx-font-size: 24px;
-    /* 增大信息标签字体 */
-    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    /* 减小信息标签字体 */
+    -fx-font-weight: normal;
     -fx-text-fill: #666;
 }
 
@@ -776,27 +881,27 @@
     -fx-font-weight: bold;
 }
 
-/* 比例标签和值 */
+/* 比例标签和值 - 已替换为field-label */
 .ratio-label {
-    -fx-font-size: 20px;
-    /* 增大比例标签字体 */
-    -fx-font-weight: bold;
-    -fx-text-fill: #555;
+    -fx-font-size: 14px;
+    /* 减小比例标签字体 */
+    -fx-font-weight: normal;
+    -fx-text-fill: #666;
 }
 
 .ratio-value {
-    -fx-font-size: 26px;
-    /* 增大比例数值字体 */
+    -fx-font-size: 18px;
+    /* 减小比例数值字体以节省空间 */
     -fx-font-weight: bold;
     -fx-text-fill: #1976D2;
     -fx-background-color: #f5f5f5;
     -fx-border-color: #ddd;
     -fx-border-width: 1px;
-    -fx-border-radius: 6px;
-    -fx-background-radius: 6px;
-    -fx-padding: 10 15;
-    -fx-min-height: 45;
-    -fx-pref-height: 45;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 4 8;
+    -fx-min-height: 28;
+    -fx-pref-height: 28;
     -fx-alignment: center;
 }
 
