@@ -3,7 +3,10 @@ package com.tobacco.weight.ui;
 import com.tobacco.weight.data.FarmerInfo;
 import com.tobacco.weight.data.FarmerStatistics;
 import com.tobacco.weight.data.WeighingRecord;
+import com.tobacco.weight.data.LocationData;
+import com.tobacco.weight.util.QRCodeGenerator;
 import com.tobacco.weight.database.DatabaseManager;
+import java.awt.image.BufferedImage;
 import com.tobacco.weight.database.WeighingRecordRepository;
 import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
@@ -19,6 +22,11 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,6 +136,12 @@ public class MainController implements Initializable {
     @FXML
     private VBox adminTableContainer;
 
+    // UI组件 - 布局容器（用于响应式设置）
+    @FXML
+    private VBox rootContainer; // FXML中的主VBox
+    @FXML
+    private HBox mainContentArea; // 主要内容区域的HBox
+
     // Admin table for farmer statistics
     private TableView<FarmerStats> adminTable;
 
@@ -141,9 +155,7 @@ public class MainController implements Initializable {
     @FXML
     private Button diagnosticsButton;
 
-    // 打印机测试UI组件
-    @FXML
-    private Button systemPrintTestButton;
+    // 打印机测试UI组件（已删除）
 
     // 农户注册管理按钮
     @FXML
@@ -190,6 +202,9 @@ public class MainController implements Initializable {
 
         // 初始化管理员状态
         updateAdminLoginStatus();
+
+        // 设置响应式布局
+        setupResponsiveLayout();
 
         logger.info("主界面控制器初始化完成");
 
@@ -260,8 +275,7 @@ public class MainController implements Initializable {
 
         // 农户管理按钮
 
-        // 系统打印测试按钮
-        systemPrintTestButton.setOnAction(e -> testSystemPrinter());
+        // 系统打印测试按钮（已删除）
 
         // 农户注册管理按钮
         farmerRegistrationButton.setOnAction(e -> openFarmerRegistrationWindow());
@@ -482,16 +496,9 @@ public class MainController implements Initializable {
                     showReceiptPreview(farmerName, contractNumber, leafType, weight, "操作员", bundleCount,
                             record.getPrecheckId());
                 } else if (result.get() == printButton) {
-                    // 用户选择打印小票
-                    boolean printSuccess = printerManager.printWeighingReceipt(
-                            farmerName, contractNumber, leafType, weight, "操作员", bundleCount, record.getPrecheckId());
-
-                    if (printSuccess) {
-                        updateStatus("小票打印完成");
-                    } else {
-                        updateStatus("小票打印失败");
-                        showError("打印失败", "小票打印失败，请检查打印机连接");
-                    }
+                    // 用户选择打印小票，使用新的图片打印方法
+                    printLabelWithQRCode(farmerName, contractNumber, leafType, weight, "操作员", bundleCount,
+                            record.getPrecheckId());
                 }
             }
 
@@ -1359,27 +1366,6 @@ public class MainController implements Initializable {
     }
 
     /**
-     * 系统打印机测试
-     */
-    private void testSystemPrinter() {
-        try {
-            updateStatus("正在执行系统打印测试...");
-            boolean ok = printerManager.testPrinter();
-            if (ok) {
-                updateStatus("系统打印测试完成");
-                showInfo("系统打印", "已将测试内容发送至默认打印机队列，请检查POS80 Printer输出");
-            } else {
-                updateStatus("系统打印测试失败");
-                showError("系统打印", "无法发送测试内容，请检查系统打印机配置");
-            }
-        } catch (Exception e) {
-            logger.error("系统打印测试失败", e);
-            updateStatus("系统打印测试失败: " + e.getMessage());
-            showError("系统打印", "测试失败: " + e.getMessage());
-        }
-    }
-
-    /**
      * 打开农户注册管理窗口
      */
     private void openFarmerRegistrationWindow() {
@@ -1512,52 +1498,176 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 设置响应式布局 - 暂时禁用动态调整，使用FXML固定高度
+     */
+    private void setupResponsiveLayout() {
+        // 暂时禁用响应式布局，使用FXML中的固定高度设置
+        logger.info("使用FXML固定高度布局");
+    }
+
+    /**
+     * 根据窗口高度调整布局
+     */
+    private void adjustLayoutForWindowHeight(double windowHeight) {
+        Platform.runLater(() -> {
+            try {
+                logger.info("调整布局，窗口高度: {}", windowHeight);
+
+                // 计算各区域的理想高度 - 确保不重叠
+                double availableHeight = windowHeight - 120; // 减去状态栏和更多间距
+                double mainContentHeight = availableHeight * 0.40; // 40%给主要内容（减少）
+                double adminPanelHeight = availableHeight * 0.45; // 45%给管理员面板
+                // 剩余15%作为间距缓冲
+
+                // 设置最小和最大限制
+                final double finalMainContentHeight = Math.max(280, Math.min(400, mainContentHeight));
+                final double finalAdminPanelHeight = Math.max(200, Math.min(320, adminPanelHeight));
+
+                // 应用高度设置
+                if (mainContentArea != null) {
+                    mainContentArea.setPrefHeight(finalMainContentHeight);
+                    mainContentArea.setMinHeight(finalMainContentHeight * 0.8);
+                    mainContentArea.setMaxHeight(finalMainContentHeight * 1.2);
+                }
+
+                // 通过CSS类名查找管理员面板
+                if (rootContainer != null) {
+                    rootContainer.getChildren().stream()
+                            .filter(node -> node.getStyleClass().contains("admin-panel"))
+                            .findFirst()
+                            .ifPresent(adminPanel -> {
+                                if (adminPanel instanceof VBox) {
+                                    VBox adminVBox = (VBox) adminPanel;
+                                    adminVBox.setPrefHeight(finalAdminPanelHeight);
+                                    adminVBox.setMinHeight(finalAdminPanelHeight * 0.8);
+                                    adminVBox.setMaxHeight(finalAdminPanelHeight * 1.2);
+                                }
+                            });
+                }
+
+                logger.info("布局调整完成 - 主要内容: {}px, 管理员面板: {}px",
+                        finalMainContentHeight, finalAdminPanelHeight);
+
+            } catch (Exception e) {
+                logger.error("调整布局时出错", e);
+            }
+        });
+    }
+
+    /**
      * 显示小票预览对话框
      */
     private void showReceiptPreview(String farmerName, String contractNumber, String leafType,
             double weight, String operator, int bundleCount, String precheckId) {
         try {
-            // 生成小票内容
-            String receiptContent = generateReceiptContent(farmerName, contractNumber, leafType,
-                    weight, operator, bundleCount, precheckId);
+            // 获取基本信息用于生成二维码和文本
+            String safeContract = contractNumber != null ? contractNumber : "N/A";
+            String safeFarmerName = farmerName != null ? farmerName : "N/A";
+            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safeLeafType = leafType != null ? leafType : "N/A";
+            String safeInspector = operator != null ? operator : "系统";
+            String locationInfo = "实时录入"; // 主界面没有直接的地址信息
 
-            // 创建预览对话框
-            javafx.scene.control.Alert previewAlert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.INFORMATION);
-            previewAlert.setTitle("小票预览");
-            previewAlert.setHeaderText("称重小票预览");
+            // 生成真实的二维码图片用于预览
+            Image qrImage = QRCodeGenerator.generateQRCodeImage(safeContract, 150);
 
-            // 创建文本区域显示小票内容
-            javafx.scene.control.TextArea textArea = new javafx.scene.control.TextArea(receiptContent);
-            textArea.setEditable(false);
-            textArea.setWrapText(true);
-            textArea.setPrefRowCount(15);
-            textArea.setPrefColumnCount(40);
-            textArea.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 14px;");
+            // 创建自定义预览窗口
+            javafx.stage.Stage previewStage = new javafx.stage.Stage();
+            previewStage.setTitle("标签预览 - " + farmerName);
+            previewStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            previewStage.initOwner(primaryStage);
 
-            // 设置对话框内容
-            previewAlert.getDialogPane().setContent(textArea);
+            // 创建主布局
+            javafx.scene.layout.VBox mainLayout = new javafx.scene.layout.VBox(10);
+            mainLayout.setPadding(new javafx.geometry.Insets(15));
+            mainLayout.setAlignment(javafx.geometry.Pos.CENTER);
 
-            // 添加打印按钮
-            javafx.scene.control.ButtonType printFromPreviewButton = new javafx.scene.control.ButtonType("打印小票");
-            javafx.scene.control.ButtonType closeButton = new javafx.scene.control.ButtonType("关闭",
-                    javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
-            previewAlert.getButtonTypes().setAll(printFromPreviewButton, closeButton);
+            // 添加标题
+            javafx.scene.control.Label titleLabel = new javafx.scene.control.Label("称重标签预览");
+            titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 10 0;");
 
-            // 显示预览对话框
-            java.util.Optional<javafx.scene.control.ButtonType> previewResult = previewAlert.showAndWait();
-            if (previewResult.isPresent() && previewResult.get() == printFromPreviewButton) {
-                // 从预览对话框直接打印
-                boolean printSuccess = printerManager.printWeighingReceipt(
-                        farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
+            // 创建标签内容区域
+            javafx.scene.layout.VBox labelContent = new javafx.scene.layout.VBox(5);
+            labelContent.setAlignment(javafx.geometry.Pos.CENTER);
+            labelContent.setStyle(
+                    "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
 
-                if (printSuccess) {
-                    updateStatus("小票打印完成");
-                } else {
-                    updateStatus("小票打印失败");
-                    showError("打印失败", "小票打印失败，请检查打印机连接");
-                }
+            // 添加二维码图片
+            if (qrImage != null) {
+                ImageView qrImageView = new ImageView(qrImage);
+                qrImageView.setFitWidth(150);
+                qrImageView.setFitHeight(150);
+                qrImageView.setPreserveRatio(true);
+                qrImageView.setSmooth(false);
+                labelContent.getChildren().add(qrImageView);
+            } else {
+                javafx.scene.control.Label qrErrorLabel = new javafx.scene.control.Label("二维码生成失败");
+                qrErrorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+                labelContent.getChildren().add(qrErrorLabel);
             }
+
+            // 添加文本信息
+            javafx.scene.layout.VBox textInfo = new javafx.scene.layout.VBox(3);
+            textInfo.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            textInfo.setStyle("-fx-font-family: 'SimSun'; -fx-font-size: 12px;");
+
+            textInfo.getChildren().addAll(
+                    new javafx.scene.control.Label("地址: "
+                            + (locationInfo.length() > 12 ? locationInfo.substring(0, 12) + ".." : locationInfo)),
+                    new javafx.scene.control.Label("合同: "
+                            + (safeContract.length() > 20 ? safeContract.substring(0, 20) + ".." : safeContract)),
+                    new javafx.scene.control.Label("姓名: "
+                            + (safeFarmerName.length() > 10 ? safeFarmerName.substring(0, 10) + ".." : safeFarmerName)),
+                    new javafx.scene.control.Label("预检: "
+                            + (safePrecheck.length() > 15 ? safePrecheck.substring(0, 15) + ".." : safePrecheck)),
+                    new javafx.scene.control.Label(
+                            "部位: " + (safeLeafType.length() > 8 ? safeLeafType.substring(0, 8) + ".." : safeLeafType)),
+                    new javafx.scene.control.Label("检验: "
+                            + (safeInspector.length() > 8 ? safeInspector.substring(0, 8) + ".." : safeInspector)));
+
+            labelContent.getChildren().add(textInfo);
+
+            // 创建按钮区域
+            javafx.scene.layout.HBox buttonBox = new javafx.scene.layout.HBox(10);
+            buttonBox.setAlignment(javafx.geometry.Pos.CENTER);
+            buttonBox.setPadding(new javafx.geometry.Insets(10));
+
+            javafx.scene.control.Button printButton = new javafx.scene.control.Button("确认打印");
+            printButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            printButton.setOnAction(e -> {
+                // 使用新的图片打印方法
+                printLabelWithQRCode(farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
+                previewStage.close();
+            });
+
+            javafx.scene.control.Button testQRButton = new javafx.scene.control.Button("扫描测试");
+            testQRButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            testQRButton.setOnAction(e -> {
+                showQRCodeTest(contractNumber);
+            });
+
+            javafx.scene.control.Button closeButton = new javafx.scene.control.Button("关闭");
+            closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            closeButton.setOnAction(e -> previewStage.close());
+
+            buttonBox.getChildren().addAll(printButton, testQRButton, closeButton);
+
+            // 组装完整布局
+            mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
+
+            // 创建场景并设置窗口大小
+            javafx.scene.Scene scene = new javafx.scene.Scene(mainLayout);
+            previewStage.setScene(scene);
+
+            // 设置窗口大小
+            previewStage.setWidth(350);
+            previewStage.setHeight(450);
+
+            // 居中显示
+            previewStage.centerOnScreen();
+
+            // 显示预览窗口
+            previewStage.showAndWait();
 
         } catch (Exception e) {
             logger.error("显示小票预览失败", e);
@@ -1566,30 +1676,72 @@ public class MainController implements Initializable {
     }
 
     /**
-     * 生成小票内容
+     * 生成小票内容 (70x70mm标签格式，包含二维码)
      */
     private String generateReceiptContent(String farmerName, String contractNumber, String leafType,
             double weight, String operator, int bundleCount, String precheckId) {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String currentTime = sdf.format(new java.util.Date());
-
         StringBuilder content = new StringBuilder();
-        content.append("=".repeat(32)).append("\n");
-        content.append("        烟叶称重小票\n");
-        content.append("=".repeat(32)).append("\n");
-        content.append("时间: ").append(currentTime).append("\n");
-        content.append("预检编号: ").append(precheckId).append("\n");
-        content.append("烟农: ").append(farmerName).append("\n");
-        content.append("合同号: ").append(contractNumber).append("\n");
-        content.append("部叶类型: ").append(leafType).append("\n");
-        content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
-        content.append("捆数: ").append(bundleCount).append("\n");
-        content.append("操作员: ").append(operator).append("\n");
-        content.append("=".repeat(32)).append("\n");
-        content.append("        谢谢使用\n");
-        content.append("=".repeat(32)).append("\n");
 
-        return content.toString();
+        // 获取基本信息
+        String safeContract = contractNumber != null ? contractNumber : "N/A";
+        String safeFarmerName = farmerName != null ? farmerName : "N/A";
+        String safePrecheck = precheckId != null ? precheckId : "N/A";
+        String safeLeafType = leafType != null ? leafType : "N/A";
+        String safeInspector = operator != null ? operator : "系统";
+
+        // 乡镇村信息暂时使用默认值（主界面没有直接的地址信息）
+        String locationInfo = "实时录入";
+
+        // 生成合同号二维码（超紧凑版）
+        String qrCode = QRCodeGenerator.generateCompactQRCode(safeContract);
+
+        // 构建标签内容 - 二维码在最上方，超紧凑
+        String[] qrLines = qrCode.split("\n");
+
+        // 首先输出二维码（不居中，节省空间）
+        for (String qrLine : qrLines) {
+            content.append(qrLine).append("\n");
+        }
+
+        // 信息列表（极度紧凑显示，只保留核心信息）
+        content.append("地址:").append(locationInfo.length() > 6 ? locationInfo.substring(0, 6) + ".." : locationInfo)
+                .append("\n");
+        content.append("合同:").append(safeContract.length() > 15 ? safeContract.substring(0, 15) + ".." : safeContract)
+                .append("\n");
+        content.append("姓名:")
+                .append(safeFarmerName.length() > 8 ? safeFarmerName.substring(0, 8) + ".." : safeFarmerName)
+                .append("\n");
+        content.append("预检:").append(safePrecheck.length() > 12 ? safePrecheck.substring(0, 12) + ".." : safePrecheck)
+                .append("\n");
+        content.append("部位:").append(safeLeafType.length() > 6 ? safeLeafType.substring(0, 6) + ".." : safeLeafType)
+                .append("\n");
+        content.append("检验:")
+                .append(safeInspector.length() > 6 ? safeInspector.substring(0, 6) + ".." : safeInspector)
+                .append("\n");
+
+        // 计算标签纸张大小并输出日志
+        String finalContent = content.toString();
+        String[] lines = finalContent.split("\n");
+        int maxLineLength = 0;
+        for (String line : lines) {
+            if (line.length() > maxLineLength) {
+                maxLineLength = line.length();
+            }
+        }
+
+        // 估算纸张大小（假设每个字符约3mm宽，每行约4mm高）
+        double estimatedWidth = maxLineLength * 3.0; // mm
+        double estimatedHeight = lines.length * 4.0; // mm
+
+        System.out.println("=== 标签纸张大小估算 ===");
+        System.out.println("标签内容行数: " + lines.length);
+        System.out.println("最长行字符数: " + maxLineLength);
+        System.out.println("估算宽度: " + String.format("%.1f", estimatedWidth) + " mm");
+        System.out.println("估算高度: " + String.format("%.1f", estimatedHeight) + " mm");
+        System.out.println("是否适合70x70mm纸张: " + ((estimatedWidth <= 70 && estimatedHeight <= 70) ? "是" : "否"));
+        System.out.println("================================");
+
+        return finalContent;
     }
 
     /**
@@ -1698,6 +1850,130 @@ public class MainController implements Initializable {
             }
         } catch (Exception e) {
             logger.error("更新管理员登录状态失败", e);
+        }
+    }
+
+    /**
+     * 显示二维码扫描测试窗口
+     */
+    private void showQRCodeTest(String contractNumber) {
+        try {
+            String contractNum = contractNumber != null ? contractNumber : "N/A";
+
+            // 生成真实的二维码图片（300x300像素，足够大便于手机扫描）
+            Image qrImage = QRCodeGenerator.generateQRCodeImage(contractNum, 300);
+
+            if (qrImage == null) {
+                showError("生成失败", "无法生成二维码图片");
+                return;
+            }
+
+            // 创建测试窗口
+            javafx.stage.Stage testStage = new javafx.stage.Stage();
+            testStage.setTitle("二维码扫描测试 - " + contractNum);
+            testStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            testStage.initOwner(primaryStage);
+
+            // 创建ImageView显示真实二维码图片
+            ImageView qrImageView = new ImageView(qrImage);
+            qrImageView.setFitWidth(300);
+            qrImageView.setFitHeight(300);
+            qrImageView.setPreserveRatio(true);
+            qrImageView.setSmooth(false); // 关闭平滑处理，保持二维码清晰
+
+            // 说明文本
+            javafx.scene.control.Label instructionLabel = new javafx.scene.control.Label(
+                    "请用手机扫描以下二维码测试:\n" +
+                            "合同号: " + contractNum + "\n\n" +
+                            "✅ 这是真实的二维码图片，手机应该可以正常扫描！\n" +
+                            "注意: 实际打印会使用更小的版本以适应70x70mm标签");
+            instructionLabel.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-text-alignment: center;");
+            instructionLabel.setWrapText(true);
+
+            // 关闭按钮
+            javafx.scene.control.Button closeTestButton = new javafx.scene.control.Button("关闭");
+            closeTestButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            closeTestButton.setOnAction(e -> testStage.close());
+
+            javafx.scene.layout.HBox testButtonBox = new javafx.scene.layout.HBox(closeTestButton);
+            testButtonBox.setAlignment(javafx.geometry.Pos.CENTER);
+            testButtonBox.setPadding(new javafx.geometry.Insets(10));
+
+            // 布局
+            javafx.scene.layout.VBox testLayout = new javafx.scene.layout.VBox(15);
+            testLayout.setPadding(new javafx.geometry.Insets(20));
+            testLayout.setAlignment(javafx.geometry.Pos.CENTER);
+            testLayout.getChildren().addAll(instructionLabel, qrImageView, testButtonBox);
+
+            javafx.scene.Scene testScene = new javafx.scene.Scene(testLayout);
+            testStage.setScene(testScene);
+
+            // 设置窗口大小
+            testStage.setWidth(400);
+            testStage.setHeight(550);
+            testStage.centerOnScreen();
+
+            testStage.show();
+
+        } catch (Exception e) {
+            logger.error("显示二维码测试失败", e);
+            showError("测试失败", "无法显示二维码测试: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 打印带二维码的标签
+     */
+    private void printLabelWithQRCode(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        try {
+            // 获取基本信息
+            String safeContract = contractNumber != null ? contractNumber : "N/A";
+            String safeFarmerName = farmerName != null ? farmerName : "N/A";
+            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safeLeafType = leafType != null ? leafType : "N/A";
+            String safeInspector = operator != null ? operator : "系统";
+
+            // 乡镇村信息暂时使用默认值（主界面没有直接的地址信息）
+            String locationInfo = "实时录入";
+
+            // 生成二维码图片（用于打印）
+            BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(safeContract, 80);
+
+            if (qrCodeImage == null) {
+                showError("生成失败", "无法生成二维码，将使用文本方式打印");
+                // 降级到文本打印
+                String compactLabel = generateReceiptContent(farmerName, contractNumber, leafType, weight, operator,
+                        bundleCount, precheckId);
+                boolean printSuccess = printerManager.printText(compactLabel);
+                if (printSuccess) {
+                    updateStatus("标签打印完成（文本模式）");
+                } else {
+                    updateStatus("标签打印失败");
+                    showError("打印失败", "标签打印失败，请检查打印机连接");
+                }
+                return;
+            }
+
+            // 创建标签信息
+            PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
+                    locationInfo, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector);
+
+            // 使用新的图片打印方法
+            boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
+
+            if (printSuccess) {
+                updateStatus("带二维码的标签打印完成");
+                logger.info("成功打印带二维码标签，预检编号: {}", precheckId);
+            } else {
+                updateStatus("标签打印失败");
+                showError("打印失败", "标签打印失败，请检查打印机连接");
+                logger.error("打印带二维码标签失败，预检编号: {}", precheckId);
+            }
+
+        } catch (Exception e) {
+            logger.error("打印带二维码标签异常", e);
+            showError("打印错误", "打印时发生错误: " + e.getMessage());
         }
     }
 }
