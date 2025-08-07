@@ -1,6 +1,7 @@
 package com.tobacco.weight;
 
 import com.tobacco.weight.database.DatabaseManager;
+import com.tobacco.weight.license.LicenseService;
 import com.tobacco.weight.ui.MainController;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -28,6 +29,14 @@ public class TobaccoWeightApp extends Application {
             // 初始化数据库
             DatabaseManager.getInstance();
             logger.info("数据库初始化完成");
+
+            // 许可校验（阻塞式，对话框最多尝试3次）
+            boolean licensed = LicenseService.getInstance().ensureLicensed(primaryStage);
+            if (!licensed) {
+                logger.warn("未通过许可校验，应用即将退出");
+                javafx.application.Platform.exit();
+                return;
+            }
 
             // 加载主界面FXML
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
