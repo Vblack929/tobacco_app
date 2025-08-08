@@ -232,14 +232,3 @@ logs/
 exports/
 *.xlsx
 *.csv
-
-# ===============================================================
-# Libraries & Dependencies (Optional - uncomment if needed)
-# ===============================================================
-# libs/
-# !libs/your-important-library.jar
-
-# ===============================================================
-# Custom project-specific ignores (add as needed)
-# ===============================================================
-# Add any project-specific files or patterns here
