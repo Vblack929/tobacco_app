@@ -239,6 +239,14 @@ public class MainController implements Initializable {
             // 检查连接状态 - 在注册回调后调用
             idCardReader.checkConnectionStatus();
 
+            // 如果初始化期间已发生错误（构造函数先于回调设置执行），此处补发一次详细错误
+            if (!idCardReader.isConnected()) {
+                String detailed = idCardReader.getDetailedErrorMessage();
+                if (detailed != null && !detailed.trim().isEmpty()) {
+                    handleIdCardError(detailed);
+                }
+            }
+
             logger.info("硬件管理器初始化完成");
 
         } catch (Exception e) {
