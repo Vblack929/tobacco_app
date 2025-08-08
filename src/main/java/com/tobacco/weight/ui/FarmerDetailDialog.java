@@ -22,7 +22,7 @@ import java.text.SimpleDateFormat;
 public class FarmerDetailDialog extends Stage {
     public FarmerDetailDialog(FarmerStats stats) {
         setTitle("农户详情 - " + stats.farmerNameProperty().get());
-        setWidth(700);
+        setWidth(1000);
         setHeight(500);
         initModality(Modality.APPLICATION_MODAL);
 
@@ -30,22 +30,31 @@ public class FarmerDetailDialog extends Stage {
         Label title = new Label(
                 "农户: " + stats.farmerNameProperty().get() + "    身份证号: " + stats.idCardProperty().get());
         title.setPadding(new Insets(10));
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         root.setTop(title);
 
         TableView<WeighingRecord> table = new TableView<>();
         TableColumn<WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
+        precheckCol.setPrefWidth(200);
+        precheckCol.setMinWidth(180);
         TableColumn<WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
+        leafCol.setPrefWidth(120);
         TableColumn<WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
         bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
+        bundleCol.setPrefWidth(80);
         TableColumn<WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
+        weightCol.setPrefWidth(120);
         TableColumn<WeighingRecord, String> timeCol = new TableColumn<>("时间");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
+        timeCol.setPrefWidth(200);
+        timeCol.setMinWidth(180);
 
         // 添加操作列 - 预览和打印按钮
         TableColumn<WeighingRecord, Void> actionCol = new TableColumn<>("操作");
+        actionCol.setPrefWidth(170);
         actionCol.setCellFactory(col -> new TableCell<>() {
             private final Button previewBtn = new Button("打印预览");
             private final Button printBtn = new Button("直接打印");
@@ -63,8 +72,8 @@ public class FarmerDetailDialog extends Stage {
                 });
 
                 // 设置按钮样式
-                previewBtn.setStyle("-fx-font-size: 12px; -fx-padding: 3 8 3 8;");
-                printBtn.setStyle("-fx-font-size: 12px; -fx-padding: 3 8 3 8;");
+                previewBtn.setStyle("-fx-font-size: 14px; -fx-padding: 4 10 4 10;");
+                printBtn.setStyle("-fx-font-size: 14px; -fx-padding: 4 10 4 10;");
 
                 buttonBox.getChildren().addAll(previewBtn, printBtn);
                 buttonBox.setAlignment(javafx.geometry.Pos.CENTER);

@@ -1082,18 +1082,28 @@ public class MainController implements Initializable {
         // 弹出子表格窗口，显示所有预检记录
         Stage dialog = new Stage();
         dialog.setTitle("预检记录 - " + stats.farmerNameProperty().get());
+        dialog.setWidth(1100);
         TableView<com.tobacco.weight.data.WeighingRecord> recordTable = new TableView<>();
+        recordTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
+        precheckCol.setPrefWidth(200);
+        precheckCol.setMinWidth(180);
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
+        leafCol.setPrefWidth(120);
         TableColumn<com.tobacco.weight.data.WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
         bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
+        bundleCol.setPrefWidth(80);
         TableColumn<com.tobacco.weight.data.WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
+        weightCol.setPrefWidth(120);
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> timeCol = new TableColumn<>("时间");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
+        timeCol.setPrefWidth(200);
+        timeCol.setMinWidth(180);
         TableColumn<com.tobacco.weight.data.WeighingRecord, Void> exportCol = new TableColumn<>("操作");
+        exportCol.setPrefWidth(140);
         exportCol.setCellFactory(col -> new TableCell<>() {
             private final Button btn = new Button("导出");
             {
