@@ -36,10 +36,11 @@ public class FarmerInfoDetailDialog extends Stage {
     private TableView<WeighingRecord> recordTable;
     private Label statusLabel;
     private PrinterManager printerManager;
+    private Button refreshButtonRef;
 
     public FarmerInfoDetailDialog(FarmerInfo farmerInfo) {
         setTitle("农户称重记录 - " + farmerInfo.getFarmerName());
-        setWidth(950);
+        setWidth(1100);
         setHeight(600);
         initModality(Modality.APPLICATION_MODAL);
 
@@ -100,6 +101,7 @@ public class FarmerInfoDetailDialog extends Stage {
      */
     private VBox createRecordTableContent() {
         VBox tableContent = new VBox(10);
+        tableContent.setAlignment(Pos.CENTER);
 
         // 表格标题
         Label tableTitle = new Label("称重记录");
@@ -108,39 +110,53 @@ public class FarmerInfoDetailDialog extends Stage {
         // 创建表格
         recordTable = new TableView<>();
         recordTable.setPrefHeight(350);
+        // 列宽以内容为准，不拉伸铺满
+        recordTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        // 表格宽度由首选宽度控制，不随容器无限拉伸
+        recordTable.setMaxWidth(Region.USE_PREF_SIZE);
 
         // 创建表格列
         TableColumn<WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
-        precheckCol.setPrefWidth(120);
+        precheckCol.setPrefWidth(140);
+        precheckCol.setMinWidth(120);
+        precheckCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
-        leafCol.setPrefWidth(100);
+        leafCol.setPrefWidth(90);
+        leafCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
         bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
-        bundleCol.setPrefWidth(60);
+        bundleCol.setPrefWidth(70);
+        bundleCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
         weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
-        weightCol.setPrefWidth(100);
+        weightCol.setPrefWidth(90);
+        weightCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> timeCol = new TableColumn<>("称重时间");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
-        timeCol.setPrefWidth(150);
+        // 足够容纳完整时间（例如 2025-07-27 16:23:38.731）
+        timeCol.setPrefWidth(240);
+        timeCol.setMinWidth(220);
+        timeCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> operatorCol = new TableColumn<>("操作员");
         operatorCol.setCellValueFactory(new PropertyValueFactory<>("operator"));
-        operatorCol.setPrefWidth(80);
+        operatorCol.setPrefWidth(90);
+        operatorCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> statusCol = new TableColumn<>("状态");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        statusCol.setPrefWidth(60);
+        statusCol.setPrefWidth(70);
+        statusCol.setStyle("-fx-alignment: CENTER;");
 
         // 操作按钮列
         TableColumn<WeighingRecord, Void> printCol = new TableColumn<>("操作");
-        printCol.setPrefWidth(150);
+        printCol.setPrefWidth(160);
         printCol.setCellFactory(new Callback<TableColumn<WeighingRecord, Void>, TableCell<WeighingRecord, Void>>() {
             @Override
             public TableCell<WeighingRecord, Void> call(TableColumn<WeighingRecord, Void> param) {
@@ -183,12 +199,18 @@ public class FarmerInfoDetailDialog extends Stage {
         recordTable.getColumns().addAll(precheckCol, leafCol, bundleCol, weightCol, timeCol, operatorCol, statusCol,
                 printCol);
 
+        // 计算并设置表格首选宽度 = 各列宽度之和 + 滚动条/边框余量
+        double tablePrefWidth = precheckCol.getPrefWidth() + leafCol.getPrefWidth() + bundleCol.getPrefWidth()
+                + weightCol.getPrefWidth() + timeCol.getPrefWidth() + operatorCol.getPrefWidth()
+                + statusCol.getPrefWidth() + printCol.getPrefWidth() + 40; // 余量
+        recordTable.setPrefWidth(tablePrefWidth);
+
         // 状态标签
         statusLabel = new Label("正在加载称重记录...");
         statusLabel.setStyle("-fx-text-fill: #666666;");
 
         tableContent.getChildren().addAll(tableTitle, recordTable, statusLabel);
-        VBox.setVgrow(recordTable, Priority.ALWAYS);
+        VBox.setVgrow(recordTable, Priority.NEVER);
 
         return tableContent;
     }
@@ -242,13 +264,12 @@ public class FarmerInfoDetailDialog extends Stage {
         buttonBox.setPadding(new Insets(15, 0, 0, 0));
 
         Button refreshButton = new Button("刷新记录");
-        refreshButton.setOnAction(e -> {
-            // 刷新记录数据（这里需要保存农户信息以便重新加载）
-            statusLabel.setText("正在刷新记录...");
-            recordTable.getItems().clear();
-        });
+        refreshButton.setStyle("-fx-font-size: 14px; -fx-padding: 6 12;");
+        this.refreshButtonRef = refreshButton;
+        refreshButton.setOnAction(e -> doRefresh());
 
         Button closeButton = new Button("关闭");
+        closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 6 12;");
         closeButton.setOnAction(e -> {
             // 关闭仓库连接
             if (weighingRecordRepository != null) {
@@ -259,6 +280,19 @@ public class FarmerInfoDetailDialog extends Stage {
 
         buttonBox.getChildren().addAll(refreshButton, closeButton);
         return buttonBox;
+    }
+
+    private void doRefresh() {
+        try {
+            statusLabel.setText("正在刷新记录...");
+            recordTable.getItems().clear();
+            if (currentFarmerInfo != null) {
+                loadWeighingRecords(currentFarmerInfo);
+            }
+        } catch (Exception ex) {
+            logger.error("刷新记录失败", ex);
+            statusLabel.setText("刷新失败: " + ex.getMessage());
+        }
     }
 
     /**

@@ -59,6 +59,7 @@ public class AdminWindow extends Stage {
         table.getColumns().addAll(nameCol, idCol, countCol, weightCol, actionCol);
 
         Button refreshBtn = new Button("刷新数据");
+        refreshBtn.setStyle("-fx-font-size: 14px; -fx-padding: 6 12;");
         refreshBtn.setOnAction(e -> refreshStats());
         HBox topBar = new HBox(10, refreshBtn);
         topBar.setPadding(new Insets(10));

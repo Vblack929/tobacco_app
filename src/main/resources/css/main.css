@@ -8,7 +8,7 @@
 /* 主容器样式 */
 .main-container {
     -fx-background-color: #f5f5f5;
-    -fx-padding: 3;
+    -fx-padding: 6;
     /* 启用响应式布局 */
     -fx-fill-width: true;
     -fx-fill-height: true;
@@ -66,18 +66,31 @@
 
 /* 节区标题样式 - 稍微小一些 */
 .section-title {
-    -fx-font-size: 18px;
-    /* 减小节区标题字体 */
+    -fx-font-size: 24px;
+    /* 调整节区标题字体大小 */
     -fx-font-weight: bold;
     -fx-text-fill: #444;
 }
 
+/* 当前重量标题特殊样式 */
+.weight-display-large .section-title {
+    -fx-font-size: 28px;
+    /* 减小当前重量标题字体 */
+}
+
+/* 当前重量数值特殊样式 */
+.weight-display-large .weight-value {
+    -fx-font-size: 28px !important;
+    /* 确保重量数值字体与标题一致 */
+}
+
 /* 字段标签样式 - 非重要文字，更小 */
 .field-label {
-    -fx-font-size: 14px;
-    /* 减小字段标签字体 */
+    -fx-font-size: 24px;
+    /* 增大字段标签字体 */
     -fx-font-weight: normal;
     -fx-text-fill: #666;
+    /* 不在基础样式上设置固定宽度，避免与 ratio-label-large 冲突 */
 }
 
 .admin-title-label {
@@ -165,8 +178,8 @@
 }
 
 .weight-value {
-    -fx-font-size: 48px;
-    /* 增大重量数值字体 */
+    -fx-font-size: 28px;
+    /* 调整重量数值字体大小与当前重量标题一致 */
     -fx-font-weight: bold;
     -fx-text-fill: #1565C0;
 }
@@ -210,7 +223,7 @@
 }
 
 .operation-tip-label {
-    -fx-font-size: 22px;
+    -fx-font-size: 32px;
     /* 增大操作提示字体 */
     -fx-text-fill: #1976D2;
     -fx-font-weight: bold;
@@ -358,18 +371,82 @@
 
 /* 文本字段样式 */
 .text-field {
-    -fx-font-size: 18px;
+    -fx-font-size: 24px;
     /* 增大输入框字体 */
-    -fx-padding: 8;
+    -fx-padding: 10;
     /* 增加内边距适应更大字体 */
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-alignment: center-left;
+    /* 确保文本左对齐 */
+}
+
+/* 烟农信息输入框特殊样式 */
+.input-panel .text-field {
+    -fx-font-size: 24px;
+    -fx-alignment: center-left;
+    /* 确保文本左对齐 */
+}
+
+/* 烟农信息输入框统一样式 */
+.farmer-input-field {
+    -fx-font-size: 24px;
+    -fx-alignment: center-left;
+    -fx-pref-width: 280px;
+    -fx-min-width: 280px;
+    /* 扩宽以确保能完整显示18位身份证号 */
+    -fx-padding: 10;
     -fx-border-color: #ddd;
     -fx-border-width: 1;
     -fx-border-radius: 3;
     -fx-background-radius: 3;
 }
 
-.text-field:focused {
+/* 预检信息输入框统一样式 */
+.ratio-input-field {
+    -fx-font-size: 24px;
+    -fx-alignment: center-right;
+    /* 预检信息文本框右对齐 */
+    /* 与标签 140px + 间距 6px 配合，统一行总宽度 */
+    -fx-pref-width: 160px !important;
+    -fx-min-width: 160px !important;
+    /* 增大预检输入框宽度以保持视觉平衡 */
+    -fx-padding: 10;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1976D2;
+    -fx-background-color: #f5f5f5;
+}
+
+.text-field:focused,
+.farmer-input-field:focused,
+.ratio-input-field:focused {
     -fx-border-color: #2196F3;
+}
+
+/* 预检信息标题样式 */
+.ratio-title {
+    -fx-font-size: 24px;
+}
+
+/* 预检信息标签大尺寸样式 - 使用更高优先级 */
+.field-label.ratio-label-large {
+    -fx-font-size: 24px;
+    /* 内容右对齐应使用 -fx-alignment 而非 -fx-text-alignment */
+    -fx-alignment: CENTER_RIGHT;
+    /* 取最长标签“预检比例:”为基准，统一标签宽度为 140px */
+    -fx-min-width: 140px !important;
+    -fx-pref-width: 140px !important;
+}
+
+/* 预检信息数值大尺寸样式 */
+.ratio-value-large {
+    -fx-font-size: 24px;
 }
 
 /* 标签样式 */
@@ -517,9 +594,7 @@
         -fx-padding: 10;
     }
 
-    .weight-value {
-        -fx-font-size: 20px;
-    }
+
 
     .leaf-button,
     .confirm-button,
@@ -693,8 +768,8 @@
     -fx-border-color: #007bff;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 3px 3px 3px 8px;
-    /* 增加左侧内边距向右平移 */
+    -fx-padding: 2px 2px 2px 12px;
+    /* 适度增加左侧内边距向右平移，减少与预检信息的距离 */
     -fx-pref-width: 280px;
     -fx-max-width: 280px;
     -fx-min-width: 280px;
@@ -720,8 +795,9 @@
     /* 大幅增大键盘按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
-    -fx-padding: 0;
-    /* 移除内边距减少留白 */
+    -fx-padding: 8;
+    /* 设置统一内边距让数字与边框间距相同 */
+    -fx-alignment: center;
 }
 
 .keypad-button-large:hover {
@@ -751,8 +827,9 @@
     /* 大幅增大清除按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
-    -fx-padding: 0;
-    /* 移除内边距减少留白 */
+    -fx-padding: 8;
+    /* 设置统一内边距让文字与边框间距相同 */
+    -fx-alignment: center;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 1);
 }
 
@@ -781,8 +858,9 @@
     /* 大幅增大退格按钮字体确保铺满边框 */
     -fx-font-weight: bold;
     -fx-cursor: hand;
-    -fx-padding: 0;
-    /* 移除内边距减少留白 */
+    -fx-padding: 8;
+    /* 设置统一内边距让文字与边框间距相同 */
+    -fx-alignment: center;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 1);
 }
 
@@ -806,8 +884,8 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 1px;
     -fx-border-radius: 8px;
-    -fx-padding: 8px 5px 8px 15px;
-    /* 增加左侧内边距向右平移，减少右侧内边距 */
+    -fx-padding: 8px 12px;
+    /* 统一与其它面板左右边距 */
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 2);
 }
 
@@ -817,14 +895,11 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 5px 5px 5px 12px;
-    /* 增加左侧内边距向右平移 */
-    -fx-pref-width: 450px;
-    -fx-max-width: 500px;
-    -fx-min-width: 400px;
-    /* 设置合理的宽度范围 */
-    -fx-pref-height: 200px;
-    /* 增加高度以容纳更大的按钮 */
+    -fx-padding: 8px 10px 8px 12px;
+    -fx-pref-width: 520px;
+    -fx-max-width: 800px;
+    -fx-min-width: 360px;
+    -fx-pref-height: 180px;
 }
 
 /* 比例面板 */
@@ -833,7 +908,7 @@
     -fx-border-color: #dee2e6;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 3px 5px 3px 5px;
+    -fx-padding: 8px 12px;
     /* 大幅减少垂直内边距，让内容更紧凑 */
 }
 
@@ -843,9 +918,9 @@
     -fx-border-color: #2196f3;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 8px;
-    -fx-pref-width: 240px;
-    -fx-max-width: 240px;
+    -fx-padding: 8px 12px;
+    -fx-pref-width: 300px;
+    -fx-max-width: 1000px;
     -fx-min-width: 240px;
     /* 进一步减少重量显示区域宽度 */
     -fx-pref-height: 80px;
@@ -857,11 +932,11 @@
     -fx-border-color: #ff9800;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
-    -fx-padding: 8px;
+    -fx-padding: 6px 10px;
     /* 减少内边距节省空间 */
-    -fx-pref-width: 450px;
-    -fx-max-width: 450px;
-    -fx-min-width: 280px;
+    -fx-pref-width: 520px;
+    -fx-max-width: 1000px;
+    -fx-min-width: 360px;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0, 0, 2);
     /* 减少阴影效果 */
 }
@@ -890,11 +965,16 @@
 }
 
 .ratio-value {
-    -fx-font-size: 18px;
+    -fx-font-size: 24px;
     /* 减小比例数值字体以节省空间 */
     -fx-font-weight: bold;
     -fx-text-fill: #1976D2;
     -fx-background-color: #f5f5f5;
+
+
+
+
+
     -fx-border-color: #ddd;
     -fx-border-width: 1px;
     -fx-border-radius: 4px;
