@@ -77,6 +77,20 @@
             <artifactId>jackson-databind</artifactId>
             <version>2.15.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20210307</version>
+        </dependency>
+        
+        <!-- 身份证读卡器SDK -->
+        <dependency>
+            <groupId>com.bland</groupId>
+            <artifactId>idreader</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/idreader.jar</systemPath>
+        </dependency>
 
         <!-- Excel处理 -->
         <dependency>
