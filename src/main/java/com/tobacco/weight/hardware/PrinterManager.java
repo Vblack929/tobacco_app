@@ -7,6 +7,7 @@ import java.awt.print.PrinterJob;
 import java.awt.print.Printable;
 import java.awt.print.PageFormat;
 import java.awt.print.PrinterException;
+import java.awt.print.Paper;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Font;
@@ -25,6 +26,8 @@ import javax.print.PrintServiceLookup;
 import javax.print.SimpleDoc;
 import javax.print.attribute.DocAttributeSet;
 import javax.print.attribute.HashDocAttributeSet;
+
+import com.tobacco.weight.util.QRCodeGenerator;
 
 /**
  * 打印机管理器
@@ -376,6 +379,176 @@ public class PrinterManager {
     }
 
     /**
+     * 生成标签预览图像
+     * 
+     * @param qrCodeImage 二维码图片
+     * @param labelInfo   标签信息
+     * @return 标签预览图像
+     */
+    public BufferedImage generateLabelPreview(BufferedImage qrCodeImage, LabelInfo labelInfo) {
+        // 目标DPI：热敏打印机常见分辨率 203DPI，提升清晰度
+        final int targetDpi = 203;
+        final double scale = targetDpi / 72.0; // 从点（pt，72DPI）到像素的缩放
+
+        // 70x70mm at 72 DPI = 198x198 points
+        int widthPt = (int) (70 * 72.0 / 25.4);
+        int heightPt = (int) (70 * 72.0 / 25.4);
+
+        // 转成像素尺寸
+        int widthPx = (int) Math.round(widthPt * scale);
+        int heightPx = (int) Math.round(heightPt * scale);
+
+        BufferedImage previewImage = new BufferedImage(widthPx, heightPx, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = previewImage.createGraphics();
+
+        // 背景白色
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(0, 0, widthPx, heightPx);
+
+        // 渲染参数：避免模糊
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+                java.awt.RenderingHints.VALUE_RENDER_SPEED);
+
+        // 将坐标系从点（pt）缩放到像素
+        g2d.scale(scale, scale);
+
+        // 模拟可成像区域（2mm边距，单位：pt）
+        int marginPt = (int) (2 * 72.0 / 25.4);
+        int imageableWidthPt = widthPt - 2 * marginPt;
+        int imageableHeightPt = heightPt - 2 * marginPt;
+
+        // 绘制可成像区域边框（灰色虚线），用于预览
+        g2d.setColor(Color.LIGHT_GRAY);
+        float[] dash = { 2.0f, 2.0f };
+        g2d.setStroke(new java.awt.BasicStroke(1.0f, java.awt.BasicStroke.CAP_BUTT,
+                java.awt.BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f));
+        g2d.drawRect(marginPt, marginPt, imageableWidthPt - 1, imageableHeightPt - 1);
+
+        // 转换到可成像区域坐标系（单位：pt）
+        g2d.translate(marginPt, marginPt);
+
+        // 使用与打印相同的绘制逻辑，但提供高分辨率二维码
+        BufferedImage hiResQR = qrCodeImage;
+        try {
+            int qrSizePt = 55; // 与drawLabelContent中的逻辑保持一致（单位：pt）
+            int qrSizePx = (int) Math.round(qrSizePt * scale);
+            if (labelInfo != null && labelInfo.getContractNumber() != null) {
+                hiResQR = QRCodeGenerator.generateQRCodeForPrint(labelInfo.getContractNumber(), qrSizePx);
+            }
+        } catch (Exception ignore) {
+        }
+        drawLabelContent(g2d, imageableWidthPt, imageableHeightPt, hiResQR, labelInfo);
+
+        // 添加尺寸标注（在图像底部，回到页面坐标）
+        g2d.translate(-marginPt, -marginPt);
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Arial", Font.PLAIN, 10));
+        g2d.drawString(String.format("70x70mm (~%dx%d px @ %dDPI)", widthPx, heightPx, targetDpi), 5, heightPt - 5);
+
+        g2d.dispose();
+        return previewImage;
+    }
+
+    /**
+     * 保存标签预览图像到文件
+     * 
+     * @param qrCodeImage 二维码图片
+     * @param labelInfo   标签信息
+     * @param filePath    保存路径
+     * @return 是否保存成功
+     */
+    public boolean saveLabelPreview(BufferedImage qrCodeImage, LabelInfo labelInfo, String filePath) {
+        try {
+            BufferedImage preview = generateLabelPreview(qrCodeImage, labelInfo);
+            File outputFile = new File(filePath);
+
+            // 确保父目录存在
+            if (!outputFile.getParentFile().exists()) {
+                outputFile.getParentFile().mkdirs();
+            }
+
+            // 保存为PNG格式
+            javax.imageio.ImageIO.write(preview, "PNG", outputFile);
+            logger.info("标签预览已保存到: {}", filePath);
+            return true;
+        } catch (Exception e) {
+            logger.error("保存标签预览失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 绘制标签内容（共享的绘制逻辑）
+     */
+    private void drawLabelContent(Graphics2D g2d, int labelWidth, int labelHeight,
+            BufferedImage qrCodeImage, LabelInfo labelInfo) {
+        // 调试信息
+        logger.debug("绘制区域: {}x{}", labelWidth, labelHeight);
+
+        // 绘制边框（调试用，生产环境请注释掉）
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(0, 0, labelWidth - 1, labelHeight - 1);
+
+        // 统一左侧内边距（与文本对齐）
+        final int leftPadding = 2;
+
+        // 绘制二维码 (上半部分) - 极度紧凑以适应70x70mm，且与文本左对齐
+        if (qrCodeImage != null) {
+            int qrSize = 55; // 极度缩小二维码 (从60->55)
+            int qrX = leftPadding; // 左对齐，与文本同边距
+            int qrY = 1; // 距离顶部1像素
+            g2d.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize, null);
+        }
+
+        // 设置字体 - 极小字体
+        Font font = new Font("SimSun", Font.PLAIN, 5); // 从6->5
+        g2d.setFont(font);
+        g2d.setColor(Color.BLACK);
+
+        // 绘制文本信息 (下半部分) - 极度紧凑布局
+        int textY = 59; // 二维码下方，极度减少间距 (从66->59)
+        int lineHeight = 7; // 极度减少行高 (从8->7)
+
+        // 绘制各个字段，确保不超出底部边界 - 使用更紧凑的格式
+        int bottomMargin = 3; // 底部预留3像素（从5->3）
+
+        if (labelInfo.getLocation() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("地址:" + truncateString(labelInfo.getLocation(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getContractNumber() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("合同:" + truncateString(labelInfo.getContractNumber(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getFarmerName() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("姓名:" + truncateString(labelInfo.getFarmerName(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getPrecheckId() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("预检:" + truncateString(labelInfo.getPrecheckId(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getLeafType() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getInspector() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("检验:" + truncateString(labelInfo.getInspector(), 16), leftPadding, textY);
+        }
+    }
+
+    /**
      * 打印带二维码的70x70mm标签
      * 
      * @param qrCodeImage 二维码图片
@@ -402,62 +575,32 @@ public class PrinterManager {
                     Graphics2D g2d = (Graphics2D) graphics;
                     g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
 
-                    // 70x70mm = 约198x198像素 (72 DPI)
-                    int labelWidth = 198;
-                    int labelHeight = 198;
+                    // 使用实际的可成像区域尺寸
+                    int labelWidth = (int) pageFormat.getImageableWidth();
+                    int labelHeight = (int) pageFormat.getImageableHeight();
 
-                    // 绘制二维码 (上半部分)
-                    if (qrCodeImage != null) {
-                        int qrSize = 80; // 二维码大小
-                        int qrX = (labelWidth - qrSize) / 2; // 居中
-                        int qrY = 5; // 距离顶部5像素
-                        g2d.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize, null);
-                    }
-
-                    // 设置字体
-                    Font font = new Font("SimSun", Font.PLAIN, 8);
-                    g2d.setFont(font);
-                    g2d.setColor(Color.BLACK);
-
-                    // 绘制文本信息 (下半部分)
-                    int textY = 95; // 二维码下方
-                    int lineHeight = 12;
-
-                    // 绘制各个字段
-                    if (labelInfo.getLocation() != null) {
-                        g2d.drawString("地址:" + truncateString(labelInfo.getLocation(), 12), 5, textY);
-                        textY += lineHeight;
-                    }
-
-                    if (labelInfo.getContractNumber() != null) {
-                        g2d.drawString("合同:" + truncateString(labelInfo.getContractNumber(), 12), 5, textY);
-                        textY += lineHeight;
-                    }
-
-                    if (labelInfo.getFarmerName() != null) {
-                        g2d.drawString("姓名:" + truncateString(labelInfo.getFarmerName(), 12), 5, textY);
-                        textY += lineHeight;
-                    }
-
-                    if (labelInfo.getPrecheckId() != null) {
-                        g2d.drawString("预检:" + truncateString(labelInfo.getPrecheckId(), 12), 5, textY);
-                        textY += lineHeight;
-                    }
-
-                    if (labelInfo.getLeafType() != null) {
-                        g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 12), 5, textY);
-                        textY += lineHeight;
-                    }
-
-                    if (labelInfo.getInspector() != null) {
-                        g2d.drawString("检验:" + truncateString(labelInfo.getInspector(), 12), 5, textY);
-                    }
+                    // 使用共享的绘制逻辑
+                    drawLabelContent(g2d, labelWidth, labelHeight, qrCodeImage, labelInfo);
 
                     return PAGE_EXISTS;
                 }
             };
 
-            printerJob.setPrintable(printable);
+            // 设置纸张尺寸
+            PageFormat pageFormat = printerJob.defaultPage();
+            Paper paper = new Paper();
+
+            // 70x70mm转换为点数 (1英寸 = 72点 = 25.4mm)
+            double width = 70 * 72.0 / 25.4; // 约198.4点
+            double height = 70 * 72.0 / 25.4; // 约198.4点
+
+            paper.setSize(width, height);
+            // 设置可成像区域，留出小边距（2mm = 约5.7点）
+            double margin = 2 * 72.0 / 25.4;
+            paper.setImageableArea(margin, margin, width - 2 * margin, height - 2 * margin);
+
+            pageFormat.setPaper(paper);
+            printerJob.setPrintable(printable, pageFormat);
             printerJob.print();
 
             logger.info("标签打印完成");
