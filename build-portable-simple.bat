@@ -31,13 +31,25 @@ if not exist "target\烟叶称重系统-便携版" mkdir "target\烟叶称重系
 copy "target\tobacco-weight-windows-1.0.0.jar" "target\烟叶称重系统-便携版\"
 xcopy "target\lib" "target\烟叶称重系统-便携版\lib\" /E /I /Y
 
+REM 复制身份证读卡器JAR文件
+echo [3.1/4] 复制身份证读卡器依赖...
+copy "lib\idreader.jar" "target\烟叶称重系统-便携版\lib\"
+
+REM 复制配置文件和DLL依赖
+echo [3.2/4] 复制配置文件和DLL依赖...
+xcopy "config" "target\烟叶称重系统-便携版\config\" /E /I /Y
+
+REM 创建数据目录
+echo [3.3/4] 创建数据目录...
+if not exist "target\烟叶称重系统-便携版\data" mkdir "target\烟叶称重系统-便携版\data"
+
 REM 创建启动脚本
 echo [4/4] 创建启动脚本...
 echo @echo off > "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo chcp 65001 >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo echo 正在启动烟叶称重系统... >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo cd /d "%%~dp0" >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
-echo java --module-path "lib\javafx-controls-17.0.2-win.jar;lib\javafx-fxml-17.0.2-win.jar;lib\javafx-graphics-17.0.2-win.jar;lib\javafx-base-17.0.2-win.jar" --add-modules javafx.controls,javafx.fxml,javafx.graphics -Dfile.encoding=UTF-8 -jar tobacco-weight-windows-1.0.0.jar >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
+echo java --module-path "lib\javafx-controls-17.0.2-win.jar;lib\javafx-fxml-17.0.2-win.jar;lib\javafx-graphics-17.0.2-win.jar;lib\javafx-base-17.0.2-win.jar" --add-modules javafx.controls,javafx.fxml,javafx.graphics -cp "tobacco-weight-windows-1.0.0.jar;lib\idreader.jar" -Dfile.encoding=UTF-8 com.tobacco.weight.TobaccoWeightApp >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo if errorlevel 1 ( >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo     echo 程序启动失败！ >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"
 echo     echo 请检查Java版本是否为17或更高版本 >> "target\烟叶称重系统-便携版\启动烟叶称重系统.bat"

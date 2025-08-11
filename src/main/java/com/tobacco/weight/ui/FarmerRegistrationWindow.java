@@ -240,17 +240,17 @@ public class FarmerRegistrationWindow {
         addressCol.setCellValueFactory(new PropertyValueFactory<>("address"));
         addressCol.setPrefWidth(250);
 
-        // 性别列
-        TableColumn<FarmerDisplayInfo, String> genderCol = new TableColumn<>("性别");
-        genderCol.setCellValueFactory(new PropertyValueFactory<>("gender"));
-        genderCol.setPrefWidth(80);
+        // 合同量列（由称重记录累计重量近似展示）
+        TableColumn<FarmerDisplayInfo, String> contractAmountCol = new TableColumn<>("合同量(kg)");
+        contractAmountCol.setCellValueFactory(new PropertyValueFactory<>("contractAmount"));
+        contractAmountCol.setPrefWidth(120);
 
         // 注册状态列
         TableColumn<FarmerDisplayInfo, String> statusCol = new TableColumn<>("状态");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(100);
 
-        farmerTable.getColumns().addAll(nameCol, idCardCol, contractCol, addressCol, genderCol, statusCol);
+        farmerTable.getColumns().addAll(nameCol, idCardCol, contractCol, addressCol, contractAmountCol, statusCol);
 
         // 设置表格列宽策略为自动调整
         farmerTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -284,7 +284,16 @@ public class FarmerRegistrationWindow {
                 Platform.runLater(() -> {
                     allFarmers.clear();
                     allFarmers.addAll(farmers);
-                    updateFarmerTable(farmers);
+                    // 计算每个合同的累计重量作为合同量
+                    java.util.Map<String, Double> amountMap;
+                    try {
+                        amountMap = new com.tobacco.weight.database.WeighingRecordRepository(
+                                DatabaseManager.getInstance())
+                                .getTotalWeightByContractSync();
+                    } catch (Exception ex) {
+                        amountMap = java.util.Collections.emptyMap();
+                    }
+                    updateFarmerTableWithAmount(farmers, amountMap);
                     updateStatus("已加载 " + farmers.size() + " 个农户");
                 });
             }
@@ -306,9 +315,21 @@ public class FarmerRegistrationWindow {
      * 更新农户表格
      */
     private void updateFarmerTable(List<FarmerInfo> farmers) {
+        // 兼容旧调用，默认不带合同量
+        updateFarmerTableWithAmount(farmers, java.util.Collections.emptyMap());
+    }
+
+    private void updateFarmerTableWithAmount(List<FarmerInfo> farmers, java.util.Map<String, Double> amountMap) {
         farmerList.clear();
         for (FarmerInfo farmer : farmers) {
-            farmerList.add(new FarmerDisplayInfo(farmer));
+            FarmerDisplayInfo info = new FarmerDisplayInfo(farmer);
+            Double amt = amountMap != null ? amountMap.get(farmer.getContractNumber()) : null;
+            if (amt != null) {
+                info.setContractAmount(String.format("%.2f", amt));
+            } else {
+                info.setContractAmount("");
+            }
+            farmerList.add(info);
         }
     }
 
@@ -738,6 +759,7 @@ public class FarmerRegistrationWindow {
         private final SimpleStringProperty contractNumber;
         private final SimpleStringProperty address;
         private final SimpleStringProperty gender;
+        private final SimpleStringProperty contractAmount; // 新增：合同量（累计重量）
         private final SimpleStringProperty status;
 
         public FarmerDisplayInfo(FarmerInfo farmerInfo) {
@@ -746,6 +768,8 @@ public class FarmerRegistrationWindow {
             this.contractNumber = new SimpleStringProperty(farmerInfo.getContractNumber());
             this.address = new SimpleStringProperty(farmerInfo.getAddress());
             this.gender = new SimpleStringProperty(farmerInfo.getGender());
+            // 合同量默认空，加载数据后填充
+            this.contractAmount = new SimpleStringProperty("");
             this.status = new SimpleStringProperty("正常"); // 默认状态
         }
 
@@ -768,6 +792,14 @@ public class FarmerRegistrationWindow {
 
         public String getGender() {
             return gender.get();
+        }
+
+        public String getContractAmount() {
+            return contractAmount.get();
+        }
+
+        public void setContractAmount(String value) {
+            this.contractAmount.set(value);
         }
 
         public String getStatus() {
@@ -793,6 +825,10 @@ public class FarmerRegistrationWindow {
 
         public SimpleStringProperty genderProperty() {
             return gender;
+        }
+
+        public SimpleStringProperty contractAmountProperty() {
+            return contractAmount;
         }
 
         public SimpleStringProperty statusProperty() {

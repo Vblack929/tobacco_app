@@ -282,4 +282,23 @@ public class WeighingRecordDao {
         record.setIdCardNumber(rs.getString("id_card_number"));
         return record;
     }
+
+    /**
+     * 统计每个合同号的累计重量（用于在列表中展示“合同量”）
+     * 注意：这里用称重累计重量近似“合同量”，若后续有独立合同量字段，可替换为对应查询
+     */
+    public java.util.Map<String, Double> getTotalWeightByContract() throws SQLException {
+        String sql = "SELECT contract_number, SUM(weight) AS total_weight FROM weighing_records WHERE contract_number IS NOT NULL AND contract_number != '' GROUP BY contract_number";
+        java.util.Map<String, Double> result = new java.util.HashMap<>();
+        try (Connection conn = databaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql);
+                ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String contract = rs.getString("contract_number");
+                double total = rs.getDouble("total_weight");
+                result.put(contract, total);
+            }
+        }
+        return result;
+    }
 }
