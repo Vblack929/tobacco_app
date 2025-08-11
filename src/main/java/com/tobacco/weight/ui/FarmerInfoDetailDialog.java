@@ -347,7 +347,7 @@ public class FarmerInfoDetailDialog extends Stage {
 
             // 创建标签内容区域
             VBox labelContent = new VBox(5);
-            labelContent.setAlignment(Pos.CENTER);
+            labelContent.setAlignment(Pos.TOP_LEFT);
             labelContent.setStyle(
                     "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
 
@@ -399,11 +399,17 @@ public class FarmerInfoDetailDialog extends Stage {
                 showQRCodeTest(record);
             });
 
+            Button saveButton = new Button("保存预览");
+            saveButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            saveButton.setOnAction(e -> {
+                saveRecordPreview(record);
+            });
+
             Button closeButton = new Button("关闭");
             closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
             closeButton.setOnAction(e -> previewStage.close());
 
-            buttonBox.getChildren().addAll(printButton, testQRButton, closeButton);
+            buttonBox.getChildren().addAll(printButton, saveButton, closeButton);
 
             // 组装完整布局
             mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
@@ -673,6 +679,72 @@ public class FarmerInfoDetailDialog extends Stage {
         } catch (Exception e) {
             logger.error("显示二维码测试失败", e);
             showAlert("测试失败", "无法显示二维码测试: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 保存标签预览为图片文件
+     */
+    private void saveRecordPreview(WeighingRecord record) {
+        try {
+            String contractNum = record.getContractNumber() != null ? record.getContractNumber() : "N/A";
+            String farmerName = record.getFarmerName() != null ? record.getFarmerName() : "N/A";
+            String precheckId = record.getPrecheckId() != null ? record.getPrecheckId() : "N/A";
+            String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
+            String inspector = record.getOperator() != null ? record.getOperator() : "系统";
+
+            // 从地址中提取乡镇村信息
+            String locationInfo = "待完善";
+            if (currentFarmerInfo != null && currentFarmerInfo.getAddress() != null
+                    && !currentFarmerInfo.getAddress().isEmpty()) {
+                try {
+                    LocationData.LocationInfo location = LocationData.parseAddress(currentFarmerInfo.getAddress());
+                    if (location.hasValidTownship() && location.hasValidVillage()) {
+                        locationInfo = location.getTownship() + location.getVillage();
+                    } else if (location.hasValidTownship()) {
+                        locationInfo = location.getTownship();
+                    } else if (location.hasValidVillage()) {
+                        locationInfo = location.getVillage();
+                    } else {
+                        locationInfo = "解析失败";
+                    }
+                } catch (Exception e) {
+                    locationInfo = "解析错误";
+                }
+            }
+
+            // 生成用于打印的二维码图
+            java.awt.image.BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
+
+            // 标签信息
+            PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
+                    locationInfo, contractNum, farmerName, precheckId, leafType, inspector);
+
+            // 选择保存位置
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("保存标签预览");
+            fileChooser.setInitialFileName("标签预览_" + precheckId + "_" + System.currentTimeMillis() + ".png");
+            fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("PNG图片", "*.png"));
+
+            String userHome = System.getProperty("user.home");
+            java.io.File desktop = new java.io.File(userHome, "Desktop");
+            if (desktop.exists()) {
+                fileChooser.setInitialDirectory(desktop);
+            }
+
+            java.io.File selectedFile = fileChooser.showSaveDialog(this);
+            if (selectedFile != null) {
+                boolean success = printerManager.saveLabelPreview(qrCodeImage, labelInfo,
+                        selectedFile.getAbsolutePath());
+                if (success) {
+                    showSuccessAlert("保存成功",
+                            "标签预览已保存到:\n" + selectedFile.getAbsolutePath() + "\n\n尺寸: 70x70mm (198x198像素)");
+                } else {
+                    showAlert("保存失败", "无法保存标签预览");
+                }
+            }
+        } catch (Exception e) {
+            showAlert("保存失败", "保存标签预览失败: " + e.getMessage());
         }
     }
 }
