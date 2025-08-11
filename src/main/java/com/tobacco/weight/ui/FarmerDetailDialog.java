@@ -126,7 +126,7 @@ public class FarmerDetailDialog extends Stage {
 
             // 创建标签内容区域
             VBox labelContent = new VBox(5);
-            labelContent.setAlignment(Pos.CENTER);
+            labelContent.setAlignment(Pos.TOP_LEFT);
             labelContent.setStyle(
                     "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
 
@@ -178,11 +178,17 @@ public class FarmerDetailDialog extends Stage {
                 showQRCodeTest(record);
             });
 
+            Button saveButton = new Button("保存预览");
+            saveButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            saveButton.setOnAction(e -> {
+                saveLabelPreview(record);
+            });
+
             Button closeButton = new Button("关闭");
             closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
             closeButton.setOnAction(e -> previewStage.close());
 
-            buttonBox.getChildren().addAll(printButton, testQRButton, closeButton);
+            buttonBox.getChildren().addAll(printButton, saveButton, closeButton);
 
             // 组装完整布局
             mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
@@ -224,6 +230,83 @@ public class FarmerDetailDialog extends Stage {
             errorAlert.setHeaderText("打印过程中发生错误");
             errorAlert.setContentText("错误信息: " + e.getMessage());
             errorAlert.showAndWait();
+        }
+    }
+
+    /**
+     * 保存标签预览为图片文件
+     */
+    private void saveLabelPreview(WeighingRecord record) {
+        try {
+            // 获取基本信息
+            String contractNum = record.getContractNumber() != null ? record.getContractNumber() : "N/A";
+            String farmerName = record.getFarmerName() != null ? record.getFarmerName() : "N/A";
+            String precheckId = record.getPrecheckId() != null ? record.getPrecheckId() : "N/A";
+            String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
+            String inspector = record.getOperator() != null ? record.getOperator() : "系统";
+            String locationInfo = "默认地址";
+
+            // 生成二维码图片
+            java.awt.image.BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
+
+            // 创建标签信息
+            com.tobacco.weight.hardware.PrinterManager.LabelInfo labelInfo = new com.tobacco.weight.hardware.PrinterManager.LabelInfo(
+                    locationInfo, contractNum, farmerName, precheckId, leafType, inspector);
+
+            // 创建文件选择对话框
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("保存标签预览");
+            fileChooser.setInitialFileName("标签预览_" + precheckId + "_" + System.currentTimeMillis() + ".png");
+            fileChooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter("PNG图片", "*.png"));
+
+            // 设置初始目录为桌面
+            String userHome = System.getProperty("user.home");
+            java.io.File desktop = new java.io.File(userHome, "Desktop");
+            if (desktop.exists()) {
+                fileChooser.setInitialDirectory(desktop);
+            }
+
+            java.io.File selectedFile = fileChooser.showSaveDialog(this);
+            if (selectedFile != null) {
+                // 获取PrinterManager实例 - 需要从MainController获取
+                boolean success = saveLabelPreviewToFile(qrCodeImage, labelInfo, selectedFile.getAbsolutePath());
+                if (success) {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("保存成功");
+                    alert.setHeaderText("标签预览已保存");
+                    alert.setContentText(
+                            "标签预览已保存到:\n" + selectedFile.getAbsolutePath() + "\n\n尺寸: 70x70mm (198x198像素)");
+                    alert.showAndWait();
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("保存失败");
+                    alert.setHeaderText("无法保存标签预览");
+                    alert.showAndWait();
+                }
+            }
+
+        } catch (Exception e) {
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle("保存失败");
+            errorAlert.setHeaderText("保存标签预览失败");
+            errorAlert.setContentText("错误信息: " + e.getMessage());
+            errorAlert.showAndWait();
+        }
+    }
+
+    /**
+     * 保存标签预览到文件的实际实现
+     */
+    private boolean saveLabelPreviewToFile(java.awt.image.BufferedImage qrCodeImage,
+            com.tobacco.weight.hardware.PrinterManager.LabelInfo labelInfo, String filePath) {
+        try {
+            // 创建PrinterManager实例并保存
+            com.tobacco.weight.hardware.PrinterManager printerManager = new com.tobacco.weight.hardware.PrinterManager();
+            return printerManager.saveLabelPreview(qrCodeImage, labelInfo, filePath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

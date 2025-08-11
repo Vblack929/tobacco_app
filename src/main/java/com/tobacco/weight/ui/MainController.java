@@ -1606,7 +1606,7 @@ public class MainController implements Initializable {
 
             // 创建标签内容区域
             javafx.scene.layout.VBox labelContent = new javafx.scene.layout.VBox(5);
-            labelContent.setAlignment(javafx.geometry.Pos.CENTER);
+            labelContent.setAlignment(javafx.geometry.Pos.TOP_LEFT);
             labelContent.setStyle(
                     "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
 
@@ -1664,11 +1664,17 @@ public class MainController implements Initializable {
                 showQRCodeTest(contractNumber);
             });
 
+            javafx.scene.control.Button saveButton = new javafx.scene.control.Button("保存预览");
+            saveButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
+            saveButton.setOnAction(e -> {
+                saveLabelPreview(farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
+            });
+
             javafx.scene.control.Button closeButton = new javafx.scene.control.Button("关闭");
             closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
             closeButton.setOnAction(e -> previewStage.close());
 
-            buttonBox.getChildren().addAll(printButton, testQRButton, closeButton);
+            buttonBox.getChildren().addAll(printButton, saveButton, closeButton);
 
             // 组装完整布局
             mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
@@ -1936,6 +1942,59 @@ public class MainController implements Initializable {
         } catch (Exception e) {
             logger.error("显示二维码测试失败", e);
             showError("测试失败", "无法显示二维码测试: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 保存标签预览为图片文件
+     */
+    private void saveLabelPreview(String farmerName, String contractNumber, String leafType,
+            double weight, String operator, int bundleCount, String precheckId) {
+        try {
+            // 获取基本信息
+            String safeContract = contractNumber != null ? contractNumber : "N/A";
+            String safeFarmerName = farmerName != null ? farmerName : "N/A";
+            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safeLeafType = leafType != null ? leafType : "N/A";
+            String safeInspector = operator != null ? operator : "系统";
+            String locationInfo = "实时录入";
+
+            // 生成二维码图片
+            BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(safeContract, 80);
+
+            // 创建标签信息
+            PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
+                    locationInfo, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector);
+
+            // 创建文件选择对话框
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("保存标签预览");
+            fileChooser.setInitialFileName("标签预览_" + safePrecheck + "_" + System.currentTimeMillis() + ".png");
+            fileChooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter("PNG图片", "*.png"));
+
+            // 设置初始目录为桌面
+            String userHome = System.getProperty("user.home");
+            File desktop = new File(userHome, "Desktop");
+            if (desktop.exists()) {
+                fileChooser.setInitialDirectory(desktop);
+            }
+
+            File selectedFile = fileChooser.showSaveDialog(primaryStage);
+            if (selectedFile != null) {
+                boolean success = printerManager.saveLabelPreview(qrCodeImage, labelInfo,
+                        selectedFile.getAbsolutePath());
+                if (success) {
+                    updateStatus("标签预览已保存到: " + selectedFile.getName());
+                    showInfo("保存成功", "标签预览已保存到:\n" + selectedFile.getAbsolutePath() + "\n\n尺寸: 70x70mm (198x198像素)");
+                } else {
+                    showError("保存失败", "无法保存标签预览");
+                }
+            }
+
+        } catch (Exception e) {
+            logger.error("保存标签预览失败", e);
+            showError("保存失败", "保存标签预览失败: " + e.getMessage());
         }
     }
 
