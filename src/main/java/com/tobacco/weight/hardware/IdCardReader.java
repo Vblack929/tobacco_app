@@ -52,7 +52,6 @@ public class IdCardReader {
     private Integer lastReturnCode = null;       // SDK返回码或解析的ret字段
     private String lastJsonSnippet = "";        // 最近一次返回的JSON片段（截断）
     private String lastExceptionMessage = "";   // 最近一次异常信息
-    private boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
     
     // 回调接口
     private Consumer<Boolean> onConnectionStatusChanged;
@@ -97,14 +96,6 @@ public class IdCardReader {
                 return;
             }
             
-            // 步骤3: 验证驱动程序 (checkDriver方法)
-            logger.info("步骤3: 验证驱动程序状态...");
-            if (!checkDriver()) {
-                setError(ERROR_DRIVER_NOT_INSTALLED, "checkDriver()方法失败 - 身份证读卡器驱动程序状态异常");
-                logger.error("初始化失败: checkDriver()方法返回false");
-                return;
-            }
-            
             // 初始化成功
             deviceName = "身份证读卡器 v2.1";
             isConnected = true;
@@ -129,32 +120,37 @@ public class IdCardReader {
             logger.info("正在检测身份证读卡器硬件...");
             lastPhase = "DetectSAM";
             lastApi = "getsam";
-            // 尝试获取SAM信息来验证设备存在
-            String result = reader.WebSocketAPI("{\"module\":\"idcard\",\"msgid\":\"0\",\"function\":\"getsam\"}");
-            JSONObject jsondata = new JSONObject(result);
-            lastJsonSnippet = truncateJson(result);
             
-            if (jsondata.has("errorMsg")) {
-                String errorMsg = jsondata.getString("errorMsg");
-                logger.error("设备检测失败: {}", errorMsg);
-                setError(ERROR_DEVICE_NOT_FOUND, "设备检测失败: " + errorMsg);
-                connectionAttempts.add("getsam 失败: " + errorMsg);
-                return false;
-            }
-            
-            if (jsondata.has("data")) {
-                JSONObject data = jsondata.getJSONObject("data");
-                if (data.has("samid")) {
-                    String samId = data.getString("samid");
-                    logger.info("检测到身份证读卡器设备, SAM ID: {}", samId);
-                    connectionAttempts.add("getsam 成功, SAM ID=" + samId);
-                    return true;
+            // 尝试多次检测设备，参考厂商demo的实现
+            int maxAttempts = 10;
+            for (int i = 0; i < maxAttempts; i++) {
+                try {
+                    String result = reader.WebSocketAPI("{\"module\":\"idcard\",\"msgid\":\"0\",\"function\":\"getsam\"}");
+                    JSONObject jsondata = new JSONObject(result);
+                    lastJsonSnippet = truncateJson(result);
+                    
+                    if (!jsondata.has("errorMsg") && jsondata.has("data")) {
+                        JSONObject data = jsondata.getJSONObject("data");
+                        if (data.has("samid")) {
+                            String samId = data.getString("samid");
+                            logger.info("检测到身份证读卡器设备, SAM ID: {}", samId);
+                            connectionAttempts.add("getsam 成功, SAM ID=" + samId);
+                            return true;
+                        }
+                    }
+                    
+                    if (i < maxAttempts - 1) {
+                        Thread.sleep(100);
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
             
             logger.warn("未检测到有效的身份证读卡器设备");
             setError(ERROR_DEVICE_NOT_FOUND, "未检测到有效的身份证读卡器设备");
-            connectionAttempts.add("getsam 异常: 未检测到有效设备");
+            connectionAttempts.add("getsam 失败: 多次尝试后仍未检测到设备");
             return false;
             
         } catch (Exception e) {
@@ -166,50 +162,7 @@ public class IdCardReader {
         }
     }
 
-    /**
-     * 检查驱动程序状态
-     * 通过再次验证SAM状态来确认驱动程序工作正常
-     */
-    private boolean checkDriver() {
-        try {
-            logger.info("正在验证身份证读卡器驱动程序状态...");
-            lastPhase = "CheckDriver";
-            lastApi = "getsam";
-            // 再次尝试SAM通信以验证驱动程序工作状态
-            String result = reader.WebSocketAPI("{\"module\":\"idcard\",\"msgid\":\"0\",\"function\":\"getsam\"}");
-            JSONObject jsondata = new JSONObject(result);
-            lastJsonSnippet = truncateJson(result);
-            
-            if (jsondata.has("errorMsg")) {
-                String errorMsg = jsondata.getString("errorMsg");
-                logger.error("驱动程序检查失败: {}", errorMsg);
-                setError(ERROR_DRIVER_NOT_INSTALLED, "驱动程序检查失败: " + errorMsg);
-                connectionAttempts.add("驱动检查失败: " + errorMsg);
-                return false;
-            }
-            
-            if (jsondata.has("data")) {
-                JSONObject data = jsondata.getJSONObject("data");
-                if (data.has("samid")) {
-                    logger.info("身份证读卡器驱动程序状态正常");
-                    connectionAttempts.add("驱动状态正常");
-                    return true;
-                }
-            }
-            
-            logger.warn("驱动程序状态异常");
-            setError(ERROR_DRIVER_NOT_INSTALLED, "驱动程序状态异常");
-            connectionAttempts.add("驱动状态异常: 无samid");
-            return false;
-            
-        } catch (Exception e) {
-            logger.error("checkDriver()异常", e);
-            setError(ERROR_DRIVER_NOT_INSTALLED, "checkDriver()方法异常: " + e.getMessage());
-            lastExceptionMessage = e.getMessage();
-            connectionAttempts.add("驱动检查异常: " + e.getMessage());
-            return false;
-        }
-    }
+
 
     /**
      * 尝试建立连接
@@ -218,15 +171,8 @@ public class IdCardReader {
     private boolean attemptConnection() {
         try {
             logger.info("正在初始化身份证读卡器SDK...");
-            // 在非Windows平台上，SDK可能不可用，避免崩溃并返回失败以便应用继续运行
-            String osName = System.getProperty("os.name", "").toLowerCase();
-            if (!osName.contains("win")) {
-                logger.warn("当前操作系统为'{}'，身份证SDK可能不支持该平台，跳过SDK初始化", osName);
-                connectionAttempts.add("跳过SDK初始化: 非Windows平台 " + osName);
-                return false;
-            }
             
-            // 初始化IDReader SDK
+            // 初始化IDReader SDK (使用厂商的Init方法)
             lastPhase = "Init";
             int result = reader.Init(CONFIG_PATH);
             lastReturnCode = result;
@@ -327,7 +273,7 @@ public class IdCardReader {
             JSONObject jsondata = new JSONObject(jsonResult);
             
             // 检查是否是读卡消息
-            if (!jsondata.getString("function").equals("readcard")) {
+            if (jsondata.has("function") && !jsondata.getString("function").equals("readcard")) {
                 logger.warn("非读卡消息，跳过解析");
                 return null;
             }
@@ -359,15 +305,23 @@ public class IdCardReader {
             
             JSONObject content = jsondata.getJSONObject("data");
             
+            // 检查证件类型（居民身份证、外国人永久居留证、港澳台居住证）
+            String type = content.optString("type", " ");
+            if (!type.equals(" ")) {
+                logger.info("证件类型: {}", type.equals("I") ? "外国人永久居留证" : 
+                                          type.equals("J") ? "港澳台居住证" : "未知");
+            }
+            
             // 解析身份证基本信息
             String name = content.getString("name");
             String idNumber = content.getString("number");
-            String gender = content.getInt("gender") == 1 ? "男" : "女";
-            String nationality = getRaceName(content.getString("race"));
+            String gender = content.getInt("gender") == 1 ? "男" : 
+                           content.getInt("gender") == 2 ? "女" : "未知";
+            String nationality = type.equals(" ") ? getRaceName(content.getString("race")) : "其他";
             String birthDate = content.getString("birthday");
-            String address = content.getString("address");
+            String address = type.equals("I") ? "" : content.getString("address"); // 外国人永久居留证无住址
             String issuer = content.getString("issuer");
-            String validStart = content.getString("valied");
+            String validStart = content.getString("valid"); // 注意：厂商拼写为"valied"而非"valid"
             String validEnd = content.getString("expire");
             
             // 解析照片
@@ -384,7 +338,7 @@ public class IdCardReader {
             String contractNumber = generateContractNumber(name);
             
             logger.info("成功解析身份证: {} ({})", name, 
-                    idNumber.substring(0, 6) + "****" + idNumber.substring(14));
+                    idNumber.length() > 14 ? idNumber.substring(0, 6) + "****" + idNumber.substring(14) : idNumber);
             
             return FarmerInfo.createWithIdCard(name, contractNumber, idNumber,
                     gender, nationality, birthDate, address,
@@ -401,18 +355,30 @@ public class IdCardReader {
      * 将民族代码转换为民族名称
      */
     private String getRaceName(String raceCode) {
-        // 常见民族代码映射
-        switch (raceCode) {
-            case "01": return "汉族";
-            case "02": return "蒙古族";
-            case "03": return "回族";
-            case "04": return "藏族";
-            case "05": return "维吾尔族";
-            case "06": return "苗族";
-            case "07": return "彝族";
-            case "08": return "壮族";
-            default: return "其他";
+        // 完整的民族代码映射表
+        String[][] raceTable = {
+            {"01", "汉族"}, {"02", "蒙古族"}, {"03", "回族"}, {"04", "藏族"},
+            {"05", "维吾尔族"}, {"06", "苗族"}, {"07", "彝族"}, {"08", "壮族"},
+            {"09", "布依族"}, {"10", "朝鲜族"}, {"11", "满族"}, {"12", "侗族"},
+            {"13", "瑶族"}, {"14", "白族"}, {"15", "土家族"}, {"16", "哈尼族"},
+            {"17", "哈萨克族"}, {"18", "傣族"}, {"19", "黎族"}, {"20", "傈僳族"},
+            {"21", "佤族"}, {"22", "畲族"}, {"23", "高山族"}, {"24", "拉祜族"},
+            {"25", "水族"}, {"26", "东乡族"}, {"27", "纳西族"}, {"28", "景颇族"},
+            {"29", "柯尔克孜族"}, {"30", "土族"}, {"31", "达斡尔族"}, {"32", "仫佬族"},
+            {"33", "羌族"}, {"34", "布朗族"}, {"35", "撒拉族"}, {"36", "毛南族"},
+            {"37", "仡佬族"}, {"38", "锡伯族"}, {"39", "阿昌族"}, {"40", "普米族"},
+            {"41", "塔吉克族"}, {"42", "怒族"}, {"43", "乌孜别克族"}, {"44", "俄罗斯族"},
+            {"45", "鄂温克族"}, {"46", "德昂族"}, {"47", "保安族"}, {"48", "裕固族"},
+            {"49", "京族"}, {"50", "塔塔尔族"}, {"51", "独龙族"}, {"52", "鄂伦春族"},
+            {"53", "赫哲族"}, {"54", "门巴族"}, {"55", "珞巴族"}, {"56", "基诺族"}
+        };
+        
+        for (String[] race : raceTable) {
+            if (race[0].equals(raceCode)) {
+                return race[1];
+            }
         }
+        return "其他";
     }
     
     /**
@@ -511,27 +477,28 @@ public class IdCardReader {
      */
     public void disconnect() {
         try {
-            if (reader != null) {
-                // 在非Windows平台或未加载本机库时，避免调用原生API
-                if (isWindows) {
-                    try {
-                        reader.ServiceStop();
+            if (reader != null && isConnected) {
+                try {
+                    // 使用厂商的ServiceStop方法停止服务
+                    int result = IDReader.ServiceStop();
+                    if (result < 0) {
+                        logger.warn("ServiceStop返回错误码: {}", result);
+                    } else {
                         logger.info("IDReader SDK服务已停止");
-                    } catch (Throwable nativeErr) {
-                        // 捕获 UnsatisfiedLinkError 等所有原生级错误，避免线程崩溃
-                        logger.warn("停止SDK服务时出现原生异常: {}", nativeErr.getMessage());
-                        lastExceptionMessage = nativeErr.getMessage();
-                        connectionAttempts.add("ServiceStop 异常: " + nativeErr.getMessage());
                     }
-                } else {
-                    logger.info("非Windows平台，不调用ServiceStop()");
+                } catch (Throwable nativeErr) {
+                    // 捕获 UnsatisfiedLinkError 等所有原生级错误
+                    logger.warn("停止SDK服务时出现异常: {}", nativeErr.getMessage());
+                    lastExceptionMessage = nativeErr.getMessage();
+                    connectionAttempts.add("ServiceStop 异常: " + nativeErr.getMessage());
                 }
             }
         } catch (Throwable e) {
-            logger.warn("停止SDK服务时出现异常: {}", e.getMessage());
+            logger.warn("disconnect()异常: {}", e.getMessage());
         }
         
         isConnected = false;
+        deviceName = "";
         logger.info("身份证读卡器连接已断开");
 
         // 通知连接状态变化
@@ -649,8 +616,9 @@ public class IdCardReader {
                 sb.append("  • ").append(connectionAttempts.get(i)).append('\n');
             }
         }
-        if (!isWindows) {
-            sb.append("- 提示: 当前为非Windows平台，SDK初始化已被跳过。请在Windows上配套驱动与DLL测试\n");
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        if (!osName.contains("win")) {
+            sb.append("- 提示: 当前为非Windows平台，SDK可能不完全支持。请在Windows上配套驱动与DLL测试\n");
         }
         return sb.toString();
     }
