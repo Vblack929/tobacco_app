@@ -19,6 +19,7 @@ public class WeighingRecord {
     private String status; // 状态
     private String idCardNumber; // 身份证号
     private int bundleCount; // 捆数
+    private String address; // 地址
 
     public WeighingRecord() {
         this.timestamp = new Date();
@@ -132,6 +133,14 @@ public class WeighingRecord {
         this.bundleCount = bundleCount;
     }
 
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
     @Override
     public String toString() {
         return "WeighingRecord{" +
@@ -144,6 +153,9 @@ public class WeighingRecord {
                 ", operator='" + operator + '\'' +
                 ", warehouseNumber='" + warehouseNumber + '\'' +
                 ", status='" + status + '\'' +
+                ", idCardNumber='" + idCardNumber + '\'' +
+                ", bundleCount=" + bundleCount +
+                ", address='" + address + '\'' +
                 '}';
     }
 }
