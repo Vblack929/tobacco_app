@@ -518,13 +518,13 @@ public class PrinterManager {
         // 绘制各个字段，确保不超出底部边界 - 使用更紧凑的格式
         int bottomMargin = 3; // 底部预留3像素（从5->3）
 
-        if (labelInfo.getLocation() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("地址:" + truncateString(labelInfo.getLocation(), 16), leftPadding, textY);
+        if (labelInfo.getAddress() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("地址:" + truncateString(labelInfo.getAddress(), 16), leftPadding, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getContractNumber() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("合同:" + truncateString(labelInfo.getContractNumber(), 16), leftPadding, textY);
+        if (labelInfo.getIdCardNumber() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("身份证:" + truncateString(labelInfo.getIdCardNumber(), 16), leftPadding, textY);
             textY += lineHeight;
         }
 
@@ -540,6 +540,11 @@ public class PrinterManager {
 
         if (labelInfo.getLeafType() != null && textY + lineHeight <= labelHeight - bottomMargin) {
             g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getDate() != null && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("日期:" + truncateString(labelInfo.getDate(), 16), leftPadding, textY);
             textY += lineHeight;
         }
 
@@ -627,26 +632,34 @@ public class PrinterManager {
      * 标签信息类
      */
     public static class LabelInfo {
-        private String location;
+        private String address;
+        private String idCardNumber;
         private String contractNumber;
         private String farmerName;
         private String precheckId;
         private String leafType;
         private String inspector;
+        private String date;
 
-        public LabelInfo(String location, String contractNumber, String farmerName,
-                String precheckId, String leafType, String inspector) {
-            this.location = location;
+        public LabelInfo(String address, String idCardNumber, String contractNumber, String farmerName,
+                String precheckId, String leafType, String inspector, String date) {
+            this.address = address;
+            this.idCardNumber = idCardNumber;
             this.contractNumber = contractNumber;
             this.farmerName = farmerName;
             this.precheckId = precheckId;
             this.leafType = leafType;
             this.inspector = inspector;
+            this.date = date;
         }
 
         // Getters
-        public String getLocation() {
-            return location;
+        public String getAddress() {
+            return address;
+        }
+
+        public String getIdCardNumber() {
+            return idCardNumber;
         }
 
         public String getContractNumber() {
@@ -667,6 +680,10 @@ public class PrinterManager {
 
         public String getInspector() {
             return inspector;
+        }
+
+        public String getDate() {
+            return date;
         }
     }
 }

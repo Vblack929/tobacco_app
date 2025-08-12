@@ -86,6 +86,9 @@ public class MainController implements Initializable {
     @FXML
     private TextField contractNumberField;
     @FXML
+    private TextField idCardNumberField;
+
+    @FXML
     private Label currentWeightLabel;
     @FXML
     private Button upperLeafButton;
@@ -98,13 +101,13 @@ public class MainController implements Initializable {
     @FXML
     private Button readIdCardButton;
     @FXML
-    private TextField idCardNumberField;
-    @FXML
     private Label idCardStatusIcon;
     @FXML
     private TextField bundleCountField;
 
     // UI组件 - 统计区域
+    @FXML
+    private TextField contractAmountField;
     @FXML
     private TextField precheckRatioField;
     @FXML
@@ -113,10 +116,6 @@ public class MainController implements Initializable {
     private TextField middleRatioField;
     @FXML
     private TextField lowerRatioField;
-    @FXML
-    private Label precheckIdLabel;
-    @FXML
-    private Label precheckDateLabel;
 
     // UI组件 - 管理区域
     @FXML
@@ -124,7 +123,7 @@ public class MainController implements Initializable {
     @FXML
     private Button adminLoginButton;
     @FXML
-    private VBox adminStatusContainer;
+    private HBox adminStatusContainer;
     @FXML
     private Label adminStatusLabel;
     @FXML
@@ -161,14 +160,26 @@ public class MainController implements Initializable {
     @FXML
     private Button farmerRegistrationButton;
 
+    // 标签预览区域
+    @FXML
+    private VBox labelPreviewArea;
+
+    @FXML
+    private ImageView qrCodeImageView;
+
+    @FXML
+    private VBox labelInfoContainer;
+
     // 数字键盘按钮
     @FXML
     private Button key0, key1, key2, key3, key4, key5, key6, key7, key8, key9;
     @FXML
     private Button keyClear, keyBack;
 
-    private int precheckCounter = 100000000;
     private HardwareDiagnosticsWindow diagnosticsWindow;
+
+    // 定时器用于刷新重量显示
+    private java.util.Timer weightRefreshTimer;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -209,14 +220,23 @@ public class MainController implements Initializable {
         logger.info("主界面控制器初始化完成");
 
         // 定时刷新重量显示
-        java.util.Timer timer = new java.util.Timer(true);
-        timer.scheduleAtFixedRate(new java.util.TimerTask() {
+        weightRefreshTimer = new java.util.Timer(true);
+        weightRefreshTimer.scheduleAtFixedRate(new java.util.TimerTask() {
             @Override
             public void run() {
-                double weight = scaleManager.getCurrentWeight();
-                Platform.runLater(() -> currentWeightLabel.setText(String.format("%.2f kg", weight)));
+                if (scaleManager != null) {
+                    double weight = scaleManager.getCurrentWeight();
+                    Platform.runLater(() -> {
+                        if (currentWeightLabel != null) {
+                            currentWeightLabel.setText(String.format("%.2f kg", weight));
+                        }
+                    });
+                }
             }
         }, 0, 1000); // 每秒刷新一次
+
+        // 初始化封签预览区域
+        updateLabelPreview();
     }
 
     /**
@@ -226,26 +246,49 @@ public class MainController implements Initializable {
         try {
             scaleManager = new ScaleManager();
             printerManager = new PrinterManager();
-            idCardReader = new IdCardReader();
 
-            // 设置硬件状态监听器
+            // 身份证读卡器初始化 - 单独处理可能的native库加载错误
+            try {
+                idCardReader = new IdCardReader();
+
+                // 设置身份证读卡器监听器
+                idCardReader.setOnIdCardRead(this::handleIdCardRead);
+                idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
+                idCardReader.setOnErrorOccurred(this::handleIdCardError);
+
+                // 检查连接状态 - 在注册回调后调用
+                idCardReader.checkConnectionStatus();
+
+                // 如果初始化期间已发生错误（构造函数先于回调设置执行），此处补发一次详细错误
+                if (!idCardReader.isConnected()) {
+                    String detailed = idCardReader.getDetailedErrorMessage();
+                    if (detailed != null && !detailed.trim().isEmpty()) {
+                        handleIdCardError(detailed);
+                    }
+                }
+
+                logger.info("身份证读卡器初始化成功");
+
+            } catch (UnsatisfiedLinkError | Exception idCardEx) {
+                logger.warn("身份证读卡器初始化失败，应用将在无身份证读取功能下运行: {}", idCardEx.getMessage());
+                idCardReader = null;
+
+                // 更新UI状态为不可用
+                Platform.runLater(() -> {
+                    if (idCardStatusIcon != null) {
+                        idCardStatusIcon.setText("●");
+                        idCardStatusIcon.setStyle("-fx-text-fill: #ff4444;");
+                    }
+                    if (readIdCardButton != null) {
+                        readIdCardButton.setDisable(true);
+                        readIdCardButton.setText("身份证功能不可用");
+                    }
+                });
+            }
+
+            // 设置其他硬件状态监听器
             scaleManager.setOnWeightChanged(this::updateCurrentWeight);
             scaleManager.setOnConnectionStatusChanged(this::updateScaleStatus);
-
-            idCardReader.setOnIdCardRead(this::handleIdCardRead);
-            idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
-            idCardReader.setOnErrorOccurred(this::handleIdCardError);
-
-            // 检查连接状态 - 在注册回调后调用
-            idCardReader.checkConnectionStatus();
-
-            // 如果初始化期间已发生错误（构造函数先于回调设置执行），此处补发一次详细错误
-            if (!idCardReader.isConnected()) {
-                String detailed = idCardReader.getDetailedErrorMessage();
-                if (detailed != null && !detailed.trim().isEmpty()) {
-                    handleIdCardError(detailed);
-                }
-            }
 
             logger.info("硬件管理器初始化完成");
 
@@ -307,7 +350,8 @@ public class MainController implements Initializable {
         upperRatioField.setText("0.0%");
         middleRatioField.setText("0.0%");
         lowerRatioField.setText("0.0%");
-        bundleCountField.setText("1");
+        // 置空捆数，避免默认填入1
+        bundleCountField.clear();
 
         // 设置按钮状态
         confirmButton.setDisable(true);
@@ -323,13 +367,9 @@ public class MainController implements Initializable {
         statusLabel.setText("系统就绪");
         progressBar.setVisible(false);
 
-        // 设置预检编号和日期
-        precheckCounter = 100000000;
-        precheckIdLabel.setText(String.format("YJ%09d", precheckCounter));
-
-        // 设置当天日期
-        java.time.LocalDate today = java.time.LocalDate.now();
-        precheckDateLabel.setText(today.toString());
+        // 设置预检编号（不再显示在UI上）
+        // 废弃本地计数器，改用数据库的系统级序列
+        // private int precheckCounter = -1;
     }
 
     /**
@@ -384,6 +424,9 @@ public class MainController implements Initializable {
         operationTipLabel.getStyleClass().removeAll("error", "success");
         operationTipLabel.getStyleClass().add("success");
         logger.info("选择部叶类型: {}", leafType);
+
+        // 更新封签预览的文本字段（不更新二维码）
+        updatePreviewLabelsOnly();
     }
 
     /**
@@ -453,15 +496,28 @@ public class MainController implements Initializable {
                 return;
             }
 
+            // 地址字段已删除，使用默认值
+            String address = "待完善";
+
             System.out.println("称重信息: " + farmerName + ", " + idCardNumber + ", " + leafType + ", " + weight + "kg");
 
-            // 生成新的预检编号（自增+1）
-            String newPrecheckId = String.format("YJ%09d", ++precheckCounter);
-            precheckIdLabel.setText(newPrecheckId);
+            // 生成新的预检编号：身份证后6位+合同号后6位+当前第几次称重（五位数）
+            String idCardLast6 = idCardNumber.length() >= 6 ? idCardNumber.substring(idCardNumber.length() - 6)
+                    : String.format("%06d", 0);
+            String contractLast6 = contractNumber.length() >= 6 ? contractNumber.substring(contractNumber.length() - 6)
+                    : String.format("%06d", 0);
+
+            // 使用系统级全局序列（00001-99999）
+            int seq = databaseManager.getAndIncrementPrecheckSeq();
+            String weighingCountStr = String.format("%05d", seq);
+
+            // 完整的预检编号
+            String fullPrecheckId = idCardLast6 + contractLast6 + weighingCountStr;
+            // 界面上只显示后5位
+            String displayPrecheckId = weighingCountStr;
 
             // 更新日期为当天
             java.time.LocalDate today = java.time.LocalDate.now();
-            precheckDateLabel.setText(today.toString());
 
             // 创建称重记录
             WeighingRecord record = new WeighingRecord();
@@ -470,12 +526,14 @@ public class MainController implements Initializable {
             record.setLeafType(leafType);
             record.setWeight(weight);
             record.setOperator("操作员"); // TODO: 从系统获取当前用户
-            // 设置预检编号
-            record.setPrecheckId(newPrecheckId);
+            // 设置预检编号（存储完整编号，显示后5位）
+            record.setPrecheckId(fullPrecheckId);
             record.setIdCardNumber(idCardNumber);
             record.setBundleCount(bundleCount);
+            record.setAddress(address);
 
-            System.out.println("记录创建完成: " + record.getFarmerName() + ", " + record.getIdCardNumber());
+            System.out.println("记录创建完成: " + record.getFarmerName() + ", " + record.getIdCardNumber() + ", 预检编号: "
+                    + fullPrecheckId + " (显示: " + displayPrecheckId + ")");
 
             // 保存到数据库和列表
             saveWeighingRecord(record);
@@ -483,11 +541,15 @@ public class MainController implements Initializable {
             resetWeighingUI();
             updateRatios();
 
+            // 更新封签预览区域，显示最终确认的信息
+            updateFinalLabelPreview(farmerName, contractNumber, idCardNumber, address, leafType, displayPrecheckId,
+                    today.toString());
+
             // 显示提示并询问是否打印小票
             javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.CONFIRMATION);
             alert.setTitle("称重完成");
-            alert.setHeaderText("称重完成 - 预检号: " + record.getPrecheckId());
+            alert.setHeaderText("称重完成 - 预检号: " + displayPrecheckId);
             alert.setContentText(
                     leafType + " " + String.format("%.2f", weight) + "kg" + " (捆数: " + bundleCount + ")\n\n是否打印称重小票？");
 
@@ -537,6 +599,11 @@ public class MainController implements Initializable {
      */
     private void readIdCard() {
         try {
+            if (idCardReader == null) {
+                showError("功能不可用", "身份证读卡器功能不可用，请手动输入农户信息");
+                return;
+            }
+
             updateStatus("正在读取身份证...");
             idCardReader.readIdCard();
 
@@ -891,7 +958,7 @@ public class MainController implements Initializable {
                         row.createCell(5).setCellValue(record.getWeight()); // 重量
                         row.createCell(6).setCellValue(
                                 new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(record.getTimestamp())); // 称重时间
-                        row.createCell(7).setCellValue(record.getPrecheckId()); // 预检编号
+                        row.createCell(7).setCellValue(getLast5Digits(record.getPrecheckId())); // 预检编号
 
                         // 应用样式
                         for (int i = 0; i < 8; i++) {
@@ -1138,7 +1205,7 @@ public class MainController implements Initializable {
     private void exportRecord(com.tobacco.weight.data.WeighingRecord record) {
         try {
             // 显示进度提示
-            updateStatus("正在导出记录: " + record.getPrecheckId());
+            updateStatus("正在导出记录: " + getLast5Digits(record.getPrecheckId()));
 
             // 在后台线程执行导出操作
             new Thread(() -> {
@@ -1181,7 +1248,7 @@ public class MainController implements Initializable {
                     // 填充数据
                     int rowNum = 1;
                     String[][] data = {
-                            { "预检编号", record.getPrecheckId() },
+                            { "预检编号", getLast5Digits(record.getPrecheckId()) },
                             { "烟农姓名", record.getFarmerName() },
                             { "身份证号", record.getIdCardNumber() != null ? record.getIdCardNumber() : "" },
                             { "合同号", record.getContractNumber() != null ? record.getContractNumber() : "" },
@@ -1213,7 +1280,7 @@ public class MainController implements Initializable {
 
                     // 生成文件名
                     String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-                    String fileName = "预检记录_" + record.getPrecheckId() + "_" + timestamp + ".xlsx";
+                    String fileName = "预检记录_" + getLast5Digits(record.getPrecheckId()) + "_" + timestamp + ".xlsx";
                     File file = new File(exportDir, fileName);
 
                     // 保存文件
@@ -1418,10 +1485,16 @@ public class MainController implements Initializable {
         // 清除按钮
         keyClear.setOnAction(e -> clearActiveTextField());
 
-        // 退格按钮
-        keyBack.setOnAction(e -> backspaceActiveTextField());
+        // 退格按钮（在合同量字段时作为小数点按钮）
+        keyBack.setOnAction(e -> {
+            if (currentActiveTextField == contractAmountField) {
+                appendToActiveTextField("."); // 合同量字段时输入小数点
+            } else {
+                backspaceActiveTextField(); // 其他字段时执行退格
+            }
+        });
 
-        // 设置文本框焦点监听器
+        // 设置文本框焦点监听器（重新布置后bundleCountField已作为右列输入框）
         setupTextFieldFocusListeners();
     }
 
@@ -1433,10 +1506,23 @@ public class MainController implements Initializable {
         addFocusListener(farmerNameField);
         addFocusListener(contractNumberField);
         addFocusListener(idCardNumberField);
+
         addFocusListener(bundleCountField);
+        addFocusListener(contractAmountField);
+
+        // 为所有文本字段添加文本变化监听器，实时更新封签预览
+        addTextChangeListener(farmerNameField);
+        addTextChangeListener(contractNumberField);
+        addTextChangeListener(idCardNumberField);
+
+        addTextChangeListener(bundleCountField);
 
         // 默认激活捆数输入框
         currentActiveTextField = bundleCountField;
+        updateKeypadButtonText(); // 设置初始按钮文本
+
+        // 初始化封签预览（只显示默认值，不实时更新）
+        updateLabelPreview();
     }
 
     /**
@@ -1446,9 +1532,31 @@ public class MainController implements Initializable {
         textField.focusedProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal) {
                 currentActiveTextField = textField;
+                updateKeypadButtonText(); // 更新键盘按钮文本
                 logger.debug("当前活动文本框: {}", textField.getId());
             }
         });
+    }
+
+    /**
+     * 为文本框添加文本变化监听器
+     */
+    private void addTextChangeListener(TextField textField) {
+        textField.textProperty().addListener((obs, oldVal, newVal) -> {
+            // 文本变化时实时更新封签预览的文本字段，但不更新二维码
+            updatePreviewLabelsOnly();
+        });
+    }
+
+    /**
+     * 根据当前活动的文本框更新键盘按钮文本
+     */
+    private void updateKeypadButtonText() {
+        if (currentActiveTextField == contractAmountField) {
+            keyBack.setText("."); // 合同量字段时显示小数点
+        } else {
+            keyBack.setText("⌫"); // 其他字段时显示退格符号
+        }
     }
 
     /**
@@ -1463,6 +1571,29 @@ public class MainController implements Initializable {
 
         // 根据不同的文本框设置不同的输入限制
         int maxLength = getMaxLengthForTextField(currentActiveTextField);
+
+        // 特殊处理合同量字段的小数点
+        if (currentActiveTextField == contractAmountField) {
+            // 如果输入的是小数点
+            if (".".equals(digit)) {
+                // 如果已经有小数点，不允许再输入
+                if (currentText.contains(".")) {
+                    return;
+                }
+                // 如果文本为空，自动添加0
+                if (currentText.isEmpty()) {
+                    currentActiveTextField.setText("0.");
+                    return;
+                }
+            }
+            // 如果已有小数点，限制小数位数为2位
+            if (currentText.contains(".")) {
+                String[] parts = currentText.split("\\.");
+                if (parts.length > 1 && parts[1].length() >= 2 && !".".equals(digit)) {
+                    return; // 小数位已经2位了，不允许再输入数字
+                }
+            }
+        }
 
         if (currentText.length() < maxLength) {
             currentActiveTextField.setText(currentText + digit);
@@ -1498,6 +1629,8 @@ public class MainController implements Initializable {
     private int getMaxLengthForTextField(TextField textField) {
         if (textField == bundleCountField) {
             return 3; // 捆数最多3位数
+        } else if (textField == contractAmountField) {
+            return 8; // 合同量最多8位数（包含小数点），如99999.99
         } else if (textField == idCardNumberField) {
             return 18; // 身份证号18位
         } else if (textField == contractNumberField) {
@@ -1505,7 +1638,7 @@ public class MainController implements Initializable {
         } else if (textField == farmerNameField) {
             return 10; // 姓名最多10个字符
         }
-        return 50; // 默认长度
+        return 20; // 默认长度
     }
 
     /**
@@ -1513,6 +1646,65 @@ public class MainController implements Initializable {
      */
     public void setPrimaryStage(Stage primaryStage) {
         this.primaryStage = primaryStage;
+
+        // 设置窗口关闭事件处理器
+        primaryStage.setOnCloseRequest(event -> {
+            cleanup();
+        });
+    }
+
+    /**
+     * 清理资源
+     */
+    public void cleanup() {
+        logger.info("开始清理资源...");
+
+        try {
+            // 停止定时器
+            if (weightRefreshTimer != null) {
+                weightRefreshTimer.cancel();
+                weightRefreshTimer = null;
+                logger.info("重量刷新定时器已停止");
+            }
+
+            // 关闭硬件管理器
+            if (scaleManager != null) {
+                scaleManager.disconnect();
+                logger.info("电子秤管理器已关闭");
+            }
+
+            if (printerManager != null) {
+                // PrinterManager 目前没有close方法，但如果有后台线程需要在这里关闭
+                logger.info("打印机管理器已关闭");
+            }
+
+            if (idCardReader != null) {
+                // IdCardReader 目前没有close方法，但如果有后台线程需要在这里关闭
+                logger.info("身份证读卡器已关闭");
+            }
+
+            // 关闭数据库连接池和仓库
+            if (weighingRecordRepository != null) {
+                weighingRecordRepository.shutdown();
+                logger.info("称重记录仓库已关闭");
+            }
+
+            // 关闭其他可能的Repository
+            // 注意：这些Repository可能在其他地方创建，需要确保都被正确关闭
+
+            // 关闭诊断窗口
+            if (diagnosticsWindow != null) {
+                // HardwareDiagnosticsWindow 没有 close() 方法，但有内部的 Stage
+                // 我们只需要将引用设为 null，Stage 会在窗口关闭时自动清理
+                diagnosticsWindow = null;
+                logger.info("诊断窗口引用已清理");
+            }
+
+            logger.info("资源清理完成");
+
+        } catch (Exception e) {
+            logger.error("清理资源时发生错误", e);
+        }
     }
 
     /**
@@ -1578,121 +1770,91 @@ public class MainController implements Initializable {
     private void showReceiptPreview(String farmerName, String contractNumber, String leafType,
             double weight, String operator, int bundleCount, String precheckId) {
         try {
-            // 获取基本信息用于生成二维码和文本
-            String safeContract = contractNumber != null ? contractNumber : "N/A";
             String safeFarmerName = farmerName != null ? farmerName : "N/A";
             String safePrecheck = precheckId != null ? precheckId : "N/A";
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
-            String locationInfo = "实时录入"; // 主界面没有直接的地址信息
+            String locationInfo = "实时录入";
 
-            // 生成真实的二维码图片用于预览
-            Image qrImage = QRCodeGenerator.generateQRCodeImage(safeContract, 150);
+            // 生成二维码图片（两栏显示时适当缩小）
+            Image qrImage = QRCodeGenerator.generateQRCodeImage(contractNumber != null ? contractNumber : "N/A", 110);
 
-            // 创建自定义预览窗口
             javafx.stage.Stage previewStage = new javafx.stage.Stage();
-            previewStage.setTitle("标签预览 - " + farmerName);
+            previewStage.setTitle("标签预览 - " + safeFarmerName);
             previewStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             previewStage.initOwner(primaryStage);
+            previewStage.setResizable(false);
 
-            // 创建主布局
-            javafx.scene.layout.VBox mainLayout = new javafx.scene.layout.VBox(10);
-            mainLayout.setPadding(new javafx.geometry.Insets(15));
-            mainLayout.setAlignment(javafx.geometry.Pos.CENTER);
+            // 目标物理尺寸：120mm(宽) x 77mm(高)
+            double dpi = javafx.stage.Screen.getPrimary().getDpi();
+            double targetWidthPx = (120.0 / 25.4) * dpi; // px
+            double targetHeightPx = (77.0 / 25.4) * dpi; // px
 
-            // 添加标题
+            javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(8);
+            double padding = 10;
+            root.setPadding(new javafx.geometry.Insets(padding));
+            root.setAlignment(javafx.geometry.Pos.CENTER);
+
             javafx.scene.control.Label titleLabel = new javafx.scene.control.Label("称重标签预览");
-            titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 10 0;");
+            titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 
-            // 创建标签内容区域
-            javafx.scene.layout.VBox labelContent = new javafx.scene.layout.VBox(5);
-            labelContent.setAlignment(javafx.geometry.Pos.TOP_LEFT);
-            labelContent.setStyle(
-                    "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
+            // 两栏容器
+            javafx.scene.layout.HBox twoCols = new javafx.scene.layout.HBox(12);
+            twoCols.setAlignment(javafx.geometry.Pos.CENTER);
 
-            // 添加二维码图片
-            if (qrImage != null) {
-                ImageView qrImageView = new ImageView(qrImage);
-                qrImageView.setFitWidth(150);
-                qrImageView.setFitHeight(150);
-                qrImageView.setPreserveRatio(true);
-                qrImageView.setSmooth(false);
-                labelContent.getChildren().add(qrImageView);
-            } else {
-                javafx.scene.control.Label qrErrorLabel = new javafx.scene.control.Label("二维码生成失败");
-                qrErrorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
-                labelContent.getChildren().add(qrErrorLabel);
-            }
+            // 计算列宽与二维码大小（尽量适配目标宽度）
+            double availableWidth = targetWidthPx - 2 * padding; // 近似
+            double colWidth = (availableWidth - twoCols.getSpacing()) / 2.0;
+            int qrTarget = (int) Math.max(90, Math.min(110, colWidth * 0.5)); // 90~110之间
 
-            // 添加文本信息
-            javafx.scene.layout.VBox textInfo = new javafx.scene.layout.VBox(3);
-            textInfo.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-            textInfo.setStyle("-fx-font-family: 'SimSun'; -fx-font-size: 12px;");
+            // 构建标准列：二维码在上、文字在下
+            java.util.function.Supplier<javafx.scene.layout.VBox> buildStandardColumn = () -> {
+                javafx.scene.layout.VBox col = new javafx.scene.layout.VBox(6);
+                col.setAlignment(javafx.geometry.Pos.TOP_CENTER);
+                col.setStyle("-fx-font-family: 'SimSun';");
+                col.setPrefWidth(colWidth);
+                col.setMaxWidth(colWidth);
 
-            textInfo.getChildren().addAll(
-                    new javafx.scene.control.Label("地址: "
-                            + (locationInfo.length() > 12 ? locationInfo.substring(0, 12) + ".." : locationInfo)),
-                    new javafx.scene.control.Label("合同: "
-                            + (safeContract.length() > 20 ? safeContract.substring(0, 20) + ".." : safeContract)),
-                    new javafx.scene.control.Label("姓名: "
-                            + (safeFarmerName.length() > 10 ? safeFarmerName.substring(0, 10) + ".." : safeFarmerName)),
-                    new javafx.scene.control.Label("预检: "
-                            + (safePrecheck.length() > 15 ? safePrecheck.substring(0, 15) + ".." : safePrecheck)),
-                    new javafx.scene.control.Label(
-                            "部位: " + (safeLeafType.length() > 8 ? safeLeafType.substring(0, 8) + ".." : safeLeafType)),
-                    new javafx.scene.control.Label("检验: "
-                            + (safeInspector.length() > 8 ? safeInspector.substring(0, 8) + ".." : safeInspector)));
+                if (qrImage != null) {
+                    ImageView qr = new ImageView(qrImage);
+                    qr.setFitWidth(qrTarget);
+                    qr.setFitHeight(qrTarget);
+                    qr.setPreserveRatio(true);
+                    qr.setSmooth(false);
+                    col.getChildren().add(qr);
+                }
 
-            labelContent.getChildren().add(textInfo);
+                String[] items = new String[] {
+                        "地址: " + locationInfo,
+                        "合同号: " + safeFarmerName,
+                        "姓名: " + safeFarmerName,
+                        "预检号: " + safePrecheck,
+                        "部位: " + safeLeafType,
+                        "检验: " + safeInspector,
+                        "预检日期: " + java.time.LocalDate.now()
+                                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                };
+                javafx.scene.layout.VBox textBox = new javafx.scene.layout.VBox(2);
+                textBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                textBox.setStyle("-fx-font-size: 12px;");
+                for (String s : items) {
+                    textBox.getChildren().add(new javafx.scene.control.Label(s));
+                }
+                col.getChildren().add(textBox);
+                return col;
+            };
 
-            // 创建按钮区域
-            javafx.scene.layout.HBox buttonBox = new javafx.scene.layout.HBox(10);
-            buttonBox.setAlignment(javafx.geometry.Pos.CENTER);
-            buttonBox.setPadding(new javafx.geometry.Insets(10));
+            javafx.scene.layout.VBox leftCol = buildStandardColumn.get();
+            javafx.scene.layout.VBox rightCol = buildStandardColumn.get();
+            rightCol.setRotate(180);
 
-            javafx.scene.control.Button printButton = new javafx.scene.control.Button("确认打印");
-            printButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            printButton.setOnAction(e -> {
-                // 使用新的图片打印方法
-                printLabelWithQRCode(farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
-                previewStage.close();
-            });
+            twoCols.getChildren().setAll(leftCol, rightCol);
 
-            javafx.scene.control.Button testQRButton = new javafx.scene.control.Button("扫描测试");
-            testQRButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            testQRButton.setOnAction(e -> {
-                showQRCodeTest(contractNumber);
-            });
-
-            javafx.scene.control.Button saveButton = new javafx.scene.control.Button("保存预览");
-            saveButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            saveButton.setOnAction(e -> {
-                saveLabelPreview(farmerName, contractNumber, leafType, weight, operator, bundleCount, precheckId);
-            });
-
-            javafx.scene.control.Button closeButton = new javafx.scene.control.Button("关闭");
-            closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            closeButton.setOnAction(e -> previewStage.close());
-
-            buttonBox.getChildren().addAll(printButton, saveButton, closeButton);
-
-            // 组装完整布局
-            mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
-
-            // 创建场景并设置窗口大小
-            javafx.scene.Scene scene = new javafx.scene.Scene(mainLayout);
+            root.getChildren().addAll(titleLabel, twoCols);
+            javafx.scene.Scene scene = new javafx.scene.Scene(root, targetWidthPx, targetHeightPx);
             previewStage.setScene(scene);
-
-            // 设置窗口大小
-            previewStage.setWidth(350);
-            previewStage.setHeight(450);
-
-            // 居中显示
             previewStage.centerOnScreen();
-
-            // 显示预览窗口
             previewStage.showAndWait();
-
         } catch (Exception e) {
             logger.error("显示小票预览失败", e);
             showError("预览失败", "显示小票预览失败: " + e.getMessage());
@@ -1959,12 +2121,21 @@ public class MainController implements Initializable {
             String safeInspector = operator != null ? operator : "系统";
             String locationInfo = "实时录入";
 
+            // 地址字段已删除，使用默认值
+            String address = "待完善";
+            String idCardNumber = idCardNumberField.getText().trim();
+            if (idCardNumber.isEmpty())
+                idCardNumber = "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
             // 生成二维码图片
             BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(safeContract, 80);
 
             // 创建标签信息
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector);
+                    address, idCardNumber, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector,
+                    currentDate);
 
             // 创建文件选择对话框
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -2011,8 +2182,13 @@ public class MainController implements Initializable {
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
 
-            // 乡镇村信息暂时使用默认值（主界面没有直接的地址信息）
-            String locationInfo = "实时录入";
+            // 地址字段已删除，使用默认值
+            String address = "待完善";
+            String idCardNumber = idCardNumberField.getText().trim();
+            if (idCardNumber.isEmpty())
+                idCardNumber = "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
             // 生成二维码图片（用于打印）
             BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(safeContract, 80);
@@ -2034,7 +2210,8 @@ public class MainController implements Initializable {
 
             // 创建标签信息
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector);
+                    address, idCardNumber, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector,
+                    currentDate);
 
             // 使用新的图片打印方法
             boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
@@ -2052,5 +2229,163 @@ public class MainController implements Initializable {
             logger.error("打印带二维码标签异常", e);
             showError("打印错误", "打印时发生错误: " + e.getMessage());
         }
+    }
+
+    /**
+     * 更新封签预览
+     */
+    private void updateLabelPreview() {
+        try {
+            // 获取当前输入的信息
+            String farmerName = farmerNameField.getText().trim();
+            String contractNumber = contractNumberField.getText().trim();
+            String idCardNumber = idCardNumberField.getText().trim();
+            String leafType = getSelectedLeafType();
+
+            // 设置默认值并创建final副本
+            final String finalFarmerName = farmerName.isEmpty() ? "XXX" : farmerName;
+            final String finalContractNumber = contractNumber.isEmpty() ? "XXXXX" : contractNumber;
+            final String finalIdCardNumber = idCardNumber.isEmpty() ? "XXX" : idCardNumber;
+            final String finalAddress = "待完善"; // 地址字段已删除，使用默认值
+            final String finalLeafType = leafType == null ? "X部叶" : leafType;
+
+            // 获取当前日期
+            final String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            // 生成预检编号预览：身份证后6位+合同号后6位+当前第几次称重（五位数）
+            String idCardLast6 = finalIdCardNumber.length() >= 6
+                    ? finalIdCardNumber.substring(finalIdCardNumber.length() - 6)
+                    : "000000";
+            String contractLast6 = finalContractNumber.length() >= 6
+                    ? finalContractNumber.substring(finalContractNumber.length() - 6)
+                    : "000000";
+            int nextSeq = databaseManager.peekNextPrecheckSeq();
+            String weighingCountStr = String.format("%05d", nextSeq);
+            final String displayPrecheckId = weighingCountStr;
+
+            // 更新预览区域 - 只在初始化时显示默认值，不实时更新
+            Platform.runLater(() -> {
+                updatePreviewLabelsOnly();
+            });
+
+        } catch (Exception e) {
+            logger.error("更新封签预览失败", e);
+        }
+    }
+
+    /**
+     * 更新最终封签预览（用于确认打印时）
+     */
+    private void updateFinalLabelPreview(String farmerName, String contractNumber, String idCardNumber,
+            String address, String leafType, String precheckId, String date) {
+        try {
+            if (qrCodeImageView != null && contractNumber != null && !contractNumber.isEmpty()) {
+                try {
+                    BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNumber, 140);
+                    if (qrCodeImage != null) {
+                        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                        javax.imageio.ImageIO.write(qrCodeImage, "PNG", baos);
+                        java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(baos.toByteArray());
+                        javafx.scene.image.Image fxImage = new javafx.scene.image.Image(bais);
+                        qrCodeImageView.setImage(fxImage);
+                    }
+                } catch (Exception e) {
+                    logger.error("生成二维码失败", e);
+                    qrCodeImageView.setImage(null);
+                }
+            }
+
+            // 仅更新信息容器
+            if (labelInfoContainer != null) {
+                updateInfoByIndex(0, "地址: " + address);
+                updateInfoByIndex(1, "身份证号: " + idCardNumber);
+                updateInfoByIndex(2, "姓名: " + farmerName);
+                updateInfoByIndex(3, "预检编号: " + precheckId);
+                updateInfoByIndex(4, "烟叶部位: " + leafType);
+                updateInfoByIndex(5, "预检日期: " + date);
+            }
+        } catch (Exception e) {
+            logger.error("更新最终封签预览失败", e);
+        }
+    }
+
+    /**
+     * 更新预览标签的具体内容（用于实时预览）
+     */
+    private void updatePreviewLabels(String farmerName, String contractNumber, String idCardNumber,
+            String address, String leafType, String precheckId, String date) {
+        try {
+            if (labelInfoContainer != null) {
+                updateInfoByIndex(0, "地址: " + address);
+                updateInfoByIndex(1, "身份证号: " + idCardNumber);
+                updateInfoByIndex(2, "姓名: " + farmerName);
+                updateInfoByIndex(3, "预检编号: " + precheckId);
+                updateInfoByIndex(4, "烟叶部位: " + leafType);
+                updateInfoByIndex(5, "预检日期: " + date);
+            }
+        } catch (Exception e) {
+            logger.error("更新预览标签失败", e);
+        }
+    }
+
+    /**
+     * 只更新预览标签的文本内容（不更新二维码）
+     */
+    private void updatePreviewLabelsOnly() {
+        try {
+            String farmerName = farmerNameField.getText().trim();
+            String contractNumber = contractNumberField.getText().trim();
+            String idCardNumber = idCardNumberField.getText().trim();
+            String leafType = getSelectedLeafType();
+
+            String address = "待完善";
+            String finalFarmerName = farmerName.isEmpty() ? "XXX" : farmerName;
+            String finalContractNumber = contractNumber.isEmpty() ? "XXXXX" : contractNumber;
+            String finalIdCardNumber = idCardNumber.isEmpty() ? "XXX" : idCardNumber;
+            String finalLeafType = leafType == null ? "X部叶" : leafType;
+
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            int nextSeq2 = databaseManager.peekNextPrecheckSeq();
+            String weighingCountStr = String.format("%05d", nextSeq2);
+
+            if (labelInfoContainer != null) {
+                updateInfoByIndex(0, "地址: " + address);
+                updateInfoByIndex(1, "身份证号: " + finalIdCardNumber);
+                updateInfoByIndex(2, "姓名: " + finalFarmerName);
+                updateInfoByIndex(3, "预检编号: " + weighingCountStr);
+                updateInfoByIndex(4, "烟叶部位: " + finalLeafType);
+                updateInfoByIndex(5, "预检日期: " + currentDate);
+            }
+        } catch (Exception e) {
+            logger.error("更新预览标签文本失败", e);
+        }
+    }
+
+    private void updateInfoByIndex(int targetIndex, String newText) {
+        if (labelInfoContainer != null) {
+            int idx = 0;
+            for (javafx.scene.Node node : labelInfoContainer.getChildren()) {
+                if (node instanceof Label) {
+                    if (idx == targetIndex) {
+                        ((Label) node).setText(newText);
+                        return;
+                    }
+                    idx++;
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取预检编号的后5位数字
+     */
+    private String getLast5Digits(String precheckId) {
+        if (precheckId == null || precheckId.length() < 5) {
+            return precheckId != null ? precheckId : "N/A";
+        }
+        return precheckId.substring(precheckId.length() - 5);
     }
 }

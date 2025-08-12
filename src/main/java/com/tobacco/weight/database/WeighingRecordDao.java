@@ -28,8 +28,8 @@ public class WeighingRecordDao {
         String sql = """
                 INSERT INTO weighing_records
                 (precheck_id, farmer_name, contract_number, leaf_type, weight,
-                 operator, warehouse_number, status, timestamp, id_card_number)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 operator, warehouse_number, status, timestamp, id_card_number, bundle_count, address)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (Connection conn = databaseManager.getConnection();
@@ -45,6 +45,8 @@ public class WeighingRecordDao {
             pstmt.setString(8, record.getStatus());
             pstmt.setTimestamp(9, new Timestamp(record.getTimestamp().getTime()));
             pstmt.setString(10, record.getIdCardNumber());
+            pstmt.setInt(11, record.getBundleCount());
+            pstmt.setString(12, record.getAddress());
 
             int affectedRows = pstmt.executeUpdate();
 
@@ -72,7 +74,7 @@ public class WeighingRecordDao {
                 UPDATE weighing_records
                 SET precheck_id = ?, farmer_name = ?, contract_number = ?,
                     leaf_type = ?, weight = ?, operator = ?, warehouse_number = ?,
-                    status = ?, timestamp = ?, id_card_number = ?
+                    status = ?, timestamp = ?, id_card_number = ?, bundle_count = ?, address = ?
                 WHERE id = ?
                 """;
 
@@ -89,7 +91,9 @@ public class WeighingRecordDao {
             pstmt.setString(8, record.getStatus());
             pstmt.setTimestamp(9, new Timestamp(record.getTimestamp().getTime()));
             pstmt.setString(10, record.getIdCardNumber());
-            pstmt.setLong(11, record.getId());
+            pstmt.setInt(11, record.getBundleCount());
+            pstmt.setString(12, record.getAddress());
+            pstmt.setLong(13, record.getId());
 
             int affectedRows = pstmt.executeUpdate();
             logger.info("称重记录更新成功，影响行数: {}", affectedRows);
@@ -280,6 +284,8 @@ public class WeighingRecordDao {
         record.setStatus(rs.getString("status"));
         record.setTimestamp(rs.getTimestamp("timestamp"));
         record.setIdCardNumber(rs.getString("id_card_number"));
+        record.setBundleCount(rs.getInt("bundle_count"));
+        record.setAddress(rs.getString("address"));
         return record;
     }
 
