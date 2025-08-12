@@ -98,115 +98,82 @@ public class FarmerDetailDialog extends Stage {
      */
     private void showReceiptPreview(WeighingRecord record) {
         try {
-            // 获取基本信息用于生成二维码和文本
             String contractNum = record.getContractNumber() != null ? record.getContractNumber() : "N/A";
             String farmerName = record.getFarmerName() != null ? record.getFarmerName() : "N/A";
             String precheckId = record.getPrecheckId() != null ? record.getPrecheckId() : "N/A";
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
-            String locationInfo = "默认地址"; // 管理员界面没有直接的地址信息
+            String locationInfo = "实时录入";
+            String displayPrecheck = getLast5Digits(precheckId);
+            String currentDateStr = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-            // 生成真实的二维码图片用于预览
-            Image qrImage = QRCodeGenerator.generateQRCodeImage(contractNum, 150);
+            Image qrImage = QRCodeGenerator.generateQRCodeImage(contractNum, 110);
 
-            // 创建自定义预览窗口
             Stage previewStage = new Stage();
-            previewStage.setTitle("标签预览 - " + record.getFarmerName());
+            previewStage.setTitle("标签预览 - " + farmerName);
             previewStage.initModality(Modality.APPLICATION_MODAL);
             previewStage.initOwner(this);
+            previewStage.setResizable(false);
 
-            // 创建主布局
-            VBox mainLayout = new VBox(10);
-            mainLayout.setPadding(new Insets(15));
-            mainLayout.setAlignment(Pos.CENTER);
+            double dpi = javafx.stage.Screen.getPrimary().getDpi();
+            double targetWidthPx = (120.0 / 25.4) * dpi;
+            double targetHeightPx = (77.0 / 25.4) * dpi;
 
-            // 添加标题
+            VBox root = new VBox(8);
+            double padding = 10;
+            root.setPadding(new Insets(padding));
+            root.setAlignment(Pos.CENTER);
+
             Label titleLabel = new Label("称重标签预览");
-            titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 10 0;");
+            titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 
-            // 创建标签内容区域
-            VBox labelContent = new VBox(5);
-            labelContent.setAlignment(Pos.TOP_LEFT);
-            labelContent.setStyle(
-                    "-fx-border-color: #cccccc; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: white;");
+            HBox twoCols = new HBox(12);
+            twoCols.setAlignment(Pos.CENTER);
 
-            // 添加二维码图片
-            if (qrImage != null) {
-                ImageView qrImageView = new ImageView(qrImage);
-                qrImageView.setFitWidth(150);
-                qrImageView.setFitHeight(150);
-                qrImageView.setPreserveRatio(true);
-                qrImageView.setSmooth(false);
-                labelContent.getChildren().add(qrImageView);
-            } else {
-                Label qrErrorLabel = new Label("二维码生成失败");
-                qrErrorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
-                labelContent.getChildren().add(qrErrorLabel);
-            }
+            double availableWidth = targetWidthPx - 2 * padding;
+            double colWidth = (availableWidth - twoCols.getSpacing()) / 2.0;
+            int qrTarget = (int) Math.max(90, Math.min(110, colWidth * 0.5));
 
-            // 添加文本信息
-            VBox textInfo = new VBox(3);
-            textInfo.setAlignment(Pos.CENTER_LEFT);
-            textInfo.setStyle("-fx-font-family: 'SimSun'; -fx-font-size: 12px;");
+            java.util.function.Supplier<VBox> buildStandardColumn = () -> {
+                VBox col = new VBox(6);
+                col.setAlignment(Pos.TOP_CENTER);
+                col.setPrefWidth(colWidth);
+                col.setMaxWidth(colWidth);
+                if (qrImage != null) {
+                    ImageView qr = new ImageView(qrImage);
+                    qr.setFitWidth(qrTarget);
+                    qr.setFitHeight(qrTarget);
+                    qr.setPreserveRatio(true);
+                    qr.setSmooth(false);
+                    col.getChildren().add(qr);
+                }
+                VBox text = new VBox(2);
+                text.setAlignment(Pos.CENTER_LEFT);
+                text.setStyle("-fx-font-size: 12px; -fx-font-family: 'SimSun';");
+                text.getChildren().addAll(
+                        new Label("地址: " + locationInfo),
+                        new Label("合同号: " + contractNum),
+                        new Label("姓名: " + farmerName),
+                        new Label("预检号: " + displayPrecheck),
+                        new Label("部位: " + leafType),
+                        new Label("检验: " + inspector),
+                        new Label("预检日期: " + currentDateStr));
+                col.getChildren().add(text);
+                return col;
+            };
 
-            textInfo.getChildren().addAll(
-                    new Label("地址: "
-                            + (locationInfo.length() > 12 ? locationInfo.substring(0, 12) + ".." : locationInfo)),
-                    new Label("合同: " + (contractNum.length() > 20 ? contractNum.substring(0, 20) + ".." : contractNum)),
-                    new Label("姓名: " + (farmerName.length() > 10 ? farmerName.substring(0, 10) + ".." : farmerName)),
-                    new Label("预检: " + (precheckId.length() > 15 ? precheckId.substring(0, 15) + ".." : precheckId)),
-                    new Label("部位: " + (leafType.length() > 8 ? leafType.substring(0, 8) + ".." : leafType)),
-                    new Label("检验: " + (inspector.length() > 8 ? inspector.substring(0, 8) + ".." : inspector)));
+            VBox leftCol = buildStandardColumn.get();
+            VBox rightCol = buildStandardColumn.get();
+            rightCol.setRotate(180);
 
-            labelContent.getChildren().add(textInfo);
+            twoCols.getChildren().addAll(leftCol, rightCol);
+            root.getChildren().addAll(titleLabel, twoCols);
 
-            // 创建按钮区域
-            HBox buttonBox = new HBox(10);
-            buttonBox.setAlignment(Pos.CENTER);
-            buttonBox.setPadding(new Insets(10));
-
-            Button printButton = new Button("确认打印");
-            printButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            printButton.setOnAction(e -> {
-                printReceiptWithQRCode(record);
-                previewStage.close();
-            });
-
-            Button testQRButton = new Button("扫描测试");
-            testQRButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            testQRButton.setOnAction(e -> {
-                showQRCodeTest(record);
-            });
-
-            Button saveButton = new Button("保存预览");
-            saveButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            saveButton.setOnAction(e -> {
-                saveLabelPreview(record);
-            });
-
-            Button closeButton = new Button("关闭");
-            closeButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            closeButton.setOnAction(e -> previewStage.close());
-
-            buttonBox.getChildren().addAll(printButton, saveButton, closeButton);
-
-            // 组装完整布局
-            mainLayout.getChildren().addAll(titleLabel, labelContent, buttonBox);
-
-            // 创建场景并设置窗口大小
-            Scene scene = new Scene(mainLayout);
+            Scene scene = new Scene(root, targetWidthPx, targetHeightPx);
             previewStage.setScene(scene);
-
-            // 设置窗口大小
-            previewStage.setWidth(350);
-            previewStage.setHeight(450);
-
-            // 居中显示
             previewStage.centerOnScreen();
-
-            // 显示预览窗口
             previewStage.showAndWait();
-
         } catch (Exception e) {
             Alert errorAlert = new Alert(Alert.AlertType.ERROR);
             errorAlert.setTitle("预览失败");
@@ -251,7 +218,7 @@ public class FarmerDetailDialog extends Stage {
 
             // 创建标签信息
             com.tobacco.weight.hardware.PrinterManager.LabelInfo labelInfo = new com.tobacco.weight.hardware.PrinterManager.LabelInfo(
-                    locationInfo, contractNum, farmerName, precheckId, leafType, inspector);
+                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
 
             // 创建文件选择对话框
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -337,7 +304,7 @@ public class FarmerDetailDialog extends Stage {
                 resultAlert.setHeaderText(printSuccess ? "标签打印完成（文本模式）" : "标签打印失败");
                 resultAlert.setContentText(
                         printSuccess
-                                ? "预检编号: " + record.getPrecheckId() + "\n农户: " + record.getFarmerName()
+                                ? "预检编号: " + getLast5Digits(record.getPrecheckId()) + "\n农户: " + record.getFarmerName()
                                 : "请检查打印机连接状态");
                 resultAlert.showAndWait();
                 return;
@@ -345,7 +312,7 @@ public class FarmerDetailDialog extends Stage {
 
             // 创建标签信息
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, contractNum, farmerName, precheckId, leafType, inspector);
+                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
 
             // 使用新的图片打印方法
             PrinterManager printerManager = new PrinterManager();
@@ -357,7 +324,8 @@ public class FarmerDetailDialog extends Stage {
             resultAlert.setHeaderText(printSuccess ? "带二维码的标签打印完成" : "标签打印失败");
             resultAlert.setContentText(
                     printSuccess
-                            ? "预检编号: " + record.getPrecheckId() + "\n农户: " + record.getFarmerName() + "\n重量: "
+                            ? "预检编号: " + getLast5Digits(record.getPrecheckId()) + "\n农户: " + record.getFarmerName()
+                                    + "\n重量: "
                                     + String.format("%.2f kg", record.getWeight())
                             : "请检查打印机连接状态和驱动程序");
             resultAlert.showAndWait();
@@ -507,5 +475,15 @@ public class FarmerDetailDialog extends Stage {
         System.out.println("================================");
 
         return finalContent;
+    }
+
+    /**
+     * 获取预检编号的后5位数字
+     */
+    private String getLast5Digits(String precheckId) {
+        if (precheckId == null || precheckId.length() < 5) {
+            return precheckId != null ? precheckId : "N/A";
+        }
+        return precheckId.substring(precheckId.length() - 5);
     }
 }

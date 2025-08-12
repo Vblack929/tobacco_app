@@ -105,7 +105,9 @@ public class DatabaseManager {
                         warehouse_number TEXT,
                         status TEXT DEFAULT '正常',
                         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        id_card_number TEXT
+                        id_card_number TEXT,
+                        bundle_count INTEGER DEFAULT 1,
+                        address TEXT DEFAULT '待完善'
                     )
                     """;
 
@@ -187,6 +189,33 @@ public class DatabaseManager {
                 logger.info("数据库迁移完成，版本更新为2");
             }
 
+            // 检查weighing_records表是否存在bundle_count列
+            try {
+                stmt.execute("SELECT bundle_count FROM weighing_records LIMIT 1");
+            } catch (SQLException e) {
+                // 如果列不存在，添加该列
+                logger.info("检测到旧版本数据库，添加bundle_count列...");
+                stmt.execute("ALTER TABLE weighing_records ADD COLUMN bundle_count INTEGER DEFAULT 1");
+                logger.info("已添加bundle_count列到weighing_records表");
+            }
+
+            // 检查weighing_records表是否存在address列
+            try {
+                stmt.execute("SELECT address FROM weighing_records LIMIT 1");
+            } catch (SQLException e) {
+                // 如果列不存在，添加该列
+                logger.info("检测到旧版本数据库，添加address列...");
+                stmt.execute("ALTER TABLE weighing_records ADD COLUMN address TEXT DEFAULT '待完善'");
+                logger.info("已添加address列到weighing_records表");
+            }
+
+            // 更新系统配置，记录迁移版本
+            stmt.execute("""
+                    INSERT OR REPLACE INTO system_config (config_key, config_value, description)
+                    VALUES ('db_version', '3', '数据库版本号')
+                    """);
+            logger.info("数据库迁移完成，版本更新为3");
+
         } catch (SQLException e) {
             logger.error("数据库迁移失败", e);
             throw e;
@@ -211,8 +240,8 @@ public class DatabaseManager {
             // 检查是否已有地区数据
             String checkSql = "SELECT COUNT(*) FROM location_info";
             try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery(checkSql)) {
-                
+                    ResultSet rs = stmt.executeQuery(checkSql)) {
+
                 if (rs.next() && rs.getInt(1) > 0) {
                     logger.info("地区数据已存在，跳过初始化");
                     return;
@@ -220,18 +249,20 @@ public class DatabaseManager {
             }
 
             logger.info("开始初始化地区数据...");
-            
+
             // 硬编码的地区数据
             Map<String, List<String>> townshipVillages = new LinkedHashMap<>();
             townshipVillages.put("永安镇", Arrays.asList("永和村", "永和村2", "丰裕村", "丰裕村2", "西湖潭村", "督正村", "大安村"));
             townshipVillages.put("枨冲镇", Arrays.asList("三元村", "平息村", "和平村"));
             townshipVillages.put("普迹镇", Arrays.asList("金峰村", "新街村"));
             townshipVillages.put("官桥镇", Arrays.asList("一江村", "石灰嘴村", "九龙村"));
-            townshipVillages.put("沙市", Arrays.asList("长春", "赤马", "友助", "白水", "秀山", "敦睦", "河背", "团农", "文光", "东门", "莲塘", "沙市", "秧田", "中洲"));
+            townshipVillages.put("沙市",
+                    Arrays.asList("长春", "赤马", "友助", "白水", "秀山", "敦睦", "河背", "团农", "文光", "东门", "莲塘", "沙市", "秧田", "中洲"));
             townshipVillages.put("龙伏", Arrays.asList("坪上", "新开", "焦桥", "达峰", "黄桥", "泮春", "相市", "龙伏"));
             townshipVillages.put("社港", Arrays.asList("合盛", "淮洲", "清江", "源田", "社港", "新光", "永兴", "浏北"));
             townshipVillages.put("淳口", Arrays.asList("高田", "鹤源", "黄荆坪", "羊古滩", "农大", "同辉", "谢家", "南冲", "鸭头", "狮岩"));
-            townshipVillages.put("北盛", Arrays.asList("拔茅", "百塘", "亚洲湖", "卓然", "燕舞洲", "窑金", "边洲", "乌龙", "泉水", "马战", "仓胜", "环园"));
+            townshipVillages.put("北盛",
+                    Arrays.asList("拔茅", "百塘", "亚洲湖", "卓然", "燕舞洲", "窑金", "边洲", "乌龙", "泉水", "马战", "仓胜", "环园"));
             townshipVillages.put("洞阳", Arrays.asList("洞阳"));
             townshipVillages.put("金云", Arrays.asList("金云"));
             townshipVillages.put("大围山", Arrays.asList("中岳村", "北麓园村"));
@@ -253,15 +284,16 @@ public class DatabaseManager {
             Map<String, Long> townshipIds = new HashMap<>();
             int townshipOrder = 1;
 
-            try (PreparedStatement pstmt = connection.prepareStatement(insertTownshipSql, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement pstmt = connection.prepareStatement(insertTownshipSql,
+                    Statement.RETURN_GENERATED_KEYS)) {
                 for (String townshipName : townshipVillages.keySet()) {
                     pstmt.setString(1, townshipName);
                     pstmt.setInt(2, townshipOrder++);
                     pstmt.addBatch();
                 }
-                
+
                 int[] results = pstmt.executeBatch();
-                
+
                 // 获取生成的乡镇ID
                 try (ResultSet rs = pstmt.getGeneratedKeys()) {
                     int index = 0;
@@ -272,7 +304,7 @@ public class DatabaseManager {
                         index++;
                     }
                 }
-                
+
                 logger.info("插入了 {} 个乡镇", results.length);
             }
 
@@ -288,12 +320,12 @@ public class DatabaseManager {
                     String townshipName = entry.getKey();
                     List<String> villages = entry.getValue();
                     Long townshipId = townshipIds.get(townshipName);
-                    
+
                     if (townshipId == null) {
                         logger.error("找不到乡镇ID: {}", townshipName);
                         continue;
                     }
-                    
+
                     int villageOrder = 1;
                     for (String villageName : villages) {
                         pstmt.setString(1, townshipName);
@@ -304,13 +336,13 @@ public class DatabaseManager {
                         totalVillages++;
                     }
                 }
-                
+
                 int[] results = pstmt.executeBatch();
                 logger.info("插入了 {} 个村庄", results.length);
             }
 
-            logger.info("地区数据初始化完成，总共插入 {} 个乡镇，{} 个村庄", 
-                       townshipIds.size(), totalVillages);
+            logger.info("地区数据初始化完成，总共插入 {} 个乡镇，{} 个村庄",
+                    townshipIds.size(), totalVillages);
 
         } catch (SQLException e) {
             logger.error("初始化地区数据失败", e);
@@ -425,6 +457,75 @@ public class DatabaseManager {
         } catch (Exception e) {
             logger.error("备份数据库失败", e);
             throw new RuntimeException("备份数据库失败", e);
+        }
+    }
+
+    /**
+     * 获取并递增全局预检序列（系统级，范围00001-99999）
+     */
+    public synchronized int getAndIncrementPrecheckSeq() {
+        try {
+            Connection conn = getConnection();
+            try (PreparedStatement psSel = conn.prepareStatement(
+                    "SELECT config_value FROM system_config WHERE config_key = 'precheck_seq'")) {
+                ResultSet rs = psSel.executeQuery();
+                int current = 0;
+                if (rs.next()) {
+                    try {
+                        current = Integer.parseInt(rs.getString(1));
+                    } catch (Exception ignored) {
+                        current = 0;
+                    }
+                } else {
+                    // 初始化为0
+                    try (PreparedStatement psIns = conn.prepareStatement(
+                            "INSERT INTO system_config(config_key, config_value, description) VALUES('precheck_seq','0','全局预检序列(00001-99999)')")) {
+                        psIns.executeUpdate();
+                    }
+                }
+                int next = current + 1;
+                if (next > 99999) {
+                    next = 1;
+                }
+                try (PreparedStatement psUpd = conn.prepareStatement(
+                        "UPDATE system_config SET config_value = ?, updated_at = CURRENT_TIMESTAMP WHERE config_key = 'precheck_seq'")) {
+                    psUpd.setString(1, Integer.toString(next));
+                    psUpd.executeUpdate();
+                }
+                return next;
+            }
+        } catch (SQLException e) {
+            logger.error("获取并递增预检序列失败，使用回退值1", e);
+            return 1;
+        }
+    }
+
+    /**
+     * 仅查看下一个预检序列（不递增）
+     */
+    public synchronized int peekNextPrecheckSeq() {
+        try {
+            Connection conn = getConnection();
+            try (PreparedStatement psSel = conn.prepareStatement(
+                    "SELECT config_value FROM system_config WHERE config_key = 'precheck_seq'")) {
+                ResultSet rs = psSel.executeQuery();
+                int current = 0;
+                if (rs.next()) {
+                    try {
+                        current = Integer.parseInt(rs.getString(1));
+                    } catch (Exception ignored) {
+                        current = 0;
+                    }
+                }
+                int next = current + 1;
+                if (next > 99999) {
+                    next = 1;
+                }
+                return next;
+            }
+        } catch (SQLException e) {
+            logger.error("读取预检序列失败，返回回退值1", e);
+            return 1;
         }
     }
 }
