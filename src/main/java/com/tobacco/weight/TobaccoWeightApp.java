@@ -4,6 +4,7 @@ import com.tobacco.weight.database.DatabaseManager;
 import com.tobacco.weight.license.LicenseService;
 import com.tobacco.weight.ui.MainController;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -20,6 +21,7 @@ import java.io.IOException;
 public class TobaccoWeightApp extends Application {
 
     private static final Logger logger = LoggerFactory.getLogger(TobaccoWeightApp.class);
+    private MainController mainController;
 
     @Override
     public void start(Stage primaryStage) {
@@ -43,9 +45,9 @@ public class TobaccoWeightApp extends Application {
             Parent root = loader.load();
 
             // 获取控制器
-            MainController controller = loader.getController();
-            if (controller != null) {
-                controller.setPrimaryStage(primaryStage);
+            mainController = loader.getController();
+            if (mainController != null) {
+                mainController.setPrimaryStage(primaryStage);
             }
 
             // 设置场景
@@ -78,13 +80,25 @@ public class TobaccoWeightApp extends Application {
         try {
             logger.info("正在关闭应用程序...");
 
+            // 清理主控制器资源
+            if (mainController != null) {
+                mainController.cleanup();
+            }
+
             // 关闭数据库连接
             DatabaseManager.getInstance().closeConnection();
 
             logger.info("应用程序已关闭");
 
+            // 强制关闭JavaFX平台和JVM，确保所有线程都被终止
+            Platform.exit();
+            System.exit(0);
+
         } catch (Exception e) {
             logger.error("关闭应用程序时发生错误", e);
+            // 即使出现错误也要强制退出
+            Platform.exit();
+            System.exit(1);
         }
     }
 
