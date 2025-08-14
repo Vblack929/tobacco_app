@@ -5,6 +5,7 @@ import com.tobacco.weight.data.LocationData;
 import com.tobacco.weight.database.FarmerInfoRepository;
 import com.tobacco.weight.database.DatabaseManager;
 import com.tobacco.weight.service.FarmerImportService;
+
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -22,6 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -163,8 +167,12 @@ public class FarmerRegistrationWindow {
         Button importExcelButton = new Button("导入Excel");
         importExcelButton.setOnAction(e -> showImportExcelDialog());
 
+        Button deleteAllButton = new Button("删除所有数据");
+        deleteAllButton.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white;");
+        deleteAllButton.setOnAction(e -> showDeleteAllConfirmDialog());
+
         filterBox.getChildren().addAll(filterLabel, townshipLabel, townshipFilter,
-                villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton, importExcelButton);
+                villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton, importExcelButton, deleteAllButton);
 
         topSection.getChildren().addAll(searchBox, filterBox);
         return topSection;
@@ -284,13 +292,14 @@ public class FarmerRegistrationWindow {
                 Platform.runLater(() -> {
                     allFarmers.clear();
                     allFarmers.addAll(farmers);
-                    // 计算每个合同的累计重量作为合同量
+                    // 获取合同量信息（从farmer_contracts表）
                     java.util.Map<String, Double> amountMap;
                     try {
                         amountMap = new com.tobacco.weight.database.WeighingRecordRepository(
                                 DatabaseManager.getInstance())
-                                .getTotalWeightByContractSync();
+                                .getContractAmountsSync();
                     } catch (Exception ex) {
+                        logger.warn("获取合同量信息失败，使用空映射", ex);
                         amountMap = java.util.Collections.emptyMap();
                     }
                     updateFarmerTableWithAmount(farmers, amountMap);
@@ -543,10 +552,31 @@ public class FarmerRegistrationWindow {
      * 显示导入Excel对话框
      */
     private void showImportExcelDialog() {
+        // 首先询问导入模式
+        Alert modeAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        modeAlert.setTitle("选择导入模式");
+        modeAlert.setHeaderText("请选择导入模式");
+        modeAlert.setContentText("预览模式：只验证数据，不写入数据库\n正式导入：验证并写入数据库");
+        
+        ButtonType previewButton = new ButtonType("预览模式");
+        ButtonType importButton = new ButtonType("正式导入");
+        ButtonType cancelButton = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        modeAlert.getButtonTypes().setAll(previewButton, importButton, cancelButton);
+        
+        Optional<ButtonType> modeResult = modeAlert.showAndWait();
+        if (!modeResult.isPresent() || modeResult.get() == cancelButton) {
+            return;
+        }
+        
+        boolean dryRun = (modeResult.get() == previewButton);
+        
+        // 选择文件
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("选择Excel文件");
+        fileChooser.setTitle("选择农户合同Excel文件");
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Excel文件", "*.xlsx", "*.xls"),
+                new FileChooser.ExtensionFilter("Excel文件 (*.xlsx)", "*.xlsx"),
+                new FileChooser.ExtensionFilter("Excel文件 (*.xls)", "*.xls"),
                 new FileChooser.ExtensionFilter("所有文件", "*.*"));
 
         File selectedFile = fileChooser.showOpenDialog(stage);
@@ -554,25 +584,13 @@ public class FarmerRegistrationWindow {
             return;
         }
 
-        // 询问工作表名称
-        TextInputDialog sheetDialog = new TextInputDialog("明细表");
-        sheetDialog.setTitle("选择工作表");
-        sheetDialog.setHeaderText("请输入要导入的工作表名称");
-        sheetDialog.setContentText("工作表名称:");
-
-        Optional<String> sheetResult = sheetDialog.showAndWait();
-        if (!sheetResult.isPresent()) {
-            return;
-        }
-
-        String sheetName = sheetResult.get().trim();
-        showImportProgressDialog(selectedFile, sheetName);
+        showImportProgressDialog(selectedFile, dryRun);
     }
 
     /**
      * 显示导入进度对话框
      */
-    private void showImportProgressDialog(File excelFile, String sheetName) {
+    private void showImportProgressDialog(File excelFile, boolean dryRun) {
         // 创建进度对话框
         Stage progressStage = new Stage();
         progressStage.setTitle("导入Excel");
@@ -585,10 +603,12 @@ public class FarmerRegistrationWindow {
         layout.setPadding(new Insets(20));
         layout.setAlignment(Pos.CENTER);
 
-        Label titleLabel = new Label("正在导入Excel文件");
+        Label titleLabel = new Label(dryRun ? "正在预览Excel文件" : "正在导入Excel文件");
         titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 
         Label fileLabel = new Label("文件: " + excelFile.getName());
+        Label modeLabel = new Label("模式: " + (dryRun ? "预览模式" : "正式导入"));
+        modeLabel.setStyle("-fx-text-fill: " + (dryRun ? "#ff6600" : "#009900") + ";");
 
         ProgressBar progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(300);
@@ -599,7 +619,7 @@ public class FarmerRegistrationWindow {
         Button cancelButton = new Button("取消");
         cancelButton.setOnAction(e -> progressStage.close());
 
-        layout.getChildren().addAll(titleLabel, fileLabel, progressBar, statusLabel, cancelButton);
+        layout.getChildren().addAll(titleLabel, fileLabel, modeLabel, progressBar, statusLabel, cancelButton);
 
         Scene scene = new Scene(layout);
         progressStage.setScene(scene);
@@ -615,24 +635,81 @@ public class FarmerRegistrationWindow {
                     progressBar.setProgress(0.1);
                 });
 
-                FarmerImportService.ImportResult result = importService.importFromExcel(
-                        excelFile, "明细表");
+                // 首先尝试无密码导入
+                FarmerImportService.ImportResult tempResult;
+                try {
+                    tempResult = importService.importFromExcel(excelFile, null);
+                } catch (Exception e) {
+                    // 如果失败，可能是加密文件，尝试使用密码
+                    String errorMsg = e.getMessage();
+                    if (errorMsg != null && (
+                        errorMsg.contains("OLE2") || 
+                        errorMsg.contains("encrypted") || 
+                        errorMsg.contains("Encrypted") ||
+                        errorMsg.contains("password") || 
+                        errorMsg.contains("decrypted") ||
+                        errorMsg.contains("需要提供密码") ||
+                        (errorMsg.contains("XSSF") && errorMsg.contains("HSSF")))) {
+                        
+                        Platform.runLater(() -> statusLabel.setText("检测到加密文件，使用密码解密..."));
+                        
+                        // 先尝试使用已知密码 0807
+                        try {
+                            tempResult = importService.importFromExcel(excelFile, null, "0807");
+                        } catch (Exception passwordException) {
+                            // 如果默认密码失败，显示密码输入对话框
+                            final String[] userPassword = {null};
+                            Platform.runLater(() -> {
+                                String password = PasswordDialog.showPasswordDialog(stage, excelFile.getName());
+                                userPassword[0] = password;
+                                synchronized (userPassword) {
+                                    userPassword.notify();
+                                }
+                            });
+                            
+                            // 等待用户输入
+                            synchronized (userPassword) {
+                                try {
+                                    userPassword.wait();
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    throw new RuntimeException("等待用户输入被中断", ie);
+                                }
+                            }
+                            
+                            if (userPassword[0] == null) {
+                                throw new RuntimeException("用户取消了密码输入");
+                            }
+                            
+                            // 使用用户输入的密码
+                            Platform.runLater(() -> statusLabel.setText("使用用户输入的密码解密..."));
+                            tempResult = importService.importFromExcel(excelFile, null, userPassword[0]);
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+                
+                final FarmerImportService.ImportResult result = tempResult;
 
+                final boolean isDryRun = dryRun; // Make it effectively final
                 Platform.runLater(() -> {
                     progressBar.setProgress(1.0);
                     progressStage.close();
 
                     // 显示导入结果
-                    showImportResultDialog(result);
+                    showImportResultDialog(result, isDryRun);
 
-                    // 刷新数据
-                    loadData();
+                    // 刷新数据（如果不是预览模式）
+                    if (!isDryRun) {
+                        loadData();
+                    }
                 });
 
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     progressStage.close();
-                    logger.error("导入Excel失败", e);
+                    logger.error("Excel导入失败", e);
                     showAlert("导入失败: " + e.getMessage());
                 });
             }
@@ -645,26 +722,120 @@ public class FarmerRegistrationWindow {
     /**
      * 显示导入结果对话框
      */
-    private void showImportResultDialog(FarmerImportService.ImportResult result) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("导入结果");
-        alert.setHeaderText("Excel导入完成");
+    private void showImportResultDialog(FarmerImportService.ImportResult result, boolean isDryRun) {
+        // 创建自定义对话框
+        Stage resultStage = new Stage();
+        resultStage.setTitle("导入结果报告");
+        resultStage.initModality(Modality.APPLICATION_MODAL);
+        resultStage.initOwner(stage);
+        resultStage.setWidth(800);
+        resultStage.setHeight(600);
 
-        StringBuilder content = new StringBuilder();
-        content.append("总行数: ").append(result.getTotalRows()).append("\n");
-        content.append("成功导入: ").append(result.getSuccessCount()).append("\n");
-        content.append("失败: ").append(result.getFailureCount()).append("\n");
-        content.append("重复: ").append(result.getDuplicateCount()).append("\n");
+        VBox layout = new VBox(15);
+        layout.setPadding(new Insets(20));
 
-        if (!result.getErrorMessages().isEmpty()) {
-            content.append("\n错误信息:\n");
-            for (String error : result.getErrorMessages()) {
-                content.append("- ").append(error).append("\n");
+        // 标题
+        Label titleLabel = new Label(isDryRun ? "预览结果" : "导入结果");
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        // 摘要信息
+        StringBuilder summary = new StringBuilder();
+        summary.append("=== 导入摘要 ===\n");
+        summary.append("模式: ").append(isDryRun ? "预览模式" : "正式导入").append("\n");
+        summary.append("总记录数: ").append(result.getTotalRows()).append("\n");
+        summary.append("成功处理: ").append(result.getSuccessCount()).append("\n");
+        summary.append("失败记录: ").append(result.getFailureCount()).append("\n");
+        summary.append("重复记录: ").append(result.getDuplicateCount()).append("\n\n");
+        summary.append(result.getSummary());
+        
+        TextArea summaryArea = new TextArea(summary.toString());
+        summaryArea.setEditable(false);
+        summaryArea.setPrefRowCount(8);
+        summaryArea.setWrapText(true);
+
+        // 错误详情（可展开）
+        TitledPane detailPane = new TitledPane();
+        detailPane.setText("错误详情");
+        detailPane.setExpanded(result.getErrorMessages().size() > 0);
+        
+        StringBuilder errorDetails = new StringBuilder();
+        if (result.getErrorMessages().isEmpty()) {
+            errorDetails.append("没有错误记录");
+        } else {
+            errorDetails.append("=== 错误详情 ===\n");
+            for (int i = 0; i < result.getErrorMessages().size(); i++) {
+                errorDetails.append(i + 1).append(". ").append(result.getErrorMessages().get(i)).append("\n");
             }
         }
+        
+        TextArea detailArea = new TextArea(errorDetails.toString());
+        detailArea.setEditable(false);
+        detailArea.setPrefRowCount(10);
+        detailArea.setWrapText(true);
+        detailPane.setContent(detailArea);
 
-        alert.setContentText(content.toString());
-        alert.showAndWait();
+        // 按钮区
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        Button okButton = new Button("确定");
+        okButton.setOnAction(e -> resultStage.close());
+
+        Button exportErrorButton = new Button("导出错误记录");
+        exportErrorButton.setDisable(result.getErrorMessages().isEmpty());
+        exportErrorButton.setOnAction(e -> exportErrorReport(result));
+
+        buttonBox.getChildren().addAll(okButton, exportErrorButton);
+
+        layout.getChildren().addAll(titleLabel, summaryArea, detailPane, buttonBox);
+        VBox.setVgrow(summaryArea, Priority.ALWAYS);
+
+        Scene scene = new Scene(layout);
+        resultStage.setScene(scene);
+        resultStage.showAndWait();
+    }
+
+    /**
+     * 导出错误报告
+     */
+    private void exportErrorReport(FarmerImportService.ImportResult result) {
+        if (result.getErrorMessages().isEmpty()) {
+            showAlert("没有错误记录需要导出");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("保存错误报告");
+        fileChooser.setInitialFileName("导入错误报告_" + 
+            java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".txt");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("文本文件", "*.txt"));
+
+        File file = fileChooser.showSaveDialog(stage);
+        if (file != null) {
+            try {
+                StringBuilder content = new StringBuilder();
+                content.append("=== 导入错误报告 ===\n");
+                content.append("生成时间: ").append(java.time.LocalDateTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n");
+                content.append("总记录数: ").append(result.getTotalRows()).append("\n");
+                content.append("成功处理: ").append(result.getSuccessCount()).append("\n");
+                content.append("失败记录: ").append(result.getFailureCount()).append("\n");
+                content.append("重复记录: ").append(result.getDuplicateCount()).append("\n\n");
+                
+                content.append("=== 错误详情 ===\n");
+                for (int i = 0; i < result.getErrorMessages().size(); i++) {
+                    content.append(i + 1).append(". ").append(result.getErrorMessages().get(i)).append("\n");
+                }
+                
+                java.nio.file.Files.writeString(file.toPath(), content.toString(), 
+                    java.nio.charset.StandardCharsets.UTF_8);
+                showAlert("错误报告已保存到: " + file.getAbsolutePath());
+            } catch (Exception e) {
+                logger.error("保存错误报告失败", e);
+                showAlert("保存失败: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -833,6 +1004,106 @@ public class FarmerRegistrationWindow {
 
         public SimpleStringProperty statusProperty() {
             return status;
+        }
+    }
+
+    /**
+     * 显示删除所有数据的确认对话框
+     */
+    private void showDeleteAllConfirmDialog() {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("确认删除");
+        alert.setHeaderText("删除所有农户和合同数据");
+        alert.setContentText("此操作将删除以下数据：\n" +
+                "• 所有农户信息 (farmer_info)\n" +
+                "• 所有合同信息 (farmer_contracts)\n" +
+                "• 所有称重记录 (weighing_records)\n\n" +
+                "此操作不可撤销，请确认是否继续？");
+
+        ButtonType deleteButton = new ButtonType("删除", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(deleteButton, cancelButton);
+
+        // 设置默认按钮为取消
+        alert.getDialogPane().lookupButton(deleteButton).setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white;");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == deleteButton) {
+            performDeleteAllData();
+        }
+    }
+
+    /**
+     * 执行删除所有数据的操作
+     */
+    private void performDeleteAllData() {
+        updateStatus("正在删除所有数据...");
+
+        Thread deleteThread = new Thread(() -> {
+            try {
+                // 删除所有数据
+                boolean success = deleteAllImportData();
+                
+                Platform.runLater(() -> {
+                    if (success) {
+                        showAlert("删除成功：所有农户和合同数据已删除");
+                        updateStatus("数据删除完成");
+                        // 刷新界面
+                        loadData();
+                    } else {
+                        showAlert("删除失败：删除数据时出现错误，请查看日志获取详细信息");
+                        updateStatus("删除失败");
+                    }
+                });
+                
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    logger.error("删除所有数据失败", e);
+                    showAlert("删除失败：删除数据时出现异常: " + e.getMessage());
+                    updateStatus("删除失败");
+                });
+            }
+        });
+        
+        deleteThread.setDaemon(true);
+        deleteThread.start();
+    }
+
+    /**
+     * 删除所有导入的数据
+     * @return 删除是否成功
+     */
+    private boolean deleteAllImportData() {
+        try (Connection conn = DatabaseManager.getInstance().getConnection()) {
+            conn.setAutoCommit(false); // 开启事务
+            
+            try (Statement stmt = conn.createStatement()) {
+                // 删除称重记录
+                int weighingDeleted = stmt.executeUpdate("DELETE FROM weighing_records");
+                logger.info("删除称重记录: {} 条", weighingDeleted);
+                
+                // 删除合同信息
+                int contractsDeleted = stmt.executeUpdate("DELETE FROM farmer_contracts");
+                logger.info("删除合同信息: {} 条", contractsDeleted);
+                
+                // 删除农户信息
+                int farmersDeleted = stmt.executeUpdate("DELETE FROM farmer_info");
+                logger.info("删除农户信息: {} 条", farmersDeleted);
+                
+                conn.commit(); // 提交事务
+                logger.info("所有数据删除完成 - 农户: {}, 合同: {}, 称重记录: {}", 
+                           farmersDeleted, contractsDeleted, weighingDeleted);
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback(); // 回滚事务
+                logger.error("删除数据失败，已回滚", e);
+                throw e;
+            }
+            
+        } catch (SQLException e) {
+            logger.error("删除所有数据失败", e);
+            return false;
         }
     }
 }

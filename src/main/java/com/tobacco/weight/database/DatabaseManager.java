@@ -139,10 +139,25 @@ public class DatabaseManager {
                     )
                     """;
 
+            // 创建农户合同表
+            String createContractTable = """
+                    CREATE TABLE IF NOT EXISTS farmer_contracts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        national_id TEXT NOT NULL,
+                        contract_no TEXT NOT NULL,
+                        contract_amount REAL NOT NULL DEFAULT 0,
+                        station TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(national_id, contract_no)
+                    )
+                    """;
+
             stmt.execute(createFarmerTable);
             stmt.execute(createWeighingTable);
             stmt.execute(createLocationTable);
             stmt.execute(createConfigTable);
+            stmt.execute(createContractTable);
 
             // 创建地区信息表索引以提升查询性能
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_location_township ON location_info(township_name)");

@@ -388,4 +388,65 @@ public class LocationInfoDao {
         
         return location;
     }
+    
+    /**
+     * 检查地区是否存在
+     */
+    public boolean existsLocation(String township, String village) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM location_info WHERE township_name = ? AND village_name = ?";
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, township);
+            stmt.setString(2, village);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+    
+    /**
+     * 获取所有地区名称列表
+     */
+    public List<String> getAllLocationNames() throws SQLException {
+        String sql = """
+            SELECT DISTINCT (township_name || village_name) as full_name 
+            FROM location_info 
+            WHERE is_active = 1 
+            ORDER BY township_name, village_name
+            """;
+        
+        List<String> locations = new ArrayList<>();
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                locations.add(rs.getString("full_name"));
+            }
+        }
+        
+        return locations;
+    }
+    
+    /**
+     * 插入新地区（简化版本）
+     */
+    public void insertLocation(String township, String village) throws SQLException {
+        String sql = """
+            INSERT OR IGNORE INTO location_info (township_name, village_name, location_type, is_active)
+            VALUES (?, ?, 'village', 1)
+            """;
+        
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, township);
+            stmt.setString(2, village);
+            stmt.executeUpdate();
+        }
+    }
 }

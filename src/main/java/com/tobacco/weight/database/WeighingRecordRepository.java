@@ -211,13 +211,25 @@ public class WeighingRecordRepository {
     }
 
     /**
-     * 获取按合同号聚合的累计重量（作为“合同量”展示）
+     * 获取按合同号聚合的累计重量（作为"合同量"展示）
      */
     public java.util.Map<String, Double> getTotalWeightByContractSync() throws Exception {
         try {
             return weighingRecordDao.getTotalWeightByContract();
         } catch (Exception e) {
             logger.error("获取合同累计重量失败", e);
+            throw e;
+        }
+    }
+
+    /**
+     * 获取合同表中的合同量信息
+     */
+    public java.util.Map<String, Double> getContractAmountsSync() throws Exception {
+        try {
+            return weighingRecordDao.getContractAmountsByContract();
+        } catch (Exception e) {
+            logger.error("获取合同量信息失败", e);
             throw e;
         }
     }

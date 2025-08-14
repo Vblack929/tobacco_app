@@ -231,4 +231,4 @@ GoogleService-Info.plist
 logs/
 exports/
 *.xlsx
-*.csv
+*.;,sv
