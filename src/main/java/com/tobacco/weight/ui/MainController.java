@@ -625,6 +625,9 @@ public class MainController implements Initializable {
                     contractNumberField.setText(farmerInfo.getContractNumber());
                     idCardNumberField.setText(farmerInfo.getIdCardNumber()); // 填充身份证号
 
+                    // 自动填充合同量
+                    loadContractAmountForFarmer(farmerInfo.getContractNumber());
+
                     updateStatus("身份证读取成功: " + farmerInfo.getFarmerName());
                     showInfo("读取成功", "身份证信息已读取并填充");
 
@@ -638,6 +641,43 @@ public class MainController implements Initializable {
                 showError("处理失败", "处理身份证信息失败: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * 为指定合同号加载合同量
+     */
+    private void loadContractAmountForFarmer(String contractNumber) {
+        if (contractNumber == null || contractNumber.trim().isEmpty()) {
+            contractAmountField.clear();
+            return;
+        }
+
+        // 在后台线程查询合同量
+        new Thread(() -> {
+            try {
+                // 获取合同量信息
+                java.util.Map<String, Double> contractAmounts = weighingRecordRepository.getContractAmountsSync();
+                Double amount = contractAmounts.get(contractNumber);
+                
+                Platform.runLater(() -> {
+                    if (amount != null && amount > 0) {
+                        contractAmountField.setText(String.format("%.2f", amount));
+                        logger.info("自动填充合同量: {} = {}", contractNumber, amount);
+                    } else {
+                        contractAmountField.clear();
+                        logger.warn("未找到合同号 {} 的合同量信息", contractNumber);
+                    }
+                    // 更新比例计算
+                    updateRatios();
+                });
+                
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    logger.error("加载合同量失败: {}", contractNumber, e);
+                    contractAmountField.clear();
+                });
+            }
+        }).start();
     }
 
     /**
@@ -1085,37 +1125,61 @@ public class MainController implements Initializable {
     }
 
     /**
-     * 计算并刷新预检比例、上中下部叶比例
+     * 计算并刷新完成比例、上中下部叶比例
+     * 完成比例 = 当前农户总重量 / 合同量
+     * 部叶比例 = 部叶重量 / 当前农户总重量
      */
     private void updateRatios() {
-        double totalWeight = 0.0;
-        double upperWeight = 0.0, middleWeight = 0.0, lowerWeight = 0.0;
         String currentFarmer = farmerNameField.getText().trim();
+        String currentContract = contractNumberField.getText().trim();
+        
+        // 计算当前农户的各类重量
         double farmerTotalWeight = 0.0;
+        double farmerUpperWeight = 0.0, farmerMiddleWeight = 0.0, farmerLowerWeight = 0.0;
 
         for (WeighingRecord record : weighingRecordsList) {
-            double w = record.getWeight();
-            totalWeight += w;
-            if ("上部叶".equals(record.getLeafType()))
-                upperWeight += w;
-            if ("中部叶".equals(record.getLeafType()))
-                middleWeight += w;
-            if ("下部叶".equals(record.getLeafType()))
-                lowerWeight += w;
-            if (record.getFarmerName().equals(currentFarmer))
+            // 只统计当前农户的记录
+            if (record.getFarmerName().equals(currentFarmer)) {
+                double w = record.getWeight();
                 farmerTotalWeight += w;
+                
+                if ("上部叶".equals(record.getLeafType()))
+                    farmerUpperWeight += w;
+                else if ("中部叶".equals(record.getLeafType()))
+                    farmerMiddleWeight += w;
+                else if ("下部叶".equals(record.getLeafType()))
+                    farmerLowerWeight += w;
+            }
         }
 
-        if (totalWeight > 0) {
-            upperRatioField.setText(String.format("%.1f%%", upperWeight * 100.0 / totalWeight));
-            middleRatioField.setText(String.format("%.1f%%", middleWeight * 100.0 / totalWeight));
-            lowerRatioField.setText(String.format("%.1f%%", lowerWeight * 100.0 / totalWeight));
-            precheckRatioField.setText(String.format("%.1f%%", farmerTotalWeight * 100.0 / totalWeight));
+        // 计算部叶比例（基于农户总重量）
+        if (farmerTotalWeight > 0) {
+            upperRatioField.setText(String.format("%.1f%%", farmerUpperWeight * 100.0 / farmerTotalWeight));
+            middleRatioField.setText(String.format("%.1f%%", farmerMiddleWeight * 100.0 / farmerTotalWeight));
+            lowerRatioField.setText(String.format("%.1f%%", farmerLowerWeight * 100.0 / farmerTotalWeight));
         } else {
             upperRatioField.setText("0.0%");
             middleRatioField.setText("0.0%");
             lowerRatioField.setText("0.0%");
+        }
+
+        // 计算完成比例（总重量 / 合同量）
+        try {
+            String contractAmountText = contractAmountField.getText().trim();
+            if (!contractAmountText.isEmpty() && farmerTotalWeight > 0) {
+                double contractAmount = Double.parseDouble(contractAmountText);
+                if (contractAmount > 0) {
+                    double completionRatio = (farmerTotalWeight / contractAmount) * 100.0;
+                    precheckRatioField.setText(String.format("%.1f%%", completionRatio));
+                } else {
+                    precheckRatioField.setText("0.0%");
+                }
+            } else {
+                precheckRatioField.setText("0.0%");
+            }
+        } catch (NumberFormatException e) {
             precheckRatioField.setText("0.0%");
+            logger.warn("合同量格式错误: {}", contractAmountField.getText());
         }
     }
 
@@ -1516,6 +1580,17 @@ public class MainController implements Initializable {
         addTextChangeListener(idCardNumberField);
 
         addTextChangeListener(bundleCountField);
+
+        // 添加特殊监听器：当合同号改变时自动加载合同量
+        contractNumberField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!oldVal.equals(newVal) && newVal != null && !newVal.trim().isEmpty()) {
+                loadContractAmountForFarmer(newVal.trim());
+            }
+        });
+
+        // 添加监听器：当农户名或合同量改变时更新比例
+        farmerNameField.textProperty().addListener((obs, oldVal, newVal) -> updateRatios());
+        contractAmountField.textProperty().addListener((obs, oldVal, newVal) -> updateRatios());
 
         // 默认激活捆数输入框
         currentActiveTextField = bundleCountField;
