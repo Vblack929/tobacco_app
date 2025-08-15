@@ -235,6 +235,18 @@ public class WeighingRecordRepository {
     }
 
     /**
+     * 根据身份证号查询合同号
+     */
+    public String getContractNumberByIdCard(String idCardNumber) throws Exception {
+        try {
+            return weighingRecordDao.getContractNumberByIdCard(idCardNumber);
+        } catch (Exception e) {
+            logger.error("根据身份证号查询合同号失败: {}", idCardNumber, e);
+            throw e;
+        }
+    }
+
+    /**
      * 关闭仓库
      */
     public void shutdown() {

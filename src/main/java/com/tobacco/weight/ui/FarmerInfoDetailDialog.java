@@ -118,8 +118,8 @@ public class FarmerInfoDetailDialog extends Stage {
         // 创建表格列
         TableColumn<WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
-        precheckCol.setPrefWidth(140);
-        precheckCol.setMinWidth(120);
+        precheckCol.setPrefWidth(240);
+        precheckCol.setMinWidth(220);
         precheckCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
@@ -307,25 +307,9 @@ public class FarmerInfoDetailDialog extends Stage {
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
 
-            // 地址信息（已有解析逻辑）
-            String locationInfo = "待完善";
-            if (currentFarmerInfo != null && currentFarmerInfo.getAddress() != null
-                    && !currentFarmerInfo.getAddress().isEmpty()) {
-                try {
-                    LocationData.LocationInfo location = LocationData.parseAddress(currentFarmerInfo.getAddress());
-                    if (location.hasValidTownship() && location.hasValidVillage()) {
-                        locationInfo = location.getTownship() + location.getVillage();
-                    } else if (location.hasValidTownship()) {
-                        locationInfo = location.getTownship();
-                    } else if (location.hasValidVillage()) {
-                        locationInfo = location.getVillage();
-                    } else {
-                        locationInfo = "解析失败";
-                    }
-                } catch (Exception e) {
-                    locationInfo = "解析错误";
-                }
-            }
+            // 获取站点名称和地址
+            String stationName = getStationName(currentFarmerInfo.getIdCardNumber());
+            String locationInfo = getFarmerAddress(currentFarmerInfo.getIdCardNumber());
 
             String displayPrecheck = getLast5Digits(precheckId);
             String currentDateStr = java.time.LocalDate.now()
@@ -360,6 +344,7 @@ public class FarmerInfoDetailDialog extends Stage {
             int qrTarget = (int) Math.max(90, Math.min(110, colWidth * 0.5));
 
             // 为lambda创建final副本
+            final String fStationName = stationName;
             final String fLocationInfo = locationInfo;
             final String fContractNum = contractNum;
             final String fFarmerName = farmerName;
@@ -385,13 +370,15 @@ public class FarmerInfoDetailDialog extends Stage {
                     col.getChildren().add(qr);
                 }
                 VBox text = new VBox(2);
-                text.setAlignment(Pos.CENTER_LEFT);
+                text.setAlignment(Pos.TOP_LEFT);
                 text.setStyle("-fx-font-size: 12px; -fx-font-family: 'SimSun';");
                 text.getChildren().addAll(
-                        new Label("地址: " + fLocationInfo),
-                        new Label("合同号: " + fContractNum),
+                        new Label(fStationName),
+                        new Label(fLocationInfo),
+                        new Label(fContractNum),
                         new Label("姓名: " + fFarmerName),
-                        new Label("预检号: " + fDisplayPrecheck),
+                        new Label("预检号: " + getLast5Digits(fDisplayPrecheck)),
+                        new Label("重量: " + String.format("%.2f kg", record.getWeight())),
                         new Label("部位: " + fLeafType),
                         new Label("检验: " + fInspector),
                         new Label("预检日期: " + fCurrentDateStr));
@@ -432,25 +419,9 @@ public class FarmerInfoDetailDialog extends Stage {
         String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
         String inspector = record.getOperator() != null ? record.getOperator() : "系统";
 
-        // 从地址中提取乡镇村信息
-        String locationInfo = "待完善";
-        if (currentFarmerInfo != null && currentFarmerInfo.getAddress() != null
-                && !currentFarmerInfo.getAddress().isEmpty()) {
-            try {
-                LocationData.LocationInfo location = LocationData.parseAddress(currentFarmerInfo.getAddress());
-                if (location.hasValidTownship() && location.hasValidVillage()) {
-                    locationInfo = location.getTownship() + location.getVillage();
-                } else if (location.hasValidTownship()) {
-                    locationInfo = location.getTownship();
-                } else if (location.hasValidVillage()) {
-                    locationInfo = location.getVillage();
-                } else {
-                    locationInfo = "解析失败";
-                }
-            } catch (Exception e) {
-                locationInfo = "解析错误";
-            }
-        }
+        // 获取站点名称和地址
+        String stationName = getStationName(currentFarmerInfo.getIdCardNumber());
+        String address = getFarmerAddress(currentFarmerInfo.getIdCardNumber());
 
         // 生成合同号二维码（紧凑版用于实际打印）
         String qrCode = QRCodeGenerator.generateCompactQRCode(contractNum);
@@ -468,14 +439,17 @@ public class FarmerInfoDetailDialog extends Stage {
         }
 
         // 信息列表（紧凑显示，包含所有必要字段）
-        content.append("镇:").append(locationInfo.length() > 6 ? locationInfo.substring(0, 6) + ".." : locationInfo)
+        content.append(stationName.length() > 6 ? stationName.substring(0, 6) + ".." : stationName)
                 .append("\n");
-        content.append("合同:").append(contractNum.length() > 15 ? contractNum.substring(0, 15) + ".." : contractNum)
+        content.append(address.length() > 6 ? address.substring(0, 6) + ".." : address)
+                .append("\n");
+        content.append(contractNum.length() > 15 ? contractNum.substring(0, 15) + ".." : contractNum)
                 .append("\n");
         content.append("姓名:").append(farmerName.length() > 8 ? farmerName.substring(0, 8) + ".." : farmerName)
                 .append("\n");
         content.append("预检:").append(precheckId.length() > 12 ? precheckId.substring(0, 12) + ".." : precheckId)
                 .append("\n");
+        content.append("重量:").append(String.format("%.2f", record.getWeight())).append("kg\n");
         content.append("部位:").append(leafType.length() > 6 ? leafType.substring(0, 6) + ".." : leafType).append("\n");
         content.append("检验:").append(inspector.length() > 6 ? inspector.substring(0, 6) + ".." : inspector)
                 .append("\n");
@@ -517,25 +491,9 @@ public class FarmerInfoDetailDialog extends Stage {
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
 
-            // 从地址中提取乡镇村信息
-            String locationInfo = "待完善";
-            if (currentFarmerInfo != null && currentFarmerInfo.getAddress() != null
-                    && !currentFarmerInfo.getAddress().isEmpty()) {
-                try {
-                    LocationData.LocationInfo location = LocationData.parseAddress(currentFarmerInfo.getAddress());
-                    if (location.hasValidTownship() && location.hasValidVillage()) {
-                        locationInfo = location.getTownship() + location.getVillage();
-                    } else if (location.hasValidTownship()) {
-                        locationInfo = location.getTownship();
-                    } else if (location.hasValidVillage()) {
-                        locationInfo = location.getVillage();
-                    } else {
-                        locationInfo = "解析失败";
-                    }
-                } catch (Exception e) {
-                    locationInfo = "解析错误";
-                }
-            }
+            // 获取站点名称和地址
+            String stationName = getStationName(currentFarmerInfo.getIdCardNumber());
+            String locationInfo = getFarmerAddress(currentFarmerInfo.getIdCardNumber());
 
             // 生成二维码图片（用于打印）
             BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
@@ -544,12 +502,30 @@ public class FarmerInfoDetailDialog extends Stage {
                 showAlert("生成失败", "无法生成二维码，将使用文本方式打印");
                 // 降级到文本打印
                 String compactLabel = generateReceiptContent(record);
-                boolean printSuccess = printerManager.printText(compactLabel);
-                if (printSuccess) {
-                    showSuccessAlert("打印成功", "标签打印完成（文本模式）\n预检编号: " + getLast5Digits(record.getPrecheckId()));
-                } else {
-                    showAlert("打印失败", "标签打印失败，请检查打印机连接");
+
+                // 按捆数打印多份文本标签
+                boolean allPrintSuccess = true;
+                int printCount = 0;
+                int bundleCount = record.getBundleCount();
+
+                for (int i = 0; i < bundleCount; i++) {
+                    boolean printSuccess = printerManager.printText(compactLabel);
+                    if (printSuccess) {
+                        printCount++;
+                        logger.info("成功打印第 {} 份文本标签，预检编号: {}", i + 1, record.getPrecheckId());
+                    } else {
+                        allPrintSuccess = false;
+                        logger.error("打印第 {} 份文本标签失败，预检编号: {}", i + 1, record.getPrecheckId());
+                    }
                 }
+
+                showSuccessAlert(allPrintSuccess ? "打印成功" : "部分打印失败",
+                        String.format("预检编号: %s\n农户: %s\n重量: %.2f kg\n捆数: %d\n成功打印: %d/%d",
+                                getLast5Digits(record.getPrecheckId()),
+                                record.getFarmerName(),
+                                record.getWeight(),
+                                bundleCount,
+                                printCount, bundleCount));
                 return;
             }
 
@@ -557,16 +533,30 @@ public class FarmerInfoDetailDialog extends Stage {
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
                     locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
 
-            // 使用新的图片打印方法
-            boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
+            // 按捆数打印多份标签
+            boolean allPrintSuccess = true;
+            int printCount = 0;
+            int bundleCount = record.getBundleCount();
 
-            if (printSuccess) {
-                showSuccessAlert("打印成功", "带二维码的标签打印完成\n预检编号: " + getLast5Digits(record.getPrecheckId()));
-                logger.info("成功打印带二维码标签，预检编号: {}", getLast5Digits(record.getPrecheckId()));
-            } else {
-                showAlert("打印失败", "标签打印失败，请检查打印机连接");
-                logger.error("打印带二维码标签失败，预检编号: {}", getLast5Digits(record.getPrecheckId()));
+            for (int i = 0; i < bundleCount; i++) {
+                boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
+                if (printSuccess) {
+                    printCount++;
+                    logger.info("成功打印第 {} 份标签，预检编号: {}", i + 1, record.getPrecheckId());
+                } else {
+                    allPrintSuccess = false;
+                    logger.error("打印第 {} 份标签失败，预检编号: {}", i + 1, record.getPrecheckId());
+                }
             }
+
+            // 显示打印结果
+            showSuccessAlert(allPrintSuccess ? "打印成功" : "部分打印失败",
+                    String.format("预检编号: %s\n农户: %s\n重量: %.2f kg\n捆数: %d\n成功打印: %d/%d",
+                            getLast5Digits(record.getPrecheckId()),
+                            record.getFarmerName(),
+                            record.getWeight(),
+                            bundleCount,
+                            printCount, bundleCount));
 
         } catch (Exception e) {
             logger.error("打印称重记录标签异常", e);
@@ -675,25 +665,9 @@ public class FarmerInfoDetailDialog extends Stage {
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
 
-            // 从地址中提取乡镇村信息
-            String locationInfo = "待完善";
-            if (currentFarmerInfo != null && currentFarmerInfo.getAddress() != null
-                    && !currentFarmerInfo.getAddress().isEmpty()) {
-                try {
-                    LocationData.LocationInfo location = LocationData.parseAddress(currentFarmerInfo.getAddress());
-                    if (location.hasValidTownship() && location.hasValidVillage()) {
-                        locationInfo = location.getTownship() + location.getVillage();
-                    } else if (location.hasValidTownship()) {
-                        locationInfo = location.getTownship();
-                    } else if (location.hasValidVillage()) {
-                        locationInfo = location.getVillage();
-                    } else {
-                        locationInfo = "解析失败";
-                    }
-                } catch (Exception e) {
-                    locationInfo = "解析错误";
-                }
-            }
+            // 获取站点名称和地址
+            String stationName = getStationName(currentFarmerInfo.getIdCardNumber());
+            String locationInfo = getFarmerAddress(currentFarmerInfo.getIdCardNumber());
 
             // 生成用于打印的二维码图
             java.awt.image.BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
@@ -738,5 +712,67 @@ public class FarmerInfoDetailDialog extends Stage {
             return precheckId != null ? precheckId : "N/A";
         }
         return precheckId.substring(precheckId.length() - 5);
+    }
+
+    /**
+     * 根据身份证号获取烟农地址
+     */
+    private String getFarmerAddress(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            return "待完善";
+        }
+
+        try {
+            // 从数据库查询烟农地址
+            String sql = "SELECT address FROM farmer_info WHERE id_card_number = ? AND address IS NOT NULL AND address != ''";
+            try (java.sql.Connection conn = DatabaseManager.getInstance().getConnection();
+                    java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, idCardNumber.trim());
+                try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        String address = rs.getString("address");
+                        if (address != null && !address.trim().isEmpty()) {
+                            return address.trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("查询烟农地址失败: {}", e.getMessage());
+        }
+
+        return "待完善";
+    }
+
+    /**
+     * 根据身份证号获取站点名称
+     */
+    private String getStationName(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            return "未知站点";
+        }
+
+        try {
+            // 从farmer_contracts表查询站点名称
+            String sql = "SELECT station FROM farmer_contracts WHERE national_id = ? AND station IS NOT NULL AND station != ''";
+            try (java.sql.Connection conn = DatabaseManager.getInstance().getConnection();
+                    java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, idCardNumber.trim());
+                try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        String station = rs.getString("station");
+                        if (station != null && !station.trim().isEmpty()) {
+                            return station.trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("查询站点名称失败: {}", e.getMessage());
+        }
+
+        return "未知站点";
     }
 }

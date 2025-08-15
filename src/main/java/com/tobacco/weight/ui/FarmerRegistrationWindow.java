@@ -55,6 +55,7 @@ public class FarmerRegistrationWindow {
     // 数据
     private List<FarmerInfo> allFarmers;
     private List<String> allLocations;
+    private java.util.Map<String, Double> contractAmountMap = new java.util.HashMap<>();
 
     public FarmerRegistrationWindow() {
         this.farmerInfoRepository = new FarmerInfoRepository(DatabaseManager.getInstance());
@@ -111,7 +112,7 @@ public class FarmerRegistrationWindow {
         searchLabel.setMinWidth(80);
 
         searchField = new TextField();
-        searchField.setPromptText("输入农户姓名、合同号或身份证号进行搜索...");
+        searchField.setPromptText("输入农户姓名、合同号、身份证号或合同量进行搜索...");
         searchField.setPrefWidth(450);
         searchField.textProperty().addListener((obs, oldText, newText) -> performSearch());
 
@@ -172,7 +173,8 @@ public class FarmerRegistrationWindow {
         deleteAllButton.setOnAction(e -> showDeleteAllConfirmDialog());
 
         filterBox.getChildren().addAll(filterLabel, townshipLabel, townshipFilter,
-                villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton, importExcelButton, deleteAllButton);
+                villageLabel, villageFilter, refreshButton, refreshLocationButton, addFarmerButton, importExcelButton,
+                deleteAllButton);
 
         topSection.getChildren().addAll(searchBox, filterBox);
         return topSection;
@@ -293,16 +295,15 @@ public class FarmerRegistrationWindow {
                     allFarmers.clear();
                     allFarmers.addAll(farmers);
                     // 获取合同量信息（从farmer_contracts表）
-                    java.util.Map<String, Double> amountMap;
                     try {
-                        amountMap = new com.tobacco.weight.database.WeighingRecordRepository(
+                        contractAmountMap = new com.tobacco.weight.database.WeighingRecordRepository(
                                 DatabaseManager.getInstance())
                                 .getContractAmountsSync();
                     } catch (Exception ex) {
                         logger.warn("获取合同量信息失败，使用空映射", ex);
-                        amountMap = java.util.Collections.emptyMap();
+                        contractAmountMap = java.util.Collections.emptyMap();
                     }
-                    updateFarmerTableWithAmount(farmers, amountMap);
+                    updateFarmerTableWithAmount(farmers, contractAmountMap);
                     updateStatus("已加载 " + farmers.size() + " 个农户");
                 });
             }
@@ -324,8 +325,8 @@ public class FarmerRegistrationWindow {
      * 更新农户表格
      */
     private void updateFarmerTable(List<FarmerInfo> farmers) {
-        // 兼容旧调用，默认不带合同量
-        updateFarmerTableWithAmount(farmers, java.util.Collections.emptyMap());
+        // 使用已加载的合同量信息
+        updateFarmerTableWithAmount(farmers, contractAmountMap);
     }
 
     private void updateFarmerTableWithAmount(List<FarmerInfo> farmers, java.util.Map<String, Double> amountMap) {
@@ -406,27 +407,19 @@ public class FarmerRegistrationWindow {
 
         updateStatus("正在搜索...");
 
-        farmerInfoRepository.searchByNameOrContract(searchTerm.trim(),
-                new FarmerInfoRepository.OnResultListener<List<FarmerInfo>>() {
-                    @Override
-                    public void onSuccess(List<FarmerInfo> farmers) {
-                        Platform.runLater(() -> {
-                            // 如果有地区筛选，需要进一步筛选结果
-                            List<FarmerInfo> filteredFarmers = applyLocationFilter(farmers);
-                            updateFarmerTable(filteredFarmers);
-                            updateStatus("搜索到 " + filteredFarmers.size() + " 个农户");
-                        });
-                    }
+        // 使用本地搜索而不是数据库搜索，确保结果一致性
+        List<FarmerInfo> searchResults = allFarmers.stream()
+                .filter(f -> f.getFarmerName().contains(searchTerm.trim()) ||
+                        f.getContractNumber().contains(searchTerm.trim()) ||
+                        f.getIdCardNumber().contains(searchTerm.trim()) ||
+                        // 检查合同量是否包含搜索条件
+                        isContractAmountMatch(f, searchTerm.trim()))
+                .toList();
 
-                    @Override
-                    public void onError(Exception e) {
-                        Platform.runLater(() -> {
-                            logger.error("搜索失败", e);
-                            showAlert("搜索失败: " + e.getMessage());
-                            updateStatus("搜索失败");
-                        });
-                    }
-                });
+        // 应用地区筛选
+        List<FarmerInfo> filteredFarmers = applyLocationFilter(searchResults);
+        updateFarmerTable(filteredFarmers);
+        updateStatus("搜索到 " + filteredFarmers.size() + " 个农户");
     }
 
     /**
@@ -463,14 +456,8 @@ public class FarmerRegistrationWindow {
                     .toList();
         }
 
-        // 如果有搜索条件，进一步筛选
-        String searchTerm = searchField.getText();
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            filteredFarmers = filteredFarmers.stream()
-                    .filter(f -> f.getFarmerName().contains(searchTerm.trim()) ||
-                            f.getContractNumber().contains(searchTerm.trim()))
-                    .toList();
-        }
+        // 注意：搜索逻辑现在由 performSearch() 方法专门处理
+        // 这里只处理地区筛选，避免重复搜索
 
         updateFarmerTable(filteredFarmers);
 
@@ -541,6 +528,26 @@ public class FarmerRegistrationWindow {
     }
 
     /**
+     * 检查合同量是否匹配搜索条件
+     */
+    private boolean isContractAmountMatch(FarmerInfo farmer, String searchTerm) {
+        try {
+            // 从已加载的合同量映射中查找，避免重复查询数据库
+            if (contractAmountMap != null) {
+                Double amount = contractAmountMap.get(farmer.getContractNumber());
+                if (amount != null && amount > 0) {
+                    // 将合同量转换为字符串进行搜索匹配
+                    String amountStr = String.format("%.2f", amount);
+                    return amountStr.contains(searchTerm);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("检查合同量匹配时出错: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    /**
      * 显示新增农户对话框
      */
     private void showAddFarmerDialog() {
@@ -557,20 +564,20 @@ public class FarmerRegistrationWindow {
         modeAlert.setTitle("选择导入模式");
         modeAlert.setHeaderText("请选择导入模式");
         modeAlert.setContentText("预览模式：只验证数据，不写入数据库\n正式导入：验证并写入数据库");
-        
+
         ButtonType previewButton = new ButtonType("预览模式");
         ButtonType importButton = new ButtonType("正式导入");
         ButtonType cancelButton = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
-        
+
         modeAlert.getButtonTypes().setAll(previewButton, importButton, cancelButton);
-        
+
         Optional<ButtonType> modeResult = modeAlert.showAndWait();
         if (!modeResult.isPresent() || modeResult.get() == cancelButton) {
             return;
         }
-        
+
         boolean dryRun = (modeResult.get() == previewButton);
-        
+
         // 选择文件
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("选择农户合同Excel文件");
@@ -642,23 +649,22 @@ public class FarmerRegistrationWindow {
                 } catch (Exception e) {
                     // 如果失败，可能是加密文件，尝试使用密码
                     String errorMsg = e.getMessage();
-                    if (errorMsg != null && (
-                        errorMsg.contains("OLE2") || 
-                        errorMsg.contains("encrypted") || 
-                        errorMsg.contains("Encrypted") ||
-                        errorMsg.contains("password") || 
-                        errorMsg.contains("decrypted") ||
-                        errorMsg.contains("需要提供密码") ||
-                        (errorMsg.contains("XSSF") && errorMsg.contains("HSSF")))) {
-                        
+                    if (errorMsg != null && (errorMsg.contains("OLE2") ||
+                            errorMsg.contains("encrypted") ||
+                            errorMsg.contains("Encrypted") ||
+                            errorMsg.contains("password") ||
+                            errorMsg.contains("decrypted") ||
+                            errorMsg.contains("需要提供密码") ||
+                            (errorMsg.contains("XSSF") && errorMsg.contains("HSSF")))) {
+
                         Platform.runLater(() -> statusLabel.setText("检测到加密文件，使用密码解密..."));
-                        
+
                         // 先尝试使用已知密码 0807
                         try {
                             tempResult = importService.importFromExcel(excelFile, null, "0807");
                         } catch (Exception passwordException) {
                             // 如果默认密码失败，显示密码输入对话框
-                            final String[] userPassword = {null};
+                            final String[] userPassword = { null };
                             Platform.runLater(() -> {
                                 String password = PasswordDialog.showPasswordDialog(stage, excelFile.getName());
                                 userPassword[0] = password;
@@ -666,7 +672,7 @@ public class FarmerRegistrationWindow {
                                     userPassword.notify();
                                 }
                             });
-                            
+
                             // 等待用户输入
                             synchronized (userPassword) {
                                 try {
@@ -676,11 +682,11 @@ public class FarmerRegistrationWindow {
                                     throw new RuntimeException("等待用户输入被中断", ie);
                                 }
                             }
-                            
+
                             if (userPassword[0] == null) {
                                 throw new RuntimeException("用户取消了密码输入");
                             }
-                            
+
                             // 使用用户输入的密码
                             Platform.runLater(() -> statusLabel.setText("使用用户输入的密码解密..."));
                             tempResult = importService.importFromExcel(excelFile, null, userPassword[0]);
@@ -689,7 +695,7 @@ public class FarmerRegistrationWindow {
                         throw e;
                     }
                 }
-                
+
                 final FarmerImportService.ImportResult result = tempResult;
 
                 final boolean isDryRun = dryRun; // Make it effectively final
@@ -747,7 +753,7 @@ public class FarmerRegistrationWindow {
         summary.append("失败记录: ").append(result.getFailureCount()).append("\n");
         summary.append("重复记录: ").append(result.getDuplicateCount()).append("\n\n");
         summary.append(result.getSummary());
-        
+
         TextArea summaryArea = new TextArea(summary.toString());
         summaryArea.setEditable(false);
         summaryArea.setPrefRowCount(8);
@@ -757,7 +763,7 @@ public class FarmerRegistrationWindow {
         TitledPane detailPane = new TitledPane();
         detailPane.setText("错误详情");
         detailPane.setExpanded(result.getErrorMessages().size() > 0);
-        
+
         StringBuilder errorDetails = new StringBuilder();
         if (result.getErrorMessages().isEmpty()) {
             errorDetails.append("没有错误记录");
@@ -767,7 +773,7 @@ public class FarmerRegistrationWindow {
                 errorDetails.append(i + 1).append(". ").append(result.getErrorMessages().get(i)).append("\n");
             }
         }
-        
+
         TextArea detailArea = new TextArea(errorDetails.toString());
         detailArea.setEditable(false);
         detailArea.setPrefRowCount(10);
@@ -806,10 +812,11 @@ public class FarmerRegistrationWindow {
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("保存错误报告");
-        fileChooser.setInitialFileName("导入错误报告_" + 
-            java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".txt");
+        fileChooser.setInitialFileName("导入错误报告_" +
+                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                + ".txt");
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("文本文件", "*.txt"));
+                new FileChooser.ExtensionFilter("文本文件", "*.txt"));
 
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
@@ -817,19 +824,19 @@ public class FarmerRegistrationWindow {
                 StringBuilder content = new StringBuilder();
                 content.append("=== 导入错误报告 ===\n");
                 content.append("生成时间: ").append(java.time.LocalDateTime.now().format(
-                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n");
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n");
                 content.append("总记录数: ").append(result.getTotalRows()).append("\n");
                 content.append("成功处理: ").append(result.getSuccessCount()).append("\n");
                 content.append("失败记录: ").append(result.getFailureCount()).append("\n");
                 content.append("重复记录: ").append(result.getDuplicateCount()).append("\n\n");
-                
+
                 content.append("=== 错误详情 ===\n");
                 for (int i = 0; i < result.getErrorMessages().size(); i++) {
                     content.append(i + 1).append(". ").append(result.getErrorMessages().get(i)).append("\n");
                 }
-                
-                java.nio.file.Files.writeString(file.toPath(), content.toString(), 
-                    java.nio.charset.StandardCharsets.UTF_8);
+
+                java.nio.file.Files.writeString(file.toPath(), content.toString(),
+                        java.nio.charset.StandardCharsets.UTF_8);
                 showAlert("错误报告已保存到: " + file.getAbsolutePath());
             } catch (Exception e) {
                 logger.error("保存错误报告失败", e);
@@ -1025,7 +1032,8 @@ public class FarmerRegistrationWindow {
         alert.getButtonTypes().setAll(deleteButton, cancelButton);
 
         // 设置默认按钮为取消
-        alert.getDialogPane().lookupButton(deleteButton).setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white;");
+        alert.getDialogPane().lookupButton(deleteButton)
+                .setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white;");
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == deleteButton) {
@@ -1043,7 +1051,7 @@ public class FarmerRegistrationWindow {
             try {
                 // 删除所有数据
                 boolean success = deleteAllImportData();
-                
+
                 Platform.runLater(() -> {
                     if (success) {
                         showAlert("删除成功：所有农户和合同数据已删除");
@@ -1055,7 +1063,7 @@ public class FarmerRegistrationWindow {
                         updateStatus("删除失败");
                     }
                 });
-                
+
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     logger.error("删除所有数据失败", e);
@@ -1064,43 +1072,44 @@ public class FarmerRegistrationWindow {
                 });
             }
         });
-        
+
         deleteThread.setDaemon(true);
         deleteThread.start();
     }
 
     /**
      * 删除所有导入的数据
+     * 
      * @return 删除是否成功
      */
     private boolean deleteAllImportData() {
         try (Connection conn = DatabaseManager.getInstance().getConnection()) {
             conn.setAutoCommit(false); // 开启事务
-            
+
             try (Statement stmt = conn.createStatement()) {
                 // 删除称重记录
                 int weighingDeleted = stmt.executeUpdate("DELETE FROM weighing_records");
                 logger.info("删除称重记录: {} 条", weighingDeleted);
-                
+
                 // 删除合同信息
                 int contractsDeleted = stmt.executeUpdate("DELETE FROM farmer_contracts");
                 logger.info("删除合同信息: {} 条", contractsDeleted);
-                
+
                 // 删除农户信息
                 int farmersDeleted = stmt.executeUpdate("DELETE FROM farmer_info");
                 logger.info("删除农户信息: {} 条", farmersDeleted);
-                
+
                 conn.commit(); // 提交事务
-                logger.info("所有数据删除完成 - 农户: {}, 合同: {}, 称重记录: {}", 
-                           farmersDeleted, contractsDeleted, weighingDeleted);
+                logger.info("所有数据删除完成 - 农户: {}, 合同: {}, 称重记录: {}",
+                        farmersDeleted, contractsDeleted, weighingDeleted);
                 return true;
-                
+
             } catch (SQLException e) {
                 conn.rollback(); // 回滚事务
                 logger.error("删除数据失败，已回滚", e);
                 throw e;
             }
-            
+
         } catch (SQLException e) {
             logger.error("删除所有数据失败", e);
             return false;
