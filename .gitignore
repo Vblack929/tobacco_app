@@ -239,6 +239,5 @@ license.json
 # License Configuration Files (contains sensitive tokens)
 # ===============================================================
 license_config.properties
-src/main/resources/license_config.properties
 license_config.properties.backup
 src/main/resources/license_config.properties.backup
