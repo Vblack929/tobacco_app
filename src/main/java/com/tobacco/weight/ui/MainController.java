@@ -517,8 +517,15 @@ public class MainController implements Initializable {
                 return;
             }
 
-            // 地址字段已删除，使用默认值
-            String address = "待完善";
+            // 获取地址信息
+            String stationName = getStationName(idCardNumber);
+            String farmerAddress = getFarmerAddress(idCardNumber);
+            String address = stationName;
+            if (farmerAddress != null && !farmerAddress.trim().isEmpty() && !"待完善".equals(farmerAddress.trim())) {
+                address = farmerAddress;
+            } else {
+                address = "实时录入";
+            }
 
             // 称重信息记录
 
@@ -2377,11 +2384,15 @@ public class MainController implements Initializable {
             String safeInspector = operator != null ? operator : "系统";
             String locationInfo = "实时录入";
 
-            // 地址字段已删除，使用默认值
-            String address = "待完善";
+            // 获取站点名称和地址
             String idCardNumber = idCardNumberField.getText().trim();
             if (idCardNumber.isEmpty())
                 idCardNumber = "XXX";
+            String stationName = getStationName(idCardNumber);
+            String address = getFarmerAddress(idCardNumber);
+            if (address == null || address.trim().isEmpty() || "待完善".equals(address.trim())) {
+                address = "实时录入";
+            }
             String currentDate = java.time.LocalDate.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
