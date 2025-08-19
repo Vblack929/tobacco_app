@@ -1,0 +1,40 @@
+# GitHub Gist Configuration
+# 请复制此文件为 license_config.properties 并填入真实的配置信息
+# Please copy this file to license_config.properties and fill in real configuration
+
+github.gist.id=your_gist_id_here
+github.token=your_github_token_here
+github.gist.filename=license_data.json
+
+# 启用在线验证
+online.verification.enabled=true
+offline.fallback.enabled=true
+legacy.mode.forced=false
+
+# 日志配置
+logging.level.root=INFO
+logging.level.com.tobacco=DEBUG
+logging.file.path=logs/license.log
+logging.file.max-size=10MB
+logging.file.max-history=30
+
+# 离线许可证配置
+offline.license.file=license.dat
+offline.license.backup.file=license_backup.dat
+offline.license.validation.strict=true
+
+# 系统配置
+system.hardware.fingerprint.enabled=true
+system.license.expiry.warning.days=7
+system.license.grace.period.days=3
+
+# 网络配置
+network.timeout.connection=5000
+network.timeout.read=10000
+network.retry.attempts=3
+network.retry.delay=1000
+
+# 缓存配置
+cache.license.ttl=3600
+cache.gist.ttl=1800
+cache.cleanup.interval=300
