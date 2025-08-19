@@ -552,8 +552,11 @@ public class FarmerInfoDetailDialog extends Stage {
             }
 
             // 创建标签信息
+            String idCardNumber = currentFarmerInfo.getIdCardNumber() != null ? currentFarmerInfo.getIdCardNumber() : "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
+                    locationInfo, idCardNumber, contractNum, farmerName, precheckId, leafType, inspector, currentDate, record.getWeight());
 
             // 按捆数打印多份标签
             boolean allPrintSuccess = true;
@@ -695,8 +698,11 @@ public class FarmerInfoDetailDialog extends Stage {
             java.awt.image.BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
 
             // 标签信息
+            String idCardNumber = currentFarmerInfo.getIdCardNumber() != null ? currentFarmerInfo.getIdCardNumber() : "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
+                    locationInfo, idCardNumber, contractNum, farmerName, precheckId, leafType, inspector, currentDate, record.getWeight());
 
             // 选择保存位置
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();

@@ -429,14 +429,20 @@ public class FarmerDetailDialog extends Stage {
             String precheckId = record.getPrecheckId() != null ? record.getPrecheckId() : "N/A";
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
-            String locationInfo = "默认地址";
+            // 获取站点名称和地址
+            String stationName = getStationName(currentIdCardNumber);
+            String locationInfo = getFarmerAddress(currentIdCardNumber);
 
             // 生成二维码图片
             java.awt.image.BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
 
-            // 创建标签信息
+            // 创建标签信息（包含重量）
+            double singleBundleWeight = record.getWeight();
+            String idCardNumber = currentIdCardNumber != null ? currentIdCardNumber : "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             com.tobacco.weight.hardware.PrinterManager.LabelInfo labelInfo = new com.tobacco.weight.hardware.PrinterManager.LabelInfo(
-                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
+                    locationInfo, idCardNumber, contractNum, farmerName, precheckId, leafType, inspector, currentDate, singleBundleWeight);
 
             // 创建文件选择对话框
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -548,9 +554,13 @@ public class FarmerDetailDialog extends Stage {
                 return;
             }
 
-            // 创建标签信息
+            // 创建标签信息（包含重量）
+            double singleBundleWeight = record.getWeight();
+            String idCardNumber = currentIdCardNumber != null ? currentIdCardNumber : "XXX";
+            String currentDate = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
-                    locationInfo, "身份证号", contractNum, farmerName, precheckId, leafType, inspector, "当前日期");
+                    locationInfo, idCardNumber, contractNum, farmerName, precheckId, leafType, inspector, currentDate, singleBundleWeight);
 
             // 按捆数打印多份标签
             PrinterManager printerManager = new PrinterManager();
