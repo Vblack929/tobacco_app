@@ -50,6 +50,12 @@ import java.time.format.DateTimeFormatter;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.text.SimpleDateFormat;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Pos;
+import javafx.geometry.Insets;
 
 /**
  * 主界面控制器
@@ -211,7 +217,7 @@ public class MainController implements Initializable {
         // 显示数据库路径
         String dbPath = databaseManager.getDbPath();
         logger.info("数据库文件位置: {}", dbPath);
-        System.out.println("数据库文件位置: " + dbPath);
+        // 数据库文件位置已初始化
 
         // 初始化硬件管理器
         initializeHardwareManagers();
@@ -464,8 +470,6 @@ public class MainController implements Initializable {
      */
     private void confirmWeighing() {
         try {
-            System.out.println("=== 开始确认称重 ===");
-
             String farmerName = farmerNameField.getText().trim();
             if (farmerName.isEmpty()) {
                 showError("输入错误", "请输入烟农姓名");
@@ -497,11 +501,14 @@ public class MainController implements Initializable {
             }
 
             // 获取当前重量
-            double weight = scaleManager.getCurrentWeight();
-            if (weight <= 0) {
+            double totalWeight = scaleManager.getCurrentWeight();
+            if (totalWeight <= 0) {
                 showError("称重错误", "当前重量无效，请检查电子秤连接");
                 return;
             }
+
+            // 计算单捆重量
+            double weight = totalWeight / bundleCount;
 
             // 获取选中的部叶类型
             String leafType = getSelectedLeafType();
@@ -513,7 +520,7 @@ public class MainController implements Initializable {
             // 地址字段已删除，使用默认值
             String address = "待完善";
 
-            System.out.println("称重信息: " + farmerName + ", " + idCardNumber + ", " + leafType + ", " + weight + "kg");
+            // 称重信息记录
 
             // 生成新的预检编号：身份证后6位+合同号后6位+当前第几次称重（五位数）
             String idCardLast6 = idCardNumber.length() >= 6 ? idCardNumber.substring(idCardNumber.length() - 6)
@@ -546,8 +553,7 @@ public class MainController implements Initializable {
             record.setBundleCount(bundleCount);
             record.setAddress(address);
 
-            System.out.println("记录创建完成: " + record.getFarmerName() + ", " + record.getIdCardNumber() + ", 预检编号: "
-                    + fullPrecheckId + " (显示: " + displayPrecheckId + ")");
+            // 记录创建完成
 
             // 保存到数据库和列表
             saveWeighingRecord(record);
@@ -586,11 +592,8 @@ public class MainController implements Initializable {
                 }
             }
 
-            System.out.println("=== 确认称重完成 ===");
-
         } catch (Exception e) {
-            System.out.println("确认称重异常: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("确认称重异常", e);
             showError("异常", "称重失败: " + e.getMessage());
         }
     }
@@ -849,26 +852,29 @@ public class MainController implements Initializable {
         logger.info("收到重量更新回调: {} kg", weight);
 
         Platform.runLater(() -> {
-            logger.debug("在UI线程中更新重量显示: {} kg", weight);
+            // logger.debug("在UI线程中更新重量显示: {} kg", weight);
 
             // 更新重量显示
             currentWeightLabel.setText(String.format("%.2f kg", weight));
-            logger.debug("重量标签已更新: {}", currentWeightLabel.getText());
+            // logger.debug("重量标签已更新: {}", currentWeightLabel.getText());
 
             // 更新状态信息
             updateStatus(String.format("当前重量: %.2f kg", weight));
+
+            // 实时更新标签预览
+            updateLabelPreview();
 
             // 检查重量是否稳定（这里可以根据需要添加稳定性检测逻辑）
             if (weight > 0.01) {
                 // 有重量时启用确认按钮
                 confirmButton.setDisable(false);
                 operationTipLabel.setText("请选择叶位类型");
-                logger.debug("确认按钮已启用");
+                // logger.debug("确认按钮已启用");
             } else {
                 // 无重量时禁用确认按钮
                 confirmButton.setDisable(true);
                 operationTipLabel.setText("请放置物品称重");
-                logger.debug("确认按钮已禁用");
+                // logger.debug("确认按钮已禁用");
             }
 
             logger.info("UI重量更新完成: {} kg", weight);
@@ -916,37 +922,6 @@ public class MainController implements Initializable {
     }
 
     /**
-     * 开发者测试方法：模拟各种错误条件（用于测试诊断系统）
-     * 在键盘输入特定快捷键时调用此方法
-     */
-    public void triggerTestErrors() {
-        if (idCardReader != null) {
-            new Thread(() -> {
-                try {
-                    // 模拟设备未找到错误
-                    Thread.sleep(1000);
-                    handleIdCardError("模拟错误: 设备未找到 [错误代码: 1001]");
-
-                    Thread.sleep(2000);
-                    // 模拟驱动问题
-                    handleIdCardError("模拟错误: 驱动程序未安装 [错误代码: 1002]");
-
-                    Thread.sleep(2000);
-                    // 模拟通信错误
-                    handleIdCardError("模拟错误: 通信失败 [错误代码: 1004]");
-
-                    Thread.sleep(2000);
-                    // 模拟读卡失败
-                    handleIdCardError("模拟错误: 身份证读取失败 [错误代码: 2002]");
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }).start();
-        }
-    }
-
-    /**
      * 更新合同号
      */
     private void updateContractNumber() {
@@ -964,7 +939,7 @@ public class MainController implements Initializable {
     private void saveWeighingRecord(WeighingRecord record) {
         // 添加到内存列表
         weighingRecordsList.add(record);
-        System.out.println("称重记录总数: " + weighingRecordsList.size());
+        // System.out.println("称重记录总数: " + weighingRecordsList.size());
 
         // 保存到数据库
         if (weighingRecordRepository != null) {
@@ -1273,28 +1248,28 @@ public class MainController implements Initializable {
     /**
      * 计算并刷新完成比例、上中下部叶比例
      * 完成比例 = 当前农户总重量 / 合同量
-     * 部叶比例 = 部叶重量 / 当前农户总重量
+     * 部叶比例 = 各部叶总重量 / 所有部叶总重量之和
      */
     private void updateRatios() {
         String currentFarmer = farmerNameField.getText().trim();
         String currentContract = contractNumberField.getText().trim();
 
-        // 计算当前农户的各类重量
+        // 计算当前农户的各类重量（使用总重量：单捆重量 × 捆数）
         double farmerTotalWeight = 0.0;
         double farmerUpperWeight = 0.0, farmerMiddleWeight = 0.0, farmerLowerWeight = 0.0;
 
         for (WeighingRecord record : weighingRecordsList) {
             // 只统计当前农户的记录
             if (record.getFarmerName().equals(currentFarmer)) {
-                double w = record.getWeight();
-                farmerTotalWeight += w;
+                double totalWeight = record.getWeight() * record.getBundleCount();
+                farmerTotalWeight += totalWeight;
 
                 if ("上部叶".equals(record.getLeafType()))
-                    farmerUpperWeight += w;
+                    farmerUpperWeight += totalWeight;
                 else if ("中部叶".equals(record.getLeafType()))
-                    farmerMiddleWeight += w;
+                    farmerMiddleWeight += totalWeight;
                 else if ("下部叶".equals(record.getLeafType()))
-                    farmerLowerWeight += w;
+                    farmerLowerWeight += totalWeight;
             }
         }
 
@@ -1331,14 +1306,44 @@ public class MainController implements Initializable {
 
     private void setupAdminTable() {
         adminTable = new TableView<>();
+
+        // 设置表格列宽度策略为自适应内容
+        adminTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+
         TableColumn<FarmerStats, String> nameCol = new TableColumn<>("姓名");
         nameCol.setCellValueFactory(data -> data.getValue().farmerNameProperty());
+        nameCol.setStyle("-fx-alignment: CENTER;");
+        nameCol.setPrefWidth(80);
+
         TableColumn<FarmerStats, String> idCol = new TableColumn<>("身份证号");
-        idCol.setCellValueFactory(data -> data.getValue().idCardProperty());
+        idCol.setCellValueFactory(data -> {
+            String idCard = data.getValue().idCardProperty().get();
+            if (idCard != null && !idCard.isEmpty()) {
+                // 检查是否是真正的身份证号（18位数字+X）
+                if (idCard.length() == 18 && idCard.matches("\\d{17}[\\dXx]")) {
+                    // 这是真正的身份证号，显示脱敏版本
+                    return new SimpleStringProperty(maskIdCardNumber(idCard));
+                } else {
+                    // 其他情况，可能是预检编号或其他数据
+                    return new SimpleStringProperty("格式错误");
+                }
+            } else {
+                return new SimpleStringProperty("");
+            }
+        });
+        idCol.setStyle("-fx-alignment: CENTER;");
+        idCol.setPrefWidth(150);
+
         TableColumn<FarmerStats, Integer> countCol = new TableColumn<>("称重次数");
         countCol.setCellValueFactory(data -> data.getValue().countProperty().asObject());
+        countCol.setStyle("-fx-alignment: CENTER;");
+        countCol.setPrefWidth(80);
+
         TableColumn<FarmerStats, Double> weightCol = new TableColumn<>("总重量(kg)");
         weightCol.setCellValueFactory(data -> data.getValue().totalWeightProperty().asObject());
+        weightCol.setStyle("-fx-alignment: CENTER;");
+        weightCol.setPrefWidth(100);
+
         TableColumn<FarmerStats, Void> viewCol = new TableColumn<>("查看");
         viewCol.setCellFactory(col -> new TableCell<>() {
             private final Button btn = new Button("查看");
@@ -1355,11 +1360,33 @@ public class MainController implements Initializable {
                 setGraphic(empty ? null : btn);
             }
         });
+        viewCol.setStyle("-fx-alignment: CENTER;");
+        viewCol.setPrefWidth(80);
+
+        // 设置表格
         adminTable.setPrefHeight(200);
         adminTable.getColumns().setAll(nameCol, idCol, countCol, weightCol, viewCol);
+
+        // 添加按钮容器
+        HBox buttonContainer = new HBox(10);
+        buttonContainer.setAlignment(Pos.CENTER_LEFT);
+        buttonContainer.setPadding(new Insets(5));
+
+        // 添加刷新按钮
+        Button refreshButton = new Button("刷新数据");
+        refreshButton.setOnAction(e -> refreshAdminTable());
+        refreshButton.setStyle("-fx-font-size: 14px; -fx-padding: 8px 16px;");
+
+        buttonContainer.getChildren().add(refreshButton);
+
+        // 将按钮容器和表格添加到adminTableContainer
+        if (!adminTableContainer.getChildren().contains(buttonContainer)) {
+            adminTableContainer.getChildren().add(0, buttonContainer);
+        }
         if (!adminTableContainer.getChildren().contains(adminTable)) {
             adminTableContainer.getChildren().add(adminTable);
         }
+
         refreshAdminTable();
     }
 
@@ -1369,26 +1396,40 @@ public class MainController implements Initializable {
         dialog.setTitle("预检记录 - " + stats.farmerNameProperty().get());
         dialog.setWidth(1100);
         TableView<com.tobacco.weight.data.WeighingRecord> recordTable = new TableView<>();
-        recordTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        recordTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
-        precheckCol.setPrefWidth(240);
-        precheckCol.setMinWidth(220);
+        precheckCol.setPrefWidth(180);
+        precheckCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
-        leafCol.setPrefWidth(120);
+        leafCol.setPrefWidth(80);
+        leafCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
         bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
-        bundleCol.setPrefWidth(80);
+        bundleCol.setPrefWidth(60);
+        bundleCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
-        weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
-        weightCol.setPrefWidth(120);
+        weightCol.setCellValueFactory(cellData -> {
+            com.tobacco.weight.data.WeighingRecord record = cellData.getValue();
+            double singleBundleWeight = record.getWeight();
+            return new javafx.beans.property.SimpleObjectProperty<>(singleBundleWeight);
+        });
+        weightCol.setPrefWidth(80);
+        weightCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> timeCol = new TableColumn<>("时间");
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
-        timeCol.setPrefWidth(200);
-        timeCol.setMinWidth(180);
+        timeCol.setPrefWidth(160);
+        timeCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<com.tobacco.weight.data.WeighingRecord, Void> exportCol = new TableColumn<>("操作");
-        exportCol.setPrefWidth(140);
+        exportCol.setPrefWidth(80);
+        exportCol.setStyle("-fx-alignment: CENTER;");
         exportCol.setCellFactory(col -> new TableCell<>() {
             private final Button btn = new Button("导出");
             {
@@ -1535,6 +1576,8 @@ public class MainController implements Initializable {
     }
 
     private void refreshAdminTable() {
+        logger.info("=== 开始刷新管理员表格 ===");
+
         // 检查容器是否存在，如果不存在则跳过表格更新
         if (adminTableContainer == null) {
             logger.warn("adminTableContainer为null，跳过管理员表格更新");
@@ -1546,25 +1589,39 @@ public class MainController implements Initializable {
             setupAdminTable();
         }
 
-        // 以身份证号为主键分组，若无身份证则用姓名分组
+        // 以农户姓名为主键分组
         Map<String, List<WeighingRecord>> grouped = weighingRecordsList.stream()
                 .collect(java.util.stream.Collectors.groupingBy(r -> {
-                    String id = r.getIdCardNumber();
-                    if (id != null && !id.isEmpty())
-                        return id;
-                    // 若身份证号为空则用姓名分组
                     return r.getFarmerName() != null ? r.getFarmerName() : "未知";
                 }));
         java.util.List<FarmerStats> stats = new java.util.ArrayList<>();
         for (Map.Entry<String, List<WeighingRecord>> entry : grouped.entrySet()) {
             List<WeighingRecord> list = entry.getValue();
             String name = list.isEmpty() ? "" : list.get(0).getFarmerName();
-            String idCard = list.isEmpty() ? "" : list.get(0).getIdCardNumber();
+
+            // 优先从农户信息表中获取身份证号
+            String idCard = getFarmerIdCardByName(name);
+
+            // 如果农户信息表中没有，则从称重记录中获取
+            if (idCard == null || idCard.isEmpty()) {
+                if (!list.isEmpty()) {
+                    WeighingRecord firstRecord = list.get(0);
+                    idCard = firstRecord.getIdCardNumber();
+                    if (idCard == null) {
+                        idCard = "";
+                    }
+                } else {
+                    idCard = "";
+                }
+            }
+
             int count = list.size();
-            double totalWeight = list.stream().mapToDouble(WeighingRecord::getWeight).sum();
+            double totalWeight = list.stream().mapToDouble(record -> record.getWeight() * record.getBundleCount())
+                    .sum();
+
             stats.add(new FarmerStats(name, idCard, count, totalWeight, list));
         }
-        System.out.println("管理员表分组后总农户数: " + stats.size());
+
         adminTable.getItems().setAll(stats);
     }
 
@@ -2158,7 +2215,9 @@ public class MainController implements Initializable {
                 .append("\n");
         content.append("预检:").append(safePrecheck.length() > 12 ? safePrecheck.substring(0, 12) + ".." : safePrecheck)
                 .append("\n");
-        content.append("重量:").append(String.format("%.2f", weight)).append("kg\n");
+        // 计算单捆重量
+        double singleBundleWeight = weight / bundleCount;
+        content.append("重量:").append(String.format("%.2f", singleBundleWeight)).append("kg\n");
         content.append("部位:").append(safeLeafType.length() > 6 ? safeLeafType.substring(0, 6) + ".." : safeLeafType)
                 .append("\n");
         content.append("检验:").append(safeInspector.length() > 6 ? safeInspector.substring(0, 6) + ".." : safeInspector)
@@ -2178,13 +2237,15 @@ public class MainController implements Initializable {
         double estimatedWidth = maxLineLength * 3.0; // mm
         double estimatedHeight = lines.length * 4.0; // mm
 
-        System.out.println("=== 标签纸张大小估算 ===");
-        System.out.println("标签内容行数: " + lines.length);
-        System.out.println("最长行字符数: " + maxLineLength);
-        System.out.println("估算宽度: " + String.format("%.1f", estimatedWidth) + " mm");
-        System.out.println("估算高度: " + String.format("%.1f", estimatedHeight) + " mm");
-        System.out.println("是否适合70x70mm纸张: " + ((estimatedWidth <= 70 && estimatedHeight <= 70) ? "是" : "否"));
-        System.out.println("================================");
+        // System.out.println("=== 标签纸张大小估算 ===");
+        // System.out.println("标签内容行数: " + lines.length);
+        // System.out.println("最长行字符数: " + maxLineLength);
+        // System.out.println("估算宽度: " + String.format("%.1f", estimatedWidth) + " mm");
+        // System.out.println("估算高度: " + String.format("%.1f", estimatedHeight) + "
+        // mm");
+        // System.out.println("是否适合70x70mm纸张: " + ((estimatedWidth <= 70 &&
+        // estimatedHeight <= 70) ? "是" : "否"));
+        // System.out.println("================================");
 
         return finalContent;
     }
@@ -2301,70 +2362,6 @@ public class MainController implements Initializable {
     /**
      * 显示二维码扫描测试窗口
      */
-    private void showQRCodeTest(String contractNumber) {
-        try {
-            String contractNum = contractNumber != null ? contractNumber : "N/A";
-
-            // 生成真实的二维码图片（300x300像素，足够大便于手机扫描）
-            Image qrImage = QRCodeGenerator.generateQRCodeImage(contractNum, 300);
-
-            if (qrImage == null) {
-                showError("生成失败", "无法生成二维码图片");
-                return;
-            }
-
-            // 创建测试窗口
-            javafx.stage.Stage testStage = new javafx.stage.Stage();
-            testStage.setTitle("二维码扫描测试 - " + contractNum);
-            testStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            testStage.initOwner(primaryStage);
-
-            // 创建ImageView显示真实二维码图片
-            ImageView qrImageView = new ImageView(qrImage);
-            qrImageView.setFitWidth(300);
-            qrImageView.setFitHeight(300);
-            qrImageView.setPreserveRatio(true);
-            qrImageView.setSmooth(false); // 关闭平滑处理，保持二维码清晰
-
-            // 说明文本
-            javafx.scene.control.Label instructionLabel = new javafx.scene.control.Label(
-                    "请用手机扫描以下二维码测试:\n" +
-                            "合同号: " + contractNum + "\n\n" +
-                            "✅ 这是真实的二维码图片，手机应该可以正常扫描！\n" +
-                            "注意: 实际打印会使用更小的版本以适应70x70mm标签");
-            instructionLabel.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-text-alignment: center;");
-            instructionLabel.setWrapText(true);
-
-            // 关闭按钮
-            javafx.scene.control.Button closeTestButton = new javafx.scene.control.Button("关闭");
-            closeTestButton.setStyle("-fx-font-size: 14px; -fx-padding: 8 20 8 20;");
-            closeTestButton.setOnAction(e -> testStage.close());
-
-            javafx.scene.layout.HBox testButtonBox = new javafx.scene.layout.HBox(closeTestButton);
-            testButtonBox.setAlignment(javafx.geometry.Pos.CENTER);
-            testButtonBox.setPadding(new javafx.geometry.Insets(10));
-
-            // 布局
-            javafx.scene.layout.VBox testLayout = new javafx.scene.layout.VBox(15);
-            testLayout.setPadding(new javafx.geometry.Insets(20));
-            testLayout.setAlignment(javafx.geometry.Pos.CENTER);
-            testLayout.getChildren().addAll(instructionLabel, qrImageView, testButtonBox);
-
-            javafx.scene.Scene testScene = new javafx.scene.Scene(testLayout);
-            testStage.setScene(testScene);
-
-            // 设置窗口大小
-            testStage.setWidth(400);
-            testStage.setHeight(550);
-            testStage.centerOnScreen();
-
-            testStage.show();
-
-        } catch (Exception e) {
-            logger.error("显示二维码测试失败", e);
-            showError("测试失败", "无法显示二维码测试: " + e.getMessage());
-        }
-    }
 
     /**
      * 保存标签预览为图片文件
@@ -2391,10 +2388,13 @@ public class MainController implements Initializable {
             // 生成二维码图片
             BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(safeContract, 80);
 
+            // 计算单捆重量
+            double singleBundleWeight = weight / bundleCount;
+
             // 创建标签信息
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
                     address, idCardNumber, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector,
-                    currentDate);
+                    currentDate, singleBundleWeight);
 
             // 创建文件选择对话框
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -2482,10 +2482,13 @@ public class MainController implements Initializable {
                 return;
             }
 
+            // 计算单捆重量
+            double singleBundleWeight = weight / bundleCount;
+
             // 创建标签信息
             PrinterManager.LabelInfo labelInfo = new PrinterManager.LabelInfo(
                     address, idCardNumber, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector,
-                    currentDate);
+                    currentDate, singleBundleWeight);
 
             // 按捆数打印多份标签
             boolean allPrintSuccess = true;
@@ -2594,12 +2597,15 @@ public class MainController implements Initializable {
                     finalAddress = getFarmerAddress(idCardNumber);
                 }
 
+                // weight参数已经是单捆重量，直接使用
+                double singleBundleWeight = weight;
+
                 updateInfoByIndex(0, stationName);
                 updateInfoByIndex(1, finalAddress);
                 updateInfoByIndex(2, idCardNumber);
                 updateInfoByIndex(3, "姓名: " + farmerName);
                 updateInfoByIndex(4, "预检编号: " + getLast5Digits(precheckId));
-                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", weight));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", singleBundleWeight));
                 updateInfoByIndex(6, "烟叶部位: " + leafType);
                 updateInfoByIndex(7, "预检日期: " + date);
             }
@@ -2624,12 +2630,15 @@ public class MainController implements Initializable {
                     finalAddress = getFarmerAddress(idCardNumber);
                 }
 
+                // weight参数已经是单捆重量，直接使用
+                double singleBundleWeight = weight;
+
                 updateInfoByIndex(0, stationName);
                 updateInfoByIndex(1, finalAddress);
                 updateInfoByIndex(2, idCardNumber);
                 updateInfoByIndex(3, "姓名: " + farmerName);
                 updateInfoByIndex(4, "预检编号: " + getLast5Digits(precheckId));
-                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", weight));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", singleBundleWeight));
                 updateInfoByIndex(6, "烟叶部位: " + leafType);
                 updateInfoByIndex(7, "预检日期: " + date);
             }
@@ -2665,6 +2674,20 @@ public class MainController implements Initializable {
                 // 获取当前实时重量
                 double currentWeight = getCurrentWeight();
 
+                // 计算单捆重量
+                double singleBundleWeight = currentWeight;
+                try {
+                    String bundleCountText = bundleCountField.getText();
+                    if (bundleCountText != null && !bundleCountText.trim().isEmpty()) {
+                        int bundleCount = Integer.parseInt(bundleCountText.trim());
+                        if (bundleCount > 0) {
+                            singleBundleWeight = currentWeight / bundleCount;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    // 如果解析失败，使用原始重量
+                }
+
                 // 获取地址
                 String address = getFarmerAddress(idCardNumber);
 
@@ -2673,7 +2696,7 @@ public class MainController implements Initializable {
                 updateInfoByIndex(2, finalIdCardNumber);
                 updateInfoByIndex(3, "姓名: " + finalFarmerName);
                 updateInfoByIndex(4, "预检编号: " + getLast5Digits(weighingCountStr));
-                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", currentWeight));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", singleBundleWeight));
                 updateInfoByIndex(6, "烟叶部位: " + finalLeafType);
                 updateInfoByIndex(7, "预检日期: " + currentDate);
             }
@@ -2975,4 +2998,54 @@ public class MainController implements Initializable {
             return 0.0;
         }
     }
+
+    /**
+     * 根据农户姓名查询身份证号
+     */
+    private String getFarmerIdCardByName(String farmerName) {
+        if (farmerName == null || farmerName.trim().isEmpty()) {
+            logger.warn("农户姓名为空，无法查询身份证号");
+            return null;
+        }
+
+        logger.info("开始查询农户 {} 的身份证号", farmerName);
+
+        try {
+            // 从农户信息表中查询身份证号
+            String sql = "SELECT id_card_number FROM farmer_info WHERE farmer_name = ? LIMIT 1";
+            logger.info("执行SQL查询: {}", sql);
+            logger.info("查询参数: farmer_name = {}", farmerName.trim());
+
+            try (Connection conn = databaseManager.getConnection();
+                    PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, farmerName.trim());
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        String idCard = rs.getString("id_card_number");
+                        logger.info("从farmer_info表查询到农户 {} 的身份证号: {}", farmerName, idCard);
+                        return idCard != null && !idCard.trim().isEmpty() ? idCard.trim() : null;
+                    } else {
+                        logger.warn("在farmer_info表中未找到农户 {} 的记录", farmerName);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("查询农户 {} 的身份证号失败: {}", farmerName, e.getMessage(), e);
+        }
+
+        return null;
+    }
+
+    /**
+     * 脱敏身份证号
+     */
+    private String maskIdCardNumber(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.length() < 10) {
+            return idCardNumber;
+        }
+        String maskedNumber = idCardNumber.substring(0, 6) + "****" + idCardNumber.substring(10);
+        return maskedNumber;
+    }
+
 }

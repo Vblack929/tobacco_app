@@ -35,15 +35,32 @@ public class AdminWindow extends Stage {
         statsList = FXCollections.observableArrayList();
         table.setItems(statsList);
 
+        // 设置表格列宽度策略为自适应内容
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+
         TableColumn<FarmerStats, String> nameCol = new TableColumn<>("姓名");
         nameCol.setCellValueFactory(data -> data.getValue().farmerNameProperty());
+        nameCol.setPrefWidth(100);
+        nameCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<FarmerStats, String> idCol = new TableColumn<>("身份证号");
         idCol.setCellValueFactory(data -> data.getValue().idCardProperty());
+        idCol.setPrefWidth(180);
+        idCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<FarmerStats, Integer> countCol = new TableColumn<>("称重次数");
         countCol.setCellValueFactory(data -> data.getValue().countProperty().asObject());
+        countCol.setPrefWidth(80);
+        countCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<FarmerStats, Double> weightCol = new TableColumn<>("总重量(kg)");
         weightCol.setCellValueFactory(data -> data.getValue().totalWeightProperty().asObject());
+        weightCol.setPrefWidth(100);
+        weightCol.setStyle("-fx-alignment: CENTER;");
+
         TableColumn<FarmerStats, Void> actionCol = new TableColumn<>("操作");
+        actionCol.setPrefWidth(120);
+        actionCol.setStyle("-fx-alignment: CENTER;");
         actionCol.setCellFactory(col -> new TableCell<>() {
             private final Button btn = new Button("查看");
             {
@@ -77,9 +94,10 @@ public class AdminWindow extends Stage {
         for (Map.Entry<String, List<WeighingRecord>> entry : grouped.entrySet()) {
             String name = entry.getKey();
             List<WeighingRecord> list = entry.getValue();
-            String id = list.get(0).getPrecheckId(); // 可替换为身份证号字段
+            String id = list.get(0).getIdCardNumber(); // 使用身份证号字段
             int count = list.size();
-            double totalWeight = list.stream().mapToDouble(WeighingRecord::getWeight).sum();
+            double totalWeight = list.stream().mapToDouble(record -> record.getWeight() * record.getBundleCount())
+                    .sum();
             stats.add(new FarmerStats(name, id, count, totalWeight, list));
         }
         statsList.setAll(stats);

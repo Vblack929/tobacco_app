@@ -24,11 +24,11 @@
                     <VBox spacing="5">
                         <Label text="烟农姓名:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                         <TextField fx:id="farmerNameField" promptText="请输入烟农姓名" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
-                    </VBox>
+                            </VBox>
                     <VBox spacing="5">
                         <Label text="合同号:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                         <TextField fx:id="contractNumberField" promptText="合同号" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
-                    </VBox>
+                            </VBox>
                     <VBox spacing="5">
                         <Label text="身份证号:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                         <TextField fx:id="idCardNumberField" promptText="请输入身份证号" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
@@ -45,7 +45,7 @@
                     </Button>
                     
                 </VBox>
-            </VBox>
+                </VBox>
             
             <!-- 数字键盘 - 增大按钮尺寸充分利用空间 -->
             <VBox fx:id="numberKeypadContainer" spacing="3" styleClass="number-keypad-compact" alignment="CENTER" VBox.vgrow="ALWAYS">
@@ -62,7 +62,7 @@
                     <Button fx:id="keyClear" text="C" styleClass="keypad-clear-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
                     <Button fx:id="key0" text="0" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="1" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
                     <Button fx:id="keyBack" text="⌫" styleClass="keypad-back-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="2" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
-                </GridPane>
+            </GridPane>
             </VBox>
         </VBox>
         
@@ -91,7 +91,6 @@
                 <Label text="实时重量" styleClass="weight-title" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
                 <HBox spacing="10" alignment="CENTER">
                     <Label fx:id="currentWeightLabel" text="00.00" styleClass="weight-value-large" style="-fx-font-size: 64px; -fx-font-weight: bold;"/>
-                    <Label text="kg" styleClass="weight-unit" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                 </HBox>
             </VBox>
             
@@ -150,8 +149,8 @@
                     </Button>
                 </GridPane>
             </VBox>
-        </VBox>
-        
+            </VBox>
+            
         <!-- 右侧：合同信息和预检信息 -->
         <VBox spacing="12" prefWidth="320" minWidth="250" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
             <!-- 合同信息面板 - 压缩高度为封签预览腾出空间 -->
@@ -182,7 +181,7 @@
                     </HBox>
                 </VBox>
             </VBox>
-            
+
             <!-- 封签预览区 - 文字行紧贴二维码下方，不留空白 -->
             <VBox fx:id="labelPreviewArea" styleClass="label-preview-panel" spacing="0" alignment="TOP_CENTER" VBox.vgrow="ALWAYS">
                 <Label text="封签预览" styleClass="section-title" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
@@ -216,4 +215,4 @@
         <Label fx:id="operationTipLabel" text="请选择叶位类型" styleClass="operation-tip-label" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
     </HBox>
     
-</VBox>
+</VBox> 
