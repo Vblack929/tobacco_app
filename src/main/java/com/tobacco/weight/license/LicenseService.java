@@ -1,231 +1,326 @@
 package com.tobacco.weight.license;
 
-import com.tobacco.weight.database.DatabaseManager;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.stage.Window;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.Optional;
 
 /**
- * 许可服务
- * - 负责激活码校验与持久化
- * - 激活状态保存在表 system_config 中
+ * 动态绑定许可证服务
+ * 负责许可证的验证、设备绑定和状态管理
  */
 public class LicenseService {
 
     private static final Logger logger = LoggerFactory.getLogger(LicenseService.class);
-
-    private static final String CONFIG_KEY_LICENSE_STATUS = "license_status";       // activated | none
-    private static final String CONFIG_KEY_LICENSE_KEY_HASH = "license_key_hash";   // SHA-256
-    private static final String CONFIG_KEY_LICENSE_ACTIVATED_AT = "license_activated_at";
-
-    // 当无法从资源文件读取到激活码列表时，使用该默认激活码进行校验
-    private static final String DEFAULT_UNIFIED_CODE = "YC-TWW-2025-ACTIVE";
-
+    private static final String LICENSE_FILE = "license.json";
     private static LicenseService instance;
-
-    private final DatabaseManager databaseManager;
-    private final Set<String> validUnifiedCodes;
-
+    
+    private final ObjectMapper objectMapper;
+    private LicenseInfo currentLicense;
+    private boolean isLicensed = false;
+    
     private LicenseService() {
-        this.databaseManager = DatabaseManager.getInstance();
-        this.validUnifiedCodes = loadUnifiedCodes();
-        logger.info("许可服务初始化完成，有效激活码数量: {}", validUnifiedCodes.size());
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        loadLicense();
     }
-
+    
     public static synchronized LicenseService getInstance() {
         if (instance == null) {
             instance = new LicenseService();
         }
         return instance;
     }
-
+    
     /**
-     * 确保系统已激活。若未激活则弹出对话框要求输入激活码。
-     * 返回值表示是否允许继续启动。
+     * 确保应用程序已获得许可
+     * @param primaryStage 主舞台（用于显示激活对话框）
+     * @return 是否已获得许可
      */
-    public boolean ensureLicensed(Window ownerWindow) {
-        try {
-            if (isLicensed()) {
-                return true;
-            }
-
-            logger.warn("系统未激活，弹出激活对话框");
-            LicenseActivationDialog dialog = new LicenseActivationDialog(ownerWindow);
-
-            for (int attempt = 1; attempt <= 3; attempt++) {
-                String code = dialog.showAndWaitForCode();
-                if (code == null) {
-                    // 用户取消
-                    logger.info("用户取消激活，阻止启动");
-                    return false;
-                }
-
-                if (validateAndSaveLicense(code)) {
-                    showInfo("激活成功", "激活码验证通过，感谢使用。");
-                    return true;
-                } else {
-                    showError("激活失败", "激活码无效，请核对后再试。（剩余尝试次数: " + (3 - attempt) + ")");
-                }
-            }
-            return false;
-        } catch (Exception e) {
-            logger.error("许可校验发生异常", e);
-            showError("激活异常", "激活过程出现错误: " + e.getMessage());
-            return false;
+    public boolean ensureLicensed(Stage primaryStage) {
+        if (isLicensed()) {
+            return true;
         }
-    }
-
-    /**
-     * 是否已经激活
-     */
-    public boolean isLicensed() {
-        try (Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "SELECT config_value FROM system_config WHERE config_key = ?")) {
-            ps.setString(1, CONFIG_KEY_LICENSE_STATUS);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    String status = rs.getString(1);
-                    return Objects.equals("activated", status);
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("读取激活状态失败", e);
+        
+        // 显示许可证激活对话框
+        LicenseActivationDialog dialog = new LicenseActivationDialog(primaryStage);
+        Optional<String> result = dialog.showAndWait();
+        
+        if (result.isPresent()) {
+            String licenseId = result.get();
+            return activateLicense(licenseId);
         }
+        
         return false;
     }
-
+    
     /**
-     * 校验激活码并持久化
+     * 检查当前是否已获得许可
      */
-    public boolean validateAndSaveLicense(String licenseCode) {
-        if (licenseCode == null || licenseCode.trim().isEmpty()) {
+    public boolean isLicensed() {
+        if (currentLicense == null) {
             return false;
         }
-
-        String code = licenseCode.trim();
-        boolean valid = isUnifiedCodeValid(code);
-
-        if (!valid) {
+        
+        // 检查许可证是否过期
+        if (currentLicense.isExpired()) {
+            logger.warn("许可证已过期: {}", currentLicense.getExpiryDate());
+            isLicensed = false;
             return false;
         }
-
-        String hash = sha256(code);
-        try (Connection conn = databaseManager.getConnection()) {
-            conn.setAutoCommit(false);
-
-            upsertConfig(conn, CONFIG_KEY_LICENSE_KEY_HASH, hash, "激活码哈希");
-            upsertConfig(conn, CONFIG_KEY_LICENSE_STATUS, "activated", "许可证状态");
-            upsertConfig(conn, CONFIG_KEY_LICENSE_ACTIVATED_AT,
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    "激活时间");
-
-            conn.commit();
-            logger.info("激活信息已保存");
-            return true;
-        } catch (SQLException e) {
-            logger.error("保存激活信息失败", e);
+        
+        // 检查当前设备是否已绑定
+        String currentFingerprint = HardwareFingerprint.generateFingerprint();
+        boolean isDeviceBound = currentLicense.getDeviceBindings().stream()
+                .anyMatch(binding -> binding.getDeviceFingerprint().equals(currentFingerprint) && binding.isActive());
+        
+        if (!isDeviceBound) {
+            logger.warn("当前设备未绑定到许可证");
+            isLicensed = false;
             return false;
         }
+        
+        // 更新设备最后使用时间
+        updateDeviceLastUsed(currentFingerprint);
+        
+        isLicensed = true;
+        return true;
     }
-
-    private void upsertConfig(Connection conn, String key, String value, String desc) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT OR REPLACE INTO system_config (config_key, config_value, description) VALUES (?, ?, ?)")) {
-            ps.setString(1, key);
-            ps.setString(2, value);
-            ps.setString(3, desc);
-            ps.executeUpdate();
-        }
-    }
-
+    
     /**
-     * 统一分发激活码校验：
-     * - 优先从资源文件 /licenses/activation_codes.txt 加载白名单
-     * - 若未找到资源或为空，使用 DEFAULT_UNIFIED_CODE
+     * 激活许可证
+     * @param licenseId 许可证ID
+     * @return 是否激活成功
      */
-    private boolean isUnifiedCodeValid(String code) {
-        return validUnifiedCodes.contains(code);
-    }
-
-    private Set<String> loadUnifiedCodes() {
-        Set<String> codes = new HashSet<>();
-        // 资源文件支持 # 作为注释行
-        try (InputStream in = LicenseService.class.getResourceAsStream("/licenses/activation_codes.txt")) {
-            if (in != null) {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        line = line.trim();
-                        if (line.isEmpty() || line.startsWith("#")) {
-                            continue;
-                        }
-                        codes.add(line);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            logger.warn("读取激活码资源文件失败: {}", e.getMessage());
-        }
-
-        if (codes.isEmpty()) {
-            codes.add(DEFAULT_UNIFIED_CODE);
-        }
-        return codes;
-    }
-
-    private String sha256(String s) {
+    public boolean activateLicense(String licenseId) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(s.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
+            // 验证许可证ID格式
+            if (!LicenseIdGenerator.validateLicenseId(licenseId)) {
+                logger.error("无效的许可证ID格式: {}", licenseId);
+                return false;
             }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+            
+            // 解析许可证信息
+            LicenseInfo licenseInfo = LicenseIdGenerator.parseLicenseId(licenseId);
+            if (licenseInfo == null) {
+                logger.error("无法解析许可证ID: {}", licenseId);
+                return false;
+            }
+            
+            // 检查许可证是否过期
+            if (licenseInfo.isExpired()) {
+                logger.error("许可证已过期: {}", licenseInfo.getExpiryDate());
+                return false;
+            }
+            
+            // 获取当前设备信息
+            String currentFingerprint = HardwareFingerprint.generateFingerprint();
+            String deviceName = HardwareFingerprint.getDeviceName();
+            
+            // 检查设备是否已绑定
+            Optional<DeviceBinding> existingBinding = licenseInfo.getDeviceBindings().stream()
+                    .filter(binding -> binding.getDeviceFingerprint().equals(currentFingerprint))
+                    .findFirst();
+            
+            if (existingBinding.isPresent()) {
+                // 设备已绑定，激活设备
+                DeviceBinding binding = existingBinding.get();
+                binding.setActive(true);
+                binding.setLastUsedTime(LocalDateTime.now());
+                logger.info("设备重新激活: {} ({})", deviceName, HardwareFingerprint.formatFingerprint(currentFingerprint));
+            } else {
+                // 新设备绑定
+                if (!licenseInfo.canBindMoreDevices()) {
+                    logger.error("许可证已达到最大设备绑定数量: {}/{}", 
+                            licenseInfo.getActiveDeviceCount(), licenseInfo.getMaxDevices());
+                    return false;
+                }
+                
+                // 创建新的设备绑定
+                DeviceBinding newBinding = new DeviceBinding(
+                        currentFingerprint,
+                        deviceName,
+                        LocalDateTime.now(),
+                        LocalDateTime.now(),
+                        true
+                );
+                
+                licenseInfo.addDeviceBinding(newBinding);
+                logger.info("新设备绑定成功: {} ({})", deviceName, HardwareFingerprint.formatFingerprint(currentFingerprint));
+            }
+            
+            // 标记许可证为已激活
+            licenseInfo.setActivated(true);
+            
+            // 保存许可证信息
+            this.currentLicense = licenseInfo;
+            saveLicense();
+            
+            this.isLicensed = true;
+            logger.info("许可证激活成功: {} - 客户: {}", licenseId, licenseInfo.getCustomerName());
+            
+            return true;
+            
+        } catch (Exception e) {
+            logger.error("激活许可证失败: {}", licenseId, e);
+            return false;
         }
     }
-
-    private void showError(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+    
+    /**
+     * 获取当前许可证信息
+     */
+    public LicenseInfo getCurrentLicense() {
+        return currentLicense;
     }
-
-    private void showInfo(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+    
+    /**
+     * 获取许可证状态信息（用于显示）
+     */
+    public String getLicenseStatusInfo() {
+        if (currentLicense == null) {
+            return "未激活";
+        }
+        
+        StringBuilder info = new StringBuilder();
+        info.append("许可证ID: ").append(currentLicense.getLicenseId()).append("\n");
+        info.append("客户名称: ").append(currentLicense.getCustomerName()).append("\n");
+        info.append("最大设备数: ").append(currentLicense.getMaxDevices()).append("\n");
+        info.append("已绑定设备: ").append(currentLicense.getActiveDeviceCount()).append("\n");
+        info.append("有效期至: ").append(currentLicense.getExpiryDate()).append("\n");
+        info.append("状态: ").append(currentLicense.isExpired() ? "已过期" : "有效");
+        
+        return info.toString();
+    }
+    
+    /**
+     * 获取设备绑定信息（用于显示）
+     */
+    public String getDeviceBindingInfo() {
+        if (currentLicense == null || currentLicense.getDeviceBindings().isEmpty()) {
+            return "无设备绑定";
+        }
+        
+        StringBuilder info = new StringBuilder();
+        info.append("已绑定设备:\n");
+        
+        for (DeviceBinding binding : currentLicense.getDeviceBindings()) {
+            if (binding.isActive()) {
+                info.append("- ").append(binding.getDeviceName())
+                    .append(" (").append(binding.getDisplayFingerprint()).append(")")
+                    .append(" - 最后使用: ").append(binding.getLastUsedTime())
+                    .append("\n");
+            }
+        }
+        
+        return info.toString();
+    }
+    
+    /**
+     * 重置许可证（清除本地许可证信息）
+     */
+    public void resetLicense() {
+        this.currentLicense = null;
+        this.isLicensed = false;
+        
+        File licenseFile = new File(LICENSE_FILE);
+        if (licenseFile.exists()) {
+            licenseFile.delete();
+            logger.info("许可证信息已清除");
+        }
+    }
+    
+    /**
+     * 更新设备最后使用时间
+     */
+    private void updateDeviceLastUsed(String deviceFingerprint) {
+        if (currentLicense != null) {
+            currentLicense.getDeviceBindings().stream()
+                    .filter(binding -> binding.getDeviceFingerprint().equals(deviceFingerprint))
+                    .findFirst()
+                    .ifPresent(binding -> {
+                        binding.setLastUsedTime(LocalDateTime.now());
+                        saveLicense();
+                    });
+        }
+    }
+    
+    /**
+     * 加载本地许可证信息
+     */
+    private void loadLicense() {
+        File licenseFile = new File(LICENSE_FILE);
+        if (!licenseFile.exists()) {
+            logger.debug("许可证文件不存在: {}", LICENSE_FILE);
+            return;
+        }
+        
+        try {
+            this.currentLicense = objectMapper.readValue(licenseFile, LicenseInfo.class);
+            logger.info("许可证信息加载成功: {}", currentLicense.getLicenseId());
+            
+            // 验证加载的许可证
+            if (isLicensed()) {
+                logger.info("许可证验证通过");
+            } else {
+                logger.warn("许可证验证失败");
+            }
+            
+        } catch (IOException e) {
+            logger.error("加载许可证文件失败: {}", LICENSE_FILE, e);
+            this.currentLicense = null;
+        }
+    }
+    
+    /**
+     * 保存许可证信息到本地
+     */
+    private void saveLicense() {
+        if (currentLicense == null) {
+            return;
+        }
+        
+        try {
+            objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValue(new File(LICENSE_FILE), currentLicense);
+            logger.debug("许可证信息保存成功: {}", LICENSE_FILE);
+        } catch (IOException e) {
+            logger.error("保存许可证文件失败: {}", LICENSE_FILE, e);
+        }
+    }
+    
+    /**
+     * 检查许可证是否需要续期提醒
+     */
+    public boolean needsRenewalReminder() {
+        if (currentLicense == null || currentLicense.isExpired()) {
+            return false;
+        }
+        
+        // 如果距离过期时间少于30天，显示续期提醒
+        LocalDateTime expiryDate = currentLicense.getExpiryDate();
+        LocalDateTime reminderDate = expiryDate.minusDays(30);
+        
+        return LocalDateTime.now().isAfter(reminderDate);
+    }
+    
+    /**
+     * 获取许可证剩余天数
+     */
+    public long getRemainingDays() {
+        if (currentLicense == null || currentLicense.isExpired()) {
+            return 0;
+        }
+        
+        return java.time.temporal.ChronoUnit.DAYS.between(
+                LocalDateTime.now().toLocalDate(),
+                currentLicense.getExpiryDate().toLocalDate()
+        );
     }
 }
-
-
