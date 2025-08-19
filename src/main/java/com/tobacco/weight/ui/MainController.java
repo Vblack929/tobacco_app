@@ -69,6 +69,19 @@ public class MainController implements Initializable {
     // 数据仓库
     private WeighingRecordRepository weighingRecordRepository;
     private DatabaseManager databaseManager;
+    private com.tobacco.weight.database.FarmerInfoDao farmerInfoDao;
+
+    // 防抖定时器，避免快速输入时触发多次查询
+    private java.util.Timer debounceTimer;
+
+    // 缓存最近查询的结果，避免重复查询
+    private java.util.Map<String, FarmerInfoAndContractAmount> queryCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int CACHE_SIZE_LIMIT = 100; // 缓存大小限制
+
+    // 查询状态管理，避免重复查询
+    private String lastQueriedIdCard = null;
+    private long lastQueryTime = 0;
+    private static final long QUERY_COOLDOWN_MS = 2000; // 2秒冷却时间
 
     // 当前活动的文本框（用于数字键盘输入）
     private TextField currentActiveTextField;
@@ -192,6 +205,7 @@ public class MainController implements Initializable {
         // 初始化数据仓库和服务
         databaseManager = DatabaseManager.getInstance();
         weighingRecordRepository = new WeighingRecordRepository(databaseManager);
+        farmerInfoDao = new com.tobacco.weight.database.FarmerInfoDao(databaseManager);
         adminAuthService = AdminAuthService.getInstance();
 
         // 显示数据库路径
@@ -543,13 +557,13 @@ public class MainController implements Initializable {
 
             // 更新封签预览区域，显示最终确认的信息
             updateFinalLabelPreview(farmerName, contractNumber, idCardNumber, address, leafType, displayPrecheckId,
-                    today.toString());
+                    today.toString(), weight);
 
             // 显示提示并询问是否打印小票
             javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.CONFIRMATION);
             alert.setTitle("称重完成");
-            alert.setHeaderText("称重完成 - 预检号: " + displayPrecheckId);
+            alert.setHeaderText("称重完成 - 预检号: " + getLast5Digits(displayPrecheckId));
             alert.setContentText(
                     leafType + " " + String.format("%.2f", weight) + "kg" + " (捆数: " + bundleCount + ")\n\n是否打印称重小票？");
 
@@ -655,29 +669,161 @@ public class MainController implements Initializable {
         // 在后台线程查询合同量
         new Thread(() -> {
             try {
-                // 获取合同量信息
-                java.util.Map<String, Double> contractAmounts = weighingRecordRepository.getContractAmountsSync();
-                Double amount = contractAmounts.get(contractNumber);
-                
-                Platform.runLater(() -> {
-                    if (amount != null && amount > 0) {
-                        contractAmountField.setText(String.format("%.2f", amount));
-                        logger.info("自动填充合同量: {} = {}", contractNumber, amount);
-                    } else {
-                        contractAmountField.clear();
-                        logger.warn("未找到合同号 {} 的合同量信息", contractNumber);
-                    }
-                    // 更新比例计算
-                    updateRatios();
-                });
-                
+                loadContractAmountByContractNumberSync(contractNumber);
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     logger.error("加载合同量失败: {}", contractNumber, e);
                     contractAmountField.clear();
+                    updateRatios();
                 });
             }
         }).start();
+    }
+
+    /**
+     * 根据身份证号一次性加载所有烟农信息（姓名、合同号、合同量）
+     */
+    private void loadFarmerInfoByIdCard(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            // 清空所有相关字段
+            clearFarmerInfoFields();
+            return;
+        }
+
+        // 检查冷却时间和重复查询
+        long currentTime = System.currentTimeMillis();
+        if (idCardNumber.equals(lastQueriedIdCard) &&
+                (currentTime - lastQueryTime) < QUERY_COOLDOWN_MS) {
+            // 静默跳过重复查询，不输出日志
+            return;
+        }
+
+        // 更新查询状态
+        lastQueriedIdCard = idCardNumber;
+        lastQueryTime = currentTime;
+
+        // 在后台线程一次性查询所有信息
+        new Thread(() -> {
+            try {
+                // 一次性查询烟农信息和合同量
+                FarmerInfoAndContractAmount result = loadFarmerInfoAndContractAmountByIdCard(idCardNumber.trim());
+
+                Platform.runLater(() -> {
+                    if (result != null && result.farmerInfo != null) {
+                        // 找到烟农信息，一次性填充所有字段
+                        farmerNameField.setText(result.farmerInfo.getFarmerName());
+                        contractNumberField.setText(result.farmerInfo.getContractNumber());
+
+                        if (result.contractAmount != null && result.contractAmount > 0) {
+                            contractAmountField.setText(String.format("%.2f", result.contractAmount));
+                            logger.info("根据身份证号一次性填充所有信息: {} -> 姓名: {}, 合同号: {}, 合同量: {}",
+                                    idCardNumber, result.farmerInfo.getFarmerName(),
+                                    result.farmerInfo.getContractNumber(), result.contractAmount);
+                        } else {
+                            contractAmountField.setText("0.00");
+                            logger.info("根据身份证号填充烟农信息: {} -> 姓名: {}, 合同号: {}, 合同量: 0.00",
+                                    idCardNumber, result.farmerInfo.getFarmerName(),
+                                    result.farmerInfo.getContractNumber());
+                        }
+
+                        // 更新比例计算
+                        updateRatios();
+                        // 更新封签预览（包含地址信息）
+                        updatePreviewLabelsOnly();
+
+                    } else {
+                        // 未找到烟农信息，尝试仅查询合同量
+                        logger.info("未找到身份证号 {} 对应的烟农信息，尝试仅查询合同量", idCardNumber);
+                        clearFarmerInfoFields();
+
+                        // 尝试查询合同量
+                        try {
+                            loadContractAmountByIdCardSync(idCardNumber);
+                        } catch (Exception e) {
+                            logger.error("查询合同量失败: {}", e.getMessage());
+                            contractAmountField.setText("0.00");
+                            updateRatios();
+                        }
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    logger.error("根据身份证号加载烟农信息失败: {}", idCardNumber, e);
+                    clearFarmerInfoFields();
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * 根据身份证号加载合同量（异步版本，用于UI直接调用）
+     */
+    private void loadContractAmountByIdCard(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            contractAmountField.clear();
+            return;
+        }
+
+        // 在后台线程查询合同量
+        new Thread(() -> {
+            try {
+                loadContractAmountByIdCardSync(idCardNumber);
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    logger.error("根据身份证号加载合同量失败: {}", idCardNumber, e);
+                    contractAmountField.setText("0.00"); // 出错时也设置为0
+                    updateRatios();
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * 根据身份证号同步加载合同量（用于内部调用，避免并发问题）
+     */
+    private void loadContractAmountByIdCardSync(String idCardNumber) throws Exception {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            Platform.runLater(() -> {
+                contractAmountField.clear();
+                updateRatios();
+            });
+            return;
+        }
+
+        try {
+            // 先根据身份证号查询合同号
+            String contractNumber = weighingRecordRepository.getContractNumberByIdCard(idCardNumber);
+
+            if (contractNumber != null) {
+                // 再根据合同号查询合同量
+                java.util.Map<String, Double> contractAmounts = weighingRecordRepository.getContractAmountsSync();
+                Double amount = contractAmounts.get(contractNumber);
+
+                Platform.runLater(() -> {
+                    if (amount != null && amount > 0) {
+                        contractAmountField.setText(String.format("%.2f", amount));
+                        logger.info("根据身份证号自动填充合同量: {} -> 合同号: {} -> 合同量: {}", idCardNumber, contractNumber,
+                                amount);
+                    } else {
+                        contractAmountField.setText("0.00"); // 如果为空则置0
+                        logger.info("未找到身份证号 {} 对应的合同量信息，设置为0", idCardNumber);
+                    }
+                    // 更新比例计算
+                    updateRatios();
+                });
+            } else {
+                Platform.runLater(() -> {
+                    contractAmountField.setText("0.00"); // 未找到合同号时设置为0
+                    logger.info("未找到身份证号 {} 对应的合同号，设置为0", idCardNumber);
+                    updateRatios();
+                });
+            }
+
+        } catch (Exception e) {
+            logger.error("根据身份证号同步加载合同量失败: {}", idCardNumber, e);
+            throw e; // 重新抛出异常，让调用者处理
+        }
     }
 
     /**
@@ -1132,7 +1278,7 @@ public class MainController implements Initializable {
     private void updateRatios() {
         String currentFarmer = farmerNameField.getText().trim();
         String currentContract = contractNumberField.getText().trim();
-        
+
         // 计算当前农户的各类重量
         double farmerTotalWeight = 0.0;
         double farmerUpperWeight = 0.0, farmerMiddleWeight = 0.0, farmerLowerWeight = 0.0;
@@ -1142,7 +1288,7 @@ public class MainController implements Initializable {
             if (record.getFarmerName().equals(currentFarmer)) {
                 double w = record.getWeight();
                 farmerTotalWeight += w;
-                
+
                 if ("上部叶".equals(record.getLeafType()))
                     farmerUpperWeight += w;
                 else if ("中部叶".equals(record.getLeafType()))
@@ -1163,7 +1309,7 @@ public class MainController implements Initializable {
             lowerRatioField.setText("0.0%");
         }
 
-        // 计算完成比例（总重量 / 合同量）
+        // 计算完成比例（预检总量 / 合同量）
         try {
             String contractAmountText = contractAmountField.getText().trim();
             if (!contractAmountText.isEmpty() && farmerTotalWeight > 0) {
@@ -1226,8 +1372,8 @@ public class MainController implements Initializable {
         recordTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
         precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
-        precheckCol.setPrefWidth(200);
-        precheckCol.setMinWidth(180);
+        precheckCol.setPrefWidth(240);
+        precheckCol.setMinWidth(220);
         TableColumn<com.tobacco.weight.data.WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
         leafCol.setPrefWidth(120);
@@ -1592,6 +1738,29 @@ public class MainController implements Initializable {
         farmerNameField.textProperty().addListener((obs, oldVal, newVal) -> updateRatios());
         contractAmountField.textProperty().addListener((obs, oldVal, newVal) -> updateRatios());
 
+        // 添加监听器：当身份证号改变时自动检索烟农信息和合同量（带防抖和去重）
+        idCardNumberField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!oldVal.equals(newVal) && newVal != null && !newVal.trim().isEmpty()) {
+                // 取消之前的定时器
+                if (debounceTimer != null) {
+                    debounceTimer.cancel();
+                }
+
+                // 创建新的防抖定时器，500ms后执行查询（增加延迟，减少频繁触发）
+                debounceTimer = new java.util.Timer(true);
+                debounceTimer.schedule(new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        // 检查当前输入框的值是否还是这个值（防止用户已经修改了）
+                        String currentValue = idCardNumberField.getText().trim();
+                        if (newVal.trim().equals(currentValue) && currentValue.length() >= 15) { // 身份证号至少15位才触发查询
+                            loadFarmerInfoByIdCard(currentValue);
+                        }
+                    }
+                }, 500); // 500ms防抖延迟
+            }
+        });
+
         // 默认激活捆数输入框
         currentActiveTextField = bundleCountField;
         updateKeypadButtonText(); // 设置初始按钮文本
@@ -1608,7 +1777,7 @@ public class MainController implements Initializable {
             if (newVal) {
                 currentActiveTextField = textField;
                 updateKeypadButtonText(); // 更新键盘按钮文本
-                logger.debug("当前活动文本框: {}", textField.getId());
+                // 静默更新活动文本框，不输出DEBUG日志
             }
         });
     }
@@ -1845,8 +2014,9 @@ public class MainController implements Initializable {
     private void showReceiptPreview(String farmerName, String contractNumber, String leafType,
             double weight, String operator, int bundleCount, String precheckId) {
         try {
+            String safeContract = contractNumber != null ? contractNumber : "N/A";
             String safeFarmerName = farmerName != null ? farmerName : "N/A";
-            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safePrecheck = precheckId != null ? getLast5Digits(precheckId) : "N/A";
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
             String locationInfo = "实时录入";
@@ -1885,7 +2055,7 @@ public class MainController implements Initializable {
             // 构建标准列：二维码在上、文字在下
             java.util.function.Supplier<javafx.scene.layout.VBox> buildStandardColumn = () -> {
                 javafx.scene.layout.VBox col = new javafx.scene.layout.VBox(6);
-                col.setAlignment(javafx.geometry.Pos.TOP_CENTER);
+                col.setAlignment(javafx.geometry.Pos.TOP_LEFT);
                 col.setStyle("-fx-font-family: 'SimSun';");
                 col.setPrefWidth(colWidth);
                 col.setMaxWidth(colWidth);
@@ -1899,18 +2069,25 @@ public class MainController implements Initializable {
                     col.getChildren().add(qr);
                 }
 
+                // 获取烟农真实地址和站点名称（从当前UI字段获取身份证号）
+                String currentIdCardNumber = idCardNumberField.getText().trim();
+                String farmerAddress = getFarmerAddress(currentIdCardNumber);
+                String stationName = getStationName(currentIdCardNumber);
+
                 String[] items = new String[] {
-                        "地址: " + locationInfo,
-                        "合同号: " + safeFarmerName,
+                        stationName,
+                        farmerAddress,
+                        safeContract,
                         "姓名: " + safeFarmerName,
                         "预检号: " + safePrecheck,
+                        "重量: " + String.format("%.2f kg", weight),
                         "部位: " + safeLeafType,
                         "检验: " + safeInspector,
                         "预检日期: " + java.time.LocalDate.now()
                                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 };
                 javafx.scene.layout.VBox textBox = new javafx.scene.layout.VBox(2);
-                textBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                textBox.setAlignment(javafx.geometry.Pos.TOP_LEFT);
                 textBox.setStyle("-fx-font-size: 12px;");
                 for (String s : items) {
                     textBox.getChildren().add(new javafx.scene.control.Label(s));
@@ -1946,12 +2123,17 @@ public class MainController implements Initializable {
         // 获取基本信息
         String safeContract = contractNumber != null ? contractNumber : "N/A";
         String safeFarmerName = farmerName != null ? farmerName : "N/A";
-        String safePrecheck = precheckId != null ? precheckId : "N/A";
+        String safePrecheck = precheckId != null ? getLast5Digits(precheckId) : "N/A";
         String safeLeafType = leafType != null ? leafType : "N/A";
         String safeInspector = operator != null ? operator : "系统";
 
-        // 乡镇村信息暂时使用默认值（主界面没有直接的地址信息）
-        String locationInfo = "实时录入";
+        // 获取烟农真实地址和站点名称（从当前UI字段获取身份证号）
+        String currentIdCardNumber = idCardNumberField.getText().trim();
+        String locationInfo = getFarmerAddress(currentIdCardNumber);
+        String stationName = getStationName(currentIdCardNumber);
+        if (locationInfo == null || locationInfo.trim().isEmpty() || "待完善".equals(locationInfo.trim())) {
+            locationInfo = "实时录入";
+        }
 
         // 生成合同号二维码（超紧凑版）
         String qrCode = QRCodeGenerator.generateCompactQRCode(safeContract);
@@ -1965,19 +2147,21 @@ public class MainController implements Initializable {
         }
 
         // 信息列表（极度紧凑显示，只保留核心信息）
-        content.append("地址:").append(locationInfo.length() > 6 ? locationInfo.substring(0, 6) + ".." : locationInfo)
+        content.append(stationName.length() > 6 ? stationName.substring(0, 6) + ".." : stationName)
                 .append("\n");
-        content.append("合同:").append(safeContract.length() > 15 ? safeContract.substring(0, 15) + ".." : safeContract)
+        content.append(locationInfo.length() > 6 ? locationInfo.substring(0, 6) + ".." : locationInfo)
+                .append("\n");
+        content.append(safeContract.length() > 15 ? safeContract.substring(0, 15) + ".." : safeContract)
                 .append("\n");
         content.append("姓名:")
                 .append(safeFarmerName.length() > 8 ? safeFarmerName.substring(0, 8) + ".." : safeFarmerName)
                 .append("\n");
         content.append("预检:").append(safePrecheck.length() > 12 ? safePrecheck.substring(0, 12) + ".." : safePrecheck)
                 .append("\n");
+        content.append("重量:").append(String.format("%.2f", weight)).append("kg\n");
         content.append("部位:").append(safeLeafType.length() > 6 ? safeLeafType.substring(0, 6) + ".." : safeLeafType)
                 .append("\n");
-        content.append("检验:")
-                .append(safeInspector.length() > 6 ? safeInspector.substring(0, 6) + ".." : safeInspector)
+        content.append("检验:").append(safeInspector.length() > 6 ? safeInspector.substring(0, 6) + ".." : safeInspector)
                 .append("\n");
 
         // 计算标签纸张大小并输出日志
@@ -2191,7 +2375,7 @@ public class MainController implements Initializable {
             // 获取基本信息
             String safeContract = contractNumber != null ? contractNumber : "N/A";
             String safeFarmerName = farmerName != null ? farmerName : "N/A";
-            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safePrecheck = precheckId != null ? getLast5Digits(precheckId) : "N/A";
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
             String locationInfo = "实时录入";
@@ -2253,7 +2437,7 @@ public class MainController implements Initializable {
             // 获取基本信息
             String safeContract = contractNumber != null ? contractNumber : "N/A";
             String safeFarmerName = farmerName != null ? farmerName : "N/A";
-            String safePrecheck = precheckId != null ? precheckId : "N/A";
+            String safePrecheck = precheckId != null ? getLast5Digits(precheckId) : "N/A";
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
 
@@ -2273,12 +2457,27 @@ public class MainController implements Initializable {
                 // 降级到文本打印
                 String compactLabel = generateReceiptContent(farmerName, contractNumber, leafType, weight, operator,
                         bundleCount, precheckId);
-                boolean printSuccess = printerManager.printText(compactLabel);
-                if (printSuccess) {
-                    updateStatus("标签打印完成（文本模式）");
+
+                // 按捆数打印多份文本标签
+                boolean allPrintSuccess = true;
+                int printCount = 0;
+
+                for (int i = 0; i < bundleCount; i++) {
+                    boolean printSuccess = printerManager.printText(compactLabel);
+                    if (printSuccess) {
+                        printCount++;
+                        logger.info("成功打印第 {} 份文本标签，预检编号: {}", i + 1, precheckId);
+                    } else {
+                        allPrintSuccess = false;
+                        logger.error("打印第 {} 份文本标签失败，预检编号: {}", i + 1, precheckId);
+                    }
+                }
+
+                if (allPrintSuccess) {
+                    updateStatus(String.format("成功打印 %d 份文本标签", bundleCount));
                 } else {
-                    updateStatus("标签打印失败");
-                    showError("打印失败", "标签打印失败，请检查打印机连接");
+                    updateStatus(String.format("部分文本标签打印失败，成功: %d/%d", printCount, bundleCount));
+                    showError("打印失败", String.format("部分文本标签打印失败，成功: %d/%d，请检查打印机连接", printCount, bundleCount));
                 }
                 return;
             }
@@ -2288,16 +2487,28 @@ public class MainController implements Initializable {
                     address, idCardNumber, safeContract, safeFarmerName, safePrecheck, safeLeafType, safeInspector,
                     currentDate);
 
-            // 使用新的图片打印方法
-            boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
+            // 按捆数打印多份标签
+            boolean allPrintSuccess = true;
+            int printCount = 0;
 
-            if (printSuccess) {
-                updateStatus("带二维码的标签打印完成");
-                logger.info("成功打印带二维码标签，预检编号: {}", precheckId);
+            for (int i = 0; i < bundleCount; i++) {
+                boolean printSuccess = printerManager.printLabelWithQRCode(qrCodeImage, labelInfo);
+                if (printSuccess) {
+                    printCount++;
+                    logger.info("成功打印第 {} 份标签，预检编号: {}", i + 1, precheckId);
+                } else {
+                    allPrintSuccess = false;
+                    logger.error("打印第 {} 份标签失败，预检编号: {}", i + 1, precheckId);
+                }
+            }
+
+            if (allPrintSuccess) {
+                updateStatus(String.format("成功打印 %d 份带二维码的标签", bundleCount));
+                logger.info("成功打印所有标签，预检编号: {}，捆数: {}", precheckId, bundleCount);
             } else {
-                updateStatus("标签打印失败");
-                showError("打印失败", "标签打印失败，请检查打印机连接");
-                logger.error("打印带二维码标签失败，预检编号: {}", precheckId);
+                updateStatus(String.format("部分标签打印失败，成功: %d/%d", printCount, bundleCount));
+                showError("打印失败", String.format("部分标签打印失败，成功: %d/%d，请检查打印机连接", printCount, bundleCount));
+                logger.error("部分标签打印失败，预检编号: {}，成功: {}/{}", precheckId, printCount, bundleCount);
             }
 
         } catch (Exception e) {
@@ -2321,7 +2532,8 @@ public class MainController implements Initializable {
             final String finalFarmerName = farmerName.isEmpty() ? "XXX" : farmerName;
             final String finalContractNumber = contractNumber.isEmpty() ? "XXXXX" : contractNumber;
             final String finalIdCardNumber = idCardNumber.isEmpty() ? "XXX" : idCardNumber;
-            final String finalAddress = "待完善"; // 地址字段已删除，使用默认值
+            // 获取站点名称
+            final String stationName = getStationName(idCardNumber);
             final String finalLeafType = leafType == null ? "X部叶" : leafType;
 
             // 获取当前日期
@@ -2353,7 +2565,7 @@ public class MainController implements Initializable {
      * 更新最终封签预览（用于确认打印时）
      */
     private void updateFinalLabelPreview(String farmerName, String contractNumber, String idCardNumber,
-            String address, String leafType, String precheckId, String date) {
+            String address, String leafType, String precheckId, String date, double weight) {
         try {
             if (qrCodeImageView != null && contractNumber != null && !contractNumber.isEmpty()) {
                 try {
@@ -2373,12 +2585,23 @@ public class MainController implements Initializable {
 
             // 仅更新信息容器
             if (labelInfoContainer != null) {
-                updateInfoByIndex(0, "地址: " + address);
-                updateInfoByIndex(1, "身份证号: " + idCardNumber);
-                updateInfoByIndex(2, "姓名: " + farmerName);
-                updateInfoByIndex(3, "预检编号: " + precheckId);
-                updateInfoByIndex(4, "烟叶部位: " + leafType);
-                updateInfoByIndex(5, "预检日期: " + date);
+                // 获取站点名称
+                String stationName = getStationName(idCardNumber);
+
+                // 如果地址为空，尝试从烟农信息中获取
+                String finalAddress = address;
+                if (address == null || address.trim().isEmpty() || "待完善".equals(address.trim())) {
+                    finalAddress = getFarmerAddress(idCardNumber);
+                }
+
+                updateInfoByIndex(0, stationName);
+                updateInfoByIndex(1, finalAddress);
+                updateInfoByIndex(2, idCardNumber);
+                updateInfoByIndex(3, "姓名: " + farmerName);
+                updateInfoByIndex(4, "预检编号: " + getLast5Digits(precheckId));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", weight));
+                updateInfoByIndex(6, "烟叶部位: " + leafType);
+                updateInfoByIndex(7, "预检日期: " + date);
             }
         } catch (Exception e) {
             logger.error("更新最终封签预览失败", e);
@@ -2389,15 +2612,26 @@ public class MainController implements Initializable {
      * 更新预览标签的具体内容（用于实时预览）
      */
     private void updatePreviewLabels(String farmerName, String contractNumber, String idCardNumber,
-            String address, String leafType, String precheckId, String date) {
+            String address, String leafType, String precheckId, String date, double weight) {
         try {
             if (labelInfoContainer != null) {
-                updateInfoByIndex(0, "地址: " + address);
-                updateInfoByIndex(1, "身份证号: " + idCardNumber);
-                updateInfoByIndex(2, "姓名: " + farmerName);
-                updateInfoByIndex(3, "预检编号: " + precheckId);
-                updateInfoByIndex(4, "烟叶部位: " + leafType);
-                updateInfoByIndex(5, "预检日期: " + date);
+                // 获取站点名称
+                String stationName = getStationName(idCardNumber);
+
+                // 如果地址为空，尝试从烟农信息中获取
+                String finalAddress = address;
+                if (address == null || address.trim().isEmpty() || "待完善".equals(address.trim())) {
+                    finalAddress = getFarmerAddress(idCardNumber);
+                }
+
+                updateInfoByIndex(0, stationName);
+                updateInfoByIndex(1, finalAddress);
+                updateInfoByIndex(2, idCardNumber);
+                updateInfoByIndex(3, "姓名: " + farmerName);
+                updateInfoByIndex(4, "预检编号: " + getLast5Digits(precheckId));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", weight));
+                updateInfoByIndex(6, "烟叶部位: " + leafType);
+                updateInfoByIndex(7, "预检日期: " + date);
             }
         } catch (Exception e) {
             logger.error("更新预览标签失败", e);
@@ -2414,7 +2648,8 @@ public class MainController implements Initializable {
             String idCardNumber = idCardNumberField.getText().trim();
             String leafType = getSelectedLeafType();
 
-            String address = "待完善";
+            // 获取站点名称
+            final String stationName = getStationName(idCardNumber);
             String finalFarmerName = farmerName.isEmpty() ? "XXX" : farmerName;
             String finalContractNumber = contractNumber.isEmpty() ? "XXXXX" : contractNumber;
             String finalIdCardNumber = idCardNumber.isEmpty() ? "XXX" : idCardNumber;
@@ -2427,12 +2662,20 @@ public class MainController implements Initializable {
             String weighingCountStr = String.format("%05d", nextSeq2);
 
             if (labelInfoContainer != null) {
-                updateInfoByIndex(0, "地址: " + address);
-                updateInfoByIndex(1, "身份证号: " + finalIdCardNumber);
-                updateInfoByIndex(2, "姓名: " + finalFarmerName);
-                updateInfoByIndex(3, "预检编号: " + weighingCountStr);
-                updateInfoByIndex(4, "烟叶部位: " + finalLeafType);
-                updateInfoByIndex(5, "预检日期: " + currentDate);
+                // 获取当前实时重量
+                double currentWeight = getCurrentWeight();
+
+                // 获取地址
+                String address = getFarmerAddress(idCardNumber);
+
+                updateInfoByIndex(0, stationName);
+                updateInfoByIndex(1, address);
+                updateInfoByIndex(2, finalIdCardNumber);
+                updateInfoByIndex(3, "姓名: " + finalFarmerName);
+                updateInfoByIndex(4, "预检编号: " + getLast5Digits(weighingCountStr));
+                updateInfoByIndex(5, "重量: " + String.format("%.2f kg", currentWeight));
+                updateInfoByIndex(6, "烟叶部位: " + finalLeafType);
+                updateInfoByIndex(7, "预检日期: " + currentDate);
             }
         } catch (Exception e) {
             logger.error("更新预览标签文本失败", e);
@@ -2462,5 +2705,274 @@ public class MainController implements Initializable {
             return precheckId != null ? precheckId : "N/A";
         }
         return precheckId.substring(precheckId.length() - 5);
+    }
+
+    /**
+     * 根据身份证号获取烟农地址
+     */
+    private String getFarmerAddress(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            return "待完善";
+        }
+
+        try {
+            // 从缓存中查找烟农信息
+            FarmerInfoAndContractAmount cachedResult = queryCache.get(idCardNumber.trim());
+            if (cachedResult != null && cachedResult.farmerInfo != null) {
+                String address = cachedResult.farmerInfo.getAddress();
+                if (address != null && !address.trim().isEmpty()) {
+                    return address.trim();
+                }
+            }
+
+            // 如果缓存中没有，尝试从数据库查询
+            try {
+                FarmerInfo farmerInfo = farmerInfoDao.findByIdCardNumber(idCardNumber.trim());
+                if (farmerInfo != null) {
+                    String address = farmerInfo.getAddress();
+                    if (address != null && !address.trim().isEmpty()) {
+                        return address.trim();
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("查询烟农地址失败: {}", e.getMessage());
+            }
+
+            return "待完善";
+        } catch (Exception e) {
+            logger.debug("获取烟农地址失败: {}", e.getMessage());
+            return "待完善";
+        }
+    }
+
+    /**
+     * 根据身份证号获取站点名称
+     */
+    private String getStationName(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            return "未知站点";
+        }
+
+        try {
+            // 从farmer_contracts表查询站点名称
+            String sql = "SELECT station FROM farmer_contracts WHERE national_id = ? AND station IS NOT NULL AND station != ''";
+            try (java.sql.Connection conn = databaseManager.getConnection();
+                    java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, idCardNumber.trim());
+                try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        String station = rs.getString("station");
+                        if (station != null && !station.trim().isEmpty()) {
+                            return station.trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("查询站点名称失败: {}", e.getMessage());
+        }
+
+        return "未知站点";
+    }
+
+    /**
+     * 烟农信息和合同量的结果类
+     */
+    private static class FarmerInfoAndContractAmount {
+        final FarmerInfo farmerInfo;
+        final Double contractAmount;
+
+        FarmerInfoAndContractAmount(FarmerInfo farmerInfo, Double contractAmount) {
+            this.farmerInfo = farmerInfo;
+            this.contractAmount = contractAmount;
+        }
+    }
+
+    /**
+     * 根据身份证号一次性查询烟农信息和合同量
+     */
+    private FarmerInfoAndContractAmount loadFarmerInfoAndContractAmountByIdCard(String idCardNumber) throws Exception {
+        // 1. 先检查缓存
+        FarmerInfoAndContractAmount cachedResult = queryCache.get(idCardNumber);
+        if (cachedResult != null) {
+            // 静默从缓存获取数据，不输出日志
+            return cachedResult;
+        }
+
+        try {
+            // 2. 根据身份证号查询烟农信息
+            FarmerInfo farmerInfo = farmerInfoDao.findByIdCardNumber(idCardNumber);
+
+            if (farmerInfo != null && farmerInfo.getContractNumber() != null) {
+                // 2. 如果找到烟农信息和合同号，直接查询合同量
+                try {
+                    java.util.Map<String, Double> contractAmounts = weighingRecordRepository.getContractAmountsSync();
+                    Double amount = contractAmounts.get(farmerInfo.getContractNumber());
+
+                    // 静默记录查询完成，不输出DEBUG日志
+
+                    FarmerInfoAndContractAmount result = new FarmerInfoAndContractAmount(farmerInfo, amount);
+
+                    // 缓存结果
+                    cacheResult(idCardNumber, result);
+
+                    return result;
+
+                } catch (Exception e) {
+                    logger.warn("查询合同量失败，但烟农信息查询成功: {}", e.getMessage());
+                    FarmerInfoAndContractAmount result = new FarmerInfoAndContractAmount(farmerInfo, null);
+                    cacheResult(idCardNumber, result);
+                    return result;
+                }
+            } else {
+                // 3. 如果没找到烟农信息，尝试通过身份证号查询合同量
+                try {
+                    String contractNumber = weighingRecordRepository.getContractNumberByIdCard(idCardNumber);
+                    if (contractNumber != null) {
+                        java.util.Map<String, Double> contractAmounts = weighingRecordRepository
+                                .getContractAmountsSync();
+                        Double amount = contractAmounts.get(contractNumber);
+
+                        // 静默记录查询结果，不输出DEBUG日志
+
+                        // 创建一个临时的FarmerInfo对象
+                        FarmerInfo tempFarmerInfo = new FarmerInfo("未知", contractNumber, idCardNumber);
+                        FarmerInfoAndContractAmount result = new FarmerInfoAndContractAmount(tempFarmerInfo, amount);
+
+                        // 缓存结果
+                        cacheResult(idCardNumber, result);
+
+                        return result;
+                    }
+                } catch (Exception e) {
+                    logger.warn("通过身份证号查询合同量失败: {}", e.getMessage());
+                }
+
+                // 缓存空结果，避免重复查询不存在的记录
+                cacheResult(idCardNumber, null);
+                return null;
+            }
+
+        } catch (Exception e) {
+            logger.error("一次性查询烟农信息和合同量失败: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 缓存查询结果
+     */
+    private void cacheResult(String idCardNumber, FarmerInfoAndContractAmount result) {
+        // 如果缓存太大，清理一些旧记录
+        if (queryCache.size() >= CACHE_SIZE_LIMIT) {
+            // 简单清理策略：随机删除一些记录
+            java.util.Iterator<String> iterator = queryCache.keySet().iterator();
+            int deleteCount = CACHE_SIZE_LIMIT / 4; // 删除1/4的记录
+            for (int i = 0; i < deleteCount && iterator.hasNext(); i++) {
+                iterator.next();
+                iterator.remove();
+            }
+            // 静默清理缓存，不输出DEBUG日志
+        }
+
+        queryCache.put(idCardNumber, result);
+        // 静默缓存结果，不输出DEBUG日志
+    }
+
+    /**
+     * 清空烟农信息相关字段
+     */
+    private void clearFarmerInfoFields() {
+        farmerNameField.clear();
+        contractNumberField.clear();
+        contractAmountField.clear();
+        // 更新比例计算
+        updateRatios();
+        // 更新封签预览
+        updatePreviewLabelsOnly();
+    }
+
+    /**
+     * 根据合同号加载合同量（异步版本，用于UI直接调用）
+     */
+    private void loadContractAmountByContractNumber(String contractNumber) {
+        if (contractNumber == null || contractNumber.trim().isEmpty()) {
+            contractAmountField.clear();
+            return;
+        }
+
+        // 在后台线程查询合同量
+        new Thread(() -> {
+            try {
+                loadContractAmountByContractNumberSync(contractNumber);
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    logger.error("根据合同号加载合同量失败: {}", contractNumber, e);
+                    contractAmountField.setText("0.00"); // 出错时也设置为0
+                    updateRatios();
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * 根据合同号同步加载合同量（用于内部调用，避免并发问题）
+     */
+    private void loadContractAmountByContractNumberSync(String contractNumber) throws Exception {
+        if (contractNumber == null || contractNumber.trim().isEmpty()) {
+            Platform.runLater(() -> {
+                contractAmountField.clear();
+                updateRatios();
+            });
+            return;
+        }
+
+        try {
+            // 根据合同号查询合同量
+            java.util.Map<String, Double> contractAmounts = weighingRecordRepository.getContractAmountsSync();
+            Double amount = contractAmounts.get(contractNumber);
+
+            Platform.runLater(() -> {
+                if (amount != null && amount > 0) {
+                    contractAmountField.setText(String.format("%.2f", amount));
+                    logger.info("根据合同号自动填充合同量: {} -> 合同量: {}", contractNumber, amount);
+                } else {
+                    contractAmountField.setText("0.00"); // 如果为空则置0
+                    logger.info("未找到合同号 {} 的合同量信息，设置为0", contractNumber);
+                }
+                // 更新比例计算
+                updateRatios();
+            });
+
+        } catch (Exception e) {
+            logger.error("根据合同号同步加载合同量失败: {}", contractNumber, e);
+            throw e; // 重新抛出异常，让调用者处理
+        }
+    }
+
+    /**
+     * 获取当前实时重量
+     */
+    private double getCurrentWeight() {
+        try {
+            // 从重量显示标签获取当前重量
+            if (currentWeightLabel != null) {
+                String weightText = currentWeightLabel.getText();
+                if (weightText != null && !weightText.isEmpty()) {
+                    // 提取数字部分，去掉 "kg" 等文字
+                    String numericPart = weightText.replaceAll("[^0-9.]", "");
+                    if (!numericPart.isEmpty()) {
+                        return Double.parseDouble(numericPart);
+                    }
+                }
+            }
+
+            // 如果无法获取，返回默认值
+            return 0.0;
+        } catch (Exception e) {
+            logger.error("获取当前重量失败", e);
+            return 0.0;
+        }
     }
 }

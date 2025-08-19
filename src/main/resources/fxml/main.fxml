@@ -11,35 +11,35 @@
       spacing="5" styleClass="main-container" minHeight="600" fillWidth="true">
     
     <!-- 主要内容区域 - 三列布局 -->
-    <HBox fx:id="mainContentArea" spacing="10" VBox.vgrow="ALWAYS" styleClass="main-content-area" minHeight="500" alignment="TOP_CENTER">
+    <HBox fx:id="mainContentArea" spacing="15" VBox.vgrow="ALWAYS" styleClass="main-content-area" minHeight="500" alignment="TOP_CENTER">
         <padding>
-            <Insets top="10" right="10" bottom="10" left="10"/>
+            <Insets top="8" right="8" bottom="8" left="8"/>
         </padding>
         
         <!-- 左侧：农户信息和数字键盘 -->
-        <VBox spacing="10" prefWidth="280" minWidth="220" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
-            <!-- 农户信息输入区 -->
-            <VBox styleClass="input-panel" spacing="8" alignment="TOP_LEFT" VBox.vgrow="ALWAYS">
-                <VBox spacing="8" VBox.vgrow="ALWAYS">
-                    <VBox spacing="3">
-                        <Label text="烟农姓名:" styleClass="field-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <TextField fx:id="farmerNameField" promptText="请输入烟农姓名" styleClass="farmer-input-field" prefHeight="40" style="-fx-font-size: 16px;"/>
+        <VBox spacing="12" prefWidth="300" minWidth="250" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+            <!-- 农户信息输入区 - 优化间距和尺寸 -->
+            <VBox styleClass="input-panel" spacing="10" alignment="TOP_LEFT" VBox.vgrow="NEVER">
+                <VBox spacing="10" VBox.vgrow="NEVER">
+                    <VBox spacing="5">
+                        <Label text="烟农姓名:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <TextField fx:id="farmerNameField" promptText="请输入烟农姓名" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
                     </VBox>
-                    <VBox spacing="3">
-                        <Label text="合同号:" styleClass="field-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <TextField fx:id="contractNumberField" promptText="合同号" styleClass="farmer-input-field" prefHeight="40" style="-fx-font-size: 16px;"/>
+                    <VBox spacing="5">
+                        <Label text="合同号:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <TextField fx:id="contractNumberField" promptText="合同号" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
                     </VBox>
-                    <VBox spacing="3">
-                        <Label text="身份证号:" styleClass="field-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <TextField fx:id="idCardNumberField" promptText="请输入身份证号" styleClass="farmer-input-field" prefHeight="40" style="-fx-font-size: 16px;"/>
+                    <VBox spacing="5">
+                        <Label text="身份证号:" styleClass="field-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <TextField fx:id="idCardNumberField" promptText="请输入身份证号" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
                     </VBox>
 
-                    <!-- 读取身份证按钮（移动到左侧，避免与中部控件重叠） -->
-                    <Button fx:id="readIdCardButton" styleClass="id-card-button" prefHeight="42" style="-fx-font-size: 16px; -fx-font-weight: bold;">
+                    <!-- 读取身份证按钮 - 增大尺寸 -->
+                    <Button fx:id="readIdCardButton" styleClass="id-card-button" prefHeight="50" style="-fx-font-size: 18px; -fx-font-weight: bold;">
                         <graphic>
-                            <HBox spacing="5" alignment="CENTER">
+                            <HBox spacing="6" alignment="CENTER">
                                 <Label fx:id="idCardStatusIcon" text="●" styleClass="status-icon"/>
-                                <Label text="读取身份证" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                                <Label text="读取身份证" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
                             </HBox>
                         </graphic>
                     </Button>
@@ -47,147 +47,157 @@
                 </VBox>
             </VBox>
             
-            <!-- 数字键盘 -->
-            <VBox fx:id="numberKeypadContainer" spacing="2" styleClass="number-keypad-compact" alignment="BOTTOM_LEFT" VBox.vgrow="ALWAYS">
-                <GridPane hgap="10" vgap="2" alignment="BOTTOM_LEFT">
-                    <Button fx:id="key1" text="1" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key2" text="2" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="1" GridPane.rowIndex="0" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key3" text="3" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="2" GridPane.rowIndex="0" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key4" text="4" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key5" text="5" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key6" text="6" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="2" GridPane.rowIndex="1" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key7" text="7" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key8" text="8" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="1" GridPane.rowIndex="2" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key9" text="9" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="2" GridPane.rowIndex="2" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="keyClear" text="C" styleClass="keypad-clear-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="key0" text="0" styleClass="keypad-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="1" GridPane.rowIndex="3" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-                    <Button fx:id="keyBack" text="⌫" styleClass="keypad-back-button-compact" prefWidth="120" prefHeight="90" GridPane.columnIndex="2" GridPane.rowIndex="3" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+            <!-- 数字键盘 - 增大按钮尺寸充分利用空间 -->
+            <VBox fx:id="numberKeypadContainer" spacing="3" styleClass="number-keypad-compact" alignment="CENTER" VBox.vgrow="ALWAYS">
+                <GridPane hgap="12" vgap="3" alignment="CENTER">
+                    <Button fx:id="key1" text="1" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key2" text="2" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="1" GridPane.rowIndex="0" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key3" text="3" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="2" GridPane.rowIndex="0" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key4" text="4" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key5" text="5" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key6" text="6" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="2" GridPane.rowIndex="1" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key7" text="7" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key8" text="8" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="1" GridPane.rowIndex="2" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key9" text="9" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="2" GridPane.rowIndex="2" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="keyClear" text="C" styleClass="keypad-clear-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="key0" text="0" styleClass="keypad-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="1" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                    <Button fx:id="keyBack" text="⌫" styleClass="keypad-back-button-compact" prefWidth="130" prefHeight="100" GridPane.columnIndex="2" GridPane.rowIndex="3" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
                 </GridPane>
             </VBox>
         </VBox>
         
         <!-- 中间：重量显示和操作区 -->
-        <VBox spacing="15" prefWidth="360" minWidth="260" maxWidth="1.7976931348623157E308" alignment="TOP_CENTER" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+        <VBox spacing="12" prefWidth="400" minWidth="300" maxWidth="1.7976931348623157E308" alignment="TOP_CENTER" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
             <HBox.margin>
-                <Insets left="12" right="12"/>
+                <Insets left="8" right="8"/>
             </HBox.margin>
-            <!-- 顶部：管理员按钮区 -->
-            <HBox spacing="18" alignment="CENTER">
+            
+            <!-- 顶部：管理员按钮区 - 优化间距和布局 -->
+            <HBox spacing="15" alignment="CENTER">
                 <Button fx:id="adminLoginButton" text="管理员登录" styleClass="admin-login-button-compact" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
                 <Button fx:id="farmerRegistrationButton" text="农户注册管理" styleClass="export-button-compact" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
             </HBox>
+            
             <!-- 登录状态显示（可选） -->
-            <HBox fx:id="adminStatusContainer" spacing="10" alignment="CENTER" visible="false">
+            <HBox fx:id="adminStatusContainer" spacing="8" alignment="CENTER" visible="false">
                 <Label fx:id="adminStatusLabel" text="" styleClass="admin-status-label"/>
                 <Button fx:id="openAdminPanelButton" text="管理面板" styleClass="export-button-compact" visible="false"/>
                 <Button fx:id="exportAllDataButton" text="导出数据" styleClass="export-button-compact" visible="false"/>
                 <Button fx:id="adminLogoutButton" text="登出" styleClass="logout-button-compact" visible="false"/>
             </HBox>
 
-            <!-- 实时重量显示 -->
-            <VBox styleClass="weight-display-main" spacing="5" alignment="CENTER" prefHeight="170" prefWidth="200">
-                <Label text="实时重量" styleClass="weight-title" style="-fx-font-size: 26px; -fx-font-weight: bold;"/>
-                <HBox spacing="8" alignment="CENTER">
-                    <Label fx:id="currentWeightLabel" text="00.00" styleClass="weight-value-large" style="-fx-font-size: 52px; -fx-font-weight: bold;"/>
-                    <!-- <Label text="Kg" styleClass="weight-unit" style="-fx-font-size: 22px; -fx-font-weight: bold;"/> -->
+            <!-- 实时重量显示 - 增大尺寸充分利用空间 -->
+            <VBox styleClass="weight-display-main" spacing="8" alignment="CENTER" prefHeight="200" prefWidth="280" VBox.vgrow="NEVER">
+                <Label text="实时重量" styleClass="weight-title" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+                <HBox spacing="10" alignment="CENTER">
+                    <Label fx:id="currentWeightLabel" text="00.00" styleClass="weight-value-large" style="-fx-font-size: 64px; -fx-font-weight: bold;"/>
+                    <Label text="kg" styleClass="weight-unit" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                 </HBox>
             </VBox>
             
-            <!-- 预检部位与操作按钮（网格对齐），右侧有"捆数"按钮，底部"确认打印" -->
-            <VBox spacing="8" alignment="CENTER_LEFT" VBox.vgrow="ALWAYS">
-                <padding>
-                    <Insets left="0"/>
-                </padding>
-                <GridPane hgap="20" vgap="16" alignment="CENTER_LEFT">
-                    <!-- 将标题放在左列第0行，使其位于"上部叶"正上方 -->
-                    <Label text="预检部位" styleClass="section-title" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.halignment="CENTER" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+            <!-- 预检部位与操作按钮 - 优化网格布局充分利用空间 -->
+            <VBox spacing="12" alignment="CENTER" VBox.vgrow="ALWAYS">
+                <GridPane hgap="25" vgap="20" alignment="CENTER">
                     <columnConstraints>
                         <ColumnConstraints percentWidth="50" halignment="CENTER" fillWidth="false"/>
                         <ColumnConstraints percentWidth="50" halignment="CENTER" fillWidth="false"/>
                     </columnConstraints>
                     <rowConstraints>
-                        <RowConstraints minHeight="28" prefHeight="28"/>
-                        <RowConstraints minHeight="48" prefHeight="48"/>
-                        <RowConstraints minHeight="48" prefHeight="48"/>
-                        <RowConstraints minHeight="48" prefHeight="48"/>
+                        <RowConstraints minHeight="30" prefHeight="30"/>
+                        <RowConstraints minHeight="55" prefHeight="55"/>
+                        <RowConstraints minHeight="55" prefHeight="55"/>
+                        <RowConstraints minHeight="55" prefHeight="55"/>
                     </rowConstraints>
-                    <!-- 左列：部位按钮 -->
-                    <Button fx:id="upperLeafButton" text="上部叶" styleClass="leaf-button-large" prefWidth="180" prefHeight="45" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.halignment="CENTER" style="-fx-font-size: 20px; -fx-font-weight: bold;">
+                    
+                    <!-- 标题行 -->
+                    <Label text="预检部位" styleClass="section-title" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2" GridPane.halignment="CENTER" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                    
+                    <!-- 左列：部位按钮 - 增大按钮尺寸 -->
+                    <Button fx:id="upperLeafButton" text="上部叶" styleClass="leaf-button-large" prefWidth="200" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.halignment="CENTER" style="-fx-font-size: 22px; -fx-font-weight: bold;">
                         <GridPane.margin>
-                            <Insets right="0"/>
+                            <Insets right="5"/>
                         </GridPane.margin>
                     </Button>
-                    <Button fx:id="middleLeafButton" text="中部叶" styleClass="leaf-button-large" prefWidth="180" prefHeight="45" GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.halignment="CENTER" style="-fx-font-size: 20px; -fx-font-weight: bold;">
+                    <Button fx:id="middleLeafButton" text="中部叶" styleClass="leaf-button-large" prefWidth="200" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.halignment="CENTER" style="-fx-font-size: 22px; -fx-font-weight: bold;">
                         <GridPane.margin>
-                            <Insets right="0"/>
+                            <Insets right="5"/>
                         </GridPane.margin>
                     </Button>
-                    <Button fx:id="lowerLeafButton" text="下部叶" styleClass="leaf-button-large" prefWidth="180" prefHeight="45" GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.halignment="CENTER" style="-fx-font-size: 20px; -fx-font-weight: bold;">
+                    <Button fx:id="lowerLeafButton" text="下部叶" styleClass="leaf-button-large" prefWidth="200" prefHeight="50" GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.halignment="CENTER" style="-fx-font-size: 22px; -fx-font-weight: bold;">
                         <GridPane.margin>
-                            <Insets right="0"/>
+                            <Insets right="5"/>
                         </GridPane.margin>
                     </Button>
-                    <!-- 右列：捆数输入框与确认打印 -->
-                    <TextField fx:id="bundleCountField" promptText="捆数" styleClass="farmer-input-field" prefWidth="180" maxWidth="180" prefHeight="45" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.halignment="CENTER" GridPane.hgrow="NEVER" text="" style="-fx-pref-width: 180; -fx-max-width: 180; -fx-min-width: 180; -fx-pref-height: 45; -fx-max-height: 45; -fx-min-height: 45; -fx-font-size: 18px;">
+                    
+                    <!-- 右列：捆数输入框与确认打印 - 增大尺寸 -->
+                    <TextField fx:id="bundleCountField" promptText="捆数" styleClass="farmer-input-field" prefWidth="200" maxWidth="200" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.halignment="CENTER" GridPane.hgrow="NEVER" text="" style="-fx-pref-width: 200; -fx-max-width: 200; -fx-min-width: 200; -fx-pref-height: 50; -fx-max-height: 50; -fx-min-height: 50; -fx-font-size: 20px;">
                         <GridPane.margin>
-                            <Insets left="0"/>
+                            <Insets left="5"/>
                         </GridPane.margin>
                     </TextField>
-                    <Button fx:id="confirmButton" text="确认打印" styleClass="confirm-button-large" prefWidth="180" maxWidth="180" prefHeight="45" GridPane.columnIndex="1" GridPane.rowIndex="3" GridPane.halignment="CENTER" GridPane.hgrow="NEVER" style="-fx-font-size: 20px; -fx-font-weight: bold;">
+                    
+                    <!-- 中间行：添加一个操作提示标签 -->
+                    <Label fx:id="bundleTipLabel" text="请输入捆数" GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.halignment="CENTER" style="-fx-font-size: 16px; -fx-text-fill: #666; -fx-font-style: italic;">
                         <GridPane.margin>
-                            <Insets left="0"/>
+                            <Insets left="5"/>
+                        </GridPane.margin>
+                    </Label>
+                    
+                    <Button fx:id="confirmButton" text="确认打印" styleClass="confirm-button-large" prefWidth="200" maxWidth="200" prefHeight="50" GridPane.columnIndex="1" GridPane.rowIndex="3" GridPane.halignment="CENTER" GridPane.hgrow="NEVER" style="-fx-font-size: 22px; -fx-font-weight: bold;">
+                        <GridPane.margin>
+                            <Insets left="5"/>
                         </GridPane.margin>
                     </Button>
                 </GridPane>
-                
             </VBox>
         </VBox>
         
         <!-- 右侧：合同信息和预检信息 -->
-        <VBox spacing="10" prefWidth="280" minWidth="220" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
-            <!-- 合同信息面板，无标题 -->
-            <VBox styleClass="contract-panel" spacing="8" alignment="TOP_LEFT" VBox.vgrow="ALWAYS">
-                <VBox spacing="8" VBox.vgrow="ALWAYS">
+        <VBox spacing="12" prefWidth="320" minWidth="250" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+            <!-- 合同信息面板 - 压缩高度为封签预览腾出空间 -->
+            <VBox styleClass="contract-panel" spacing="8" alignment="TOP_LEFT" VBox.vgrow="NEVER">
+                <VBox spacing="8" VBox.vgrow="NEVER">
                     <!-- 第一行：合同量 -->
-                    <HBox spacing="12" alignment="CENTER">
-                        <Label text="合同量(kg):" styleClass="ratio-label" prefWidth="100" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <TextField fx:id="contractAmountField" promptText="0.00" styleClass="ratio-input-small" prefWidth="140" prefHeight="40" style="-fx-font-size: 16px;"/>
+                    <HBox spacing="15" alignment="CENTER">
+                        <Label text="合同量(kg):" styleClass="ratio-label" prefWidth="110" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <TextField fx:id="contractAmountField" promptText="0.00" styleClass="ratio-input-small" prefWidth="150" prefHeight="40" style="-fx-font-size: 18px;"/>
                     </HBox>
                     <!-- 第二行：完成比例和上部叶比例 -->
-                    <HBox spacing="40" alignment="CENTER">
-                        <Label text="完成比例" styleClass="ratio-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <Label text="上部叶比例" styleClass="ratio-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    <HBox spacing="45" alignment="CENTER">
+                        <Label text="完成比例" styleClass="ratio-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <Label text="上部叶比例" styleClass="ratio-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                     </HBox>
-                    <HBox spacing="40" alignment="CENTER">
-                        <TextField fx:id="precheckRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="120" prefHeight="40" style="-fx-font-size: 16px;"/>
-                        <TextField fx:id="upperRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="120" prefHeight="40" style="-fx-font-size: 16px;"/>
+                    <HBox spacing="45" alignment="CENTER">
+                        <TextField fx:id="precheckRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="130" prefHeight="40" style="-fx-font-size: 18px;"/>
+                        <TextField fx:id="upperRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="130" prefHeight="40" style="-fx-font-size: 18px;"/>
                     </HBox>
                     <!-- 第三行：中部叶比例和下部叶比例 -->
-                    <HBox spacing="40" alignment="CENTER">
-                        <Label text="中部叶比例" styleClass="ratio-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                        <Label text="下部叶比例" styleClass="ratio-label" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    <HBox spacing="45" alignment="CENTER">
+                        <Label text="中部叶比例" styleClass="ratio-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                        <Label text="下部叶比例" styleClass="ratio-label" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
                     </HBox>
-                    <HBox spacing="40" alignment="CENTER">
-                        <TextField fx:id="middleRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="120" prefHeight="40" style="-fx-font-size: 16px;"/>
-                        <TextField fx:id="lowerRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="120" prefHeight="40" style="-fx-font-size: 16px;"/>
+                    <HBox spacing="45" alignment="CENTER">
+                        <TextField fx:id="middleRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="130" prefHeight="40" style="-fx-font-size: 18px;"/>
+                        <TextField fx:id="lowerRatioField" promptText="0.0%" styleClass="ratio-input-small" editable="false" prefWidth="130" prefHeight="40" style="-fx-font-size: 18px;"/>
                     </HBox>
                 </VBox>
             </VBox>
             
-            <!-- 封签预览区 -->
-            <VBox fx:id="labelPreviewArea" styleClass="label-preview-panel" spacing="10" alignment="TOP_CENTER" VBox.vgrow="ALWAYS">
-                <Label text="封签预览" styleClass="section-title" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
-                <VBox styleClass="qr-preview-area" spacing="8" alignment="CENTER" prefHeight="200" minHeight="200" prefWidth="200" VBox.vgrow="NEVER">
-                    <Label text="二维码" styleClass="qr-placeholder" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <ImageView fx:id="qrCodeImageView" fitWidth="140" fitHeight="140" preserveRatio="true" style="-fx-border-color: #cccccc; -fx-border-width: 1px;"/>
+            <!-- 封签预览区 - 文字行紧贴二维码下方，不留空白 -->
+            <VBox fx:id="labelPreviewArea" styleClass="label-preview-panel" spacing="0" alignment="TOP_CENTER" VBox.vgrow="ALWAYS">
+                <Label text="封签预览" styleClass="section-title" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                <VBox styleClass="qr-preview-area" spacing="0" alignment="CENTER" prefHeight="160" minHeight="160" prefWidth="200" VBox.vgrow="NEVER" style="-fx-padding: 10 0 0 0;">
+                    <ImageView fx:id="qrCodeImageView" fitWidth="160" fitHeight="160" preserveRatio="true" style="-fx-border-color: #4CAF50; -fx-border-width: 1px;"/>
                 </VBox>
-                <VBox spacing="6" alignment="CENTER_LEFT" VBox.vgrow="ALWAYS" fx:id="labelInfoContainer">
-                    <Label text="地址: XXX" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <Label text="身份证号: XXX" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <Label text="姓名: XXX" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <Label text="预检编号: XXXXX" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <Label text="烟叶部位: X部叶" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <Label text="预检日期: 202X-XX-XX" styleClass="label-info-text" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <VBox spacing="0" alignment="CENTER_LEFT" VBox.vgrow="ALWAYS" fx:id="labelInfoContainer" prefHeight="400" minHeight="400" style="-fx-padding: -50 0 0 0;">
+                    <Label text="未知站点" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2E7D32;"/>
+                    <Label text="待完善" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #666;"/>
+                    <Label text="XXX" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #666;"/>
+                    <Label text="姓名: XXX" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+                    <Label text="预检编号: XXXXX" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+                    <Label text="重量: 0.00 kg" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+                    <Label text="烟叶部位: X部叶" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+                    <Label text="预检日期: 202X-XX-XX" styleClass="label-info-text" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
                 </VBox>
             </VBox>
         </VBox>

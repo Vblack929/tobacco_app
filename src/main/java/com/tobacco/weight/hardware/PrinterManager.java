@@ -150,7 +150,6 @@ public class PrinterManager {
         content.append("合同号: ").append(contractNumber).append("\n");
         content.append("部叶类型: ").append(leafType).append("\n");
         content.append("重量: ").append(String.format("%.2f kg", weight)).append("\n");
-        content.append("捆数: ").append(bundleCount).append("\n");
         content.append("操作员: ").append(operator).append("\n");
         content.append("=".repeat(32)).append("\n");
         content.append("        谢谢使用\n");
