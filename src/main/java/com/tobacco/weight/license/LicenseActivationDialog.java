@@ -243,7 +243,7 @@ public class LicenseActivationDialog extends Dialog<String> {
         // 在后台线程中执行激活
         Thread activationThread = new Thread(() -> {
             try {
-                boolean success = LicenseService.getInstance().activateLicense(licenseId);
+                boolean success = HybridLicenseService.getInstance().activateLicense(licenseId);
 
                 Platform.runLater(() -> {
                     setActivationInProgress(false);

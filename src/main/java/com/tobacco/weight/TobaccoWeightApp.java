@@ -1,7 +1,7 @@
 package com.tobacco.weight;
 
 import com.tobacco.weight.database.DatabaseManager;
-import com.tobacco.weight.license.LicenseService;
+import com.tobacco.weight.license.HybridLicenseService;
 import com.tobacco.weight.ui.MainController;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -32,8 +32,8 @@ public class TobaccoWeightApp extends Application {
             DatabaseManager.getInstance();
             logger.info("数据库初始化完成");
 
-            // 动态绑定许可证验证
-            if (!LicenseService.getInstance().ensureLicensed(primaryStage)) {
+            // 混合许可证验证（在线+离线）
+            if (!HybridLicenseService.getInstance().ensureLicensed(primaryStage)) {
                 logger.warn("许可证验证失败，应用程序将退出");
                 Platform.exit();
                 return;
