@@ -12,7 +12,6 @@ import com.tobacco.weight.hardware.ScaleManager;
 import com.tobacco.weight.hardware.PrinterManager;
 import com.tobacco.weight.hardware.IdCardReader;
 import com.tobacco.weight.service.AdminAuthService;
-
 import com.tobacco.weight.ui.HardwareDiagnosticsWindow;
 import com.tobacco.weight.ui.FarmerStats;
 import javafx.application.Platform;
@@ -119,6 +118,8 @@ public class MainController implements Initializable {
     private Button confirmButton;
     @FXML
     private Button readIdCardButton;
+    @FXML
+    private Button retryConnectionButton;
     @FXML
     private Label idCardStatusIcon;
     @FXML
@@ -279,6 +280,9 @@ public class MainController implements Initializable {
                 // 检查连接状态 - 在注册回调后调用
                 idCardReader.checkConnectionStatus();
 
+                // 立即触发状态更新（因为构造函数中的连接回调可能没有设置）
+                updateIdCardStatus(idCardReader.isConnected());
+
                 // 如果初始化期间已发生错误（构造函数先于回调设置执行），此处补发一次详细错误
                 if (!idCardReader.isConnected()) {
                     String detailed = idCardReader.getDetailedErrorMessage();
@@ -332,11 +336,10 @@ public class MainController implements Initializable {
 
         // 身份证读取按钮
         readIdCardButton.setOnAction(e -> readIdCard());
+        
+        // 重连按钮
+        retryConnectionButton.setOnAction(e -> retryIdCardConnection());
 
-        // 文本字段变化监听
-        farmerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
-            updateContractNumber();
-        });
 
         // 导出所有数据按钮
         exportAllDataButton.setOnAction(e -> exportAllData());
@@ -638,22 +641,106 @@ public class MainController implements Initializable {
     }
 
     /**
+     * 重试身份证读卡器连接
+     */
+    private void retryIdCardConnection() {
+        try {
+            updateStatus("正在重试连接身份证读卡器...");
+            retryConnectionButton.setDisable(true);
+            
+            // 在后台线程执行连接操作
+            new Thread(() -> {
+                try {
+                    boolean success = false;
+                    IdCardReader newReader = null;
+                    
+                    // 如果IdCardReader为null，尝试重新创建
+                    if (idCardReader == null) {
+                        try {
+                            logger.info("尝试重新初始化身份证读卡器...");
+                            newReader = new IdCardReader();
+                            
+                            success = newReader.isConnected();
+                            
+                            // 如果创建成功，更新主线程的引用
+                            if (success) {
+                                final IdCardReader finalReader = newReader;
+                                Platform.runLater(() -> {
+                                    idCardReader = finalReader;
+                                    idCardReader.setOnIdCardRead(this::handleIdCardRead);
+                                    idCardReader.setOnConnectionStatusChanged(this::updateIdCardStatus);
+                                    idCardReader.setOnErrorOccurred(this::handleIdCardError);
+                                    
+                                    // 立即更新UI状态，确保按钮可用
+                                    updateIdCardStatus(true);
+                                });
+                            }
+                        } catch (Exception e) {
+                            logger.warn("重新初始化身份证读卡器失败: {}", e.getMessage());
+                            success = false;
+                        }
+                    } else {
+                        // IdCardReader存在，直接尝试连接
+                        success = idCardReader.connect();
+                    }
+                    
+                    final boolean finalSuccess = success;
+                    Platform.runLater(() -> {
+                        retryConnectionButton.setDisable(false);
+                        if (finalSuccess) {
+                            updateStatus("身份证读卡器重连成功");
+                            showInfo("重连成功", "身份证读卡器已成功连接");
+                            
+                            // 确保UI状态正确更新
+                            updateIdCardStatus(true);
+                            
+                            // 恢复读取按钮状态
+                            if (readIdCardButton != null && readIdCardButton.getText().equals("身份证功能不可用")) {
+                                readIdCardButton.setText("");
+                                // 按钮的graphic已经在FXML中设置好了，这里会自动恢复
+                            }
+                        } else {
+                            updateStatus("身份证读卡器重连失败");
+                            showError("重连失败", "无法连接身份证读卡器，请检查设备状态或HTTP服务");
+                            
+                            // 确保UI状态正确更新
+                            updateIdCardStatus(false);
+                        }
+                    });
+                    
+                } catch (Exception e) {
+                    Platform.runLater(() -> {
+                        retryConnectionButton.setDisable(false);
+                        updateStatus("身份证读卡器重连异常");
+                        updateIdCardStatus(false);
+                        logger.error("重连身份证读卡器失败", e);
+                        showError("重连异常", "重连过程中发生异常: " + e.getMessage());
+                    });
+                }
+            }).start();
+
+        } catch (Exception e) {
+            retryConnectionButton.setDisable(false);
+            logger.error("启动重连操作失败", e);
+            showError("操作失败", "无法启动重连操作: " + e.getMessage());
+        }
+    }
+
+    /**
      * 处理身份证读取结果
      */
     private void handleIdCardRead(FarmerInfo farmerInfo) {
         Platform.runLater(() -> {
             try {
                 if (farmerInfo != null) {
-                    // 填充烟农信息
-                    farmerNameField.setText(farmerInfo.getFarmerName());
-                    contractNumberField.setText(farmerInfo.getContractNumber());
-                    idCardNumberField.setText(farmerInfo.getIdCardNumber()); // 填充身份证号
+                    // 填充基本身份证信息
+                    idCardNumberField.setText(farmerInfo.getIdCardNumber());
+                    
+                    // 从数据库查询完整的农户信息（姓名、合同号、合同量）
+                    logger.info("身份证读取成功，开始从数据库查询农户信息: {}", farmerInfo.getIdCardNumber());
+                    loadFarmerInfoByIdCard(farmerInfo.getIdCardNumber());
 
-                    // 自动填充合同量
-                    loadContractAmountForFarmer(farmerInfo.getContractNumber());
-
-                    updateStatus("身份证读取成功: " + farmerInfo.getFarmerName());
-                    showInfo("读取成功", "身份证信息已读取并填充");
+                    updateStatus("身份证读取成功，正在查询农户信息...");
 
                 } else {
                     updateStatus("身份证读取失败");
@@ -907,6 +994,11 @@ public class MainController implements Initializable {
     private void updateIdCardStatus(boolean connected) {
         Platform.runLater(() -> {
             readIdCardButton.setDisable(!connected);
+            
+            // 重连按钮始终可用（除非设备功能完全不可用）
+            if (retryConnectionButton != null) {
+                retryConnectionButton.setDisable(false);
+            }
 
             // 清除之前的状态样式
             idCardStatusIcon.getStyleClass().removeAll("connected", "disconnected", "connecting");
@@ -928,17 +1020,8 @@ public class MainController implements Initializable {
         });
     }
 
-    /**
-     * 更新合同号
-     */
-    private void updateContractNumber() {
-        // TODO: 实现合同号自动生成逻辑
-        String farmerName = farmerNameField.getText().trim();
-        if (!farmerName.isEmpty()) {
-            // 简单的合同号生成逻辑
-            contractNumberField.setText("HT" + System.currentTimeMillis());
-        }
-    }
+    // 已移除 updateContractNumber() 方法
+    // 所有农户信息（包括合同号）现在都从数据库查询，不再自动生成
 
     /**
      * 保存称重记录

@@ -11,6 +11,17 @@ import java.util.Base64;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.security.PublicKey;
+import java.security.KeyFactory;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Cipher;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.time.Duration;
 
 /**
  * 身份证读卡器管理器
@@ -20,26 +31,54 @@ public class IdCardReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IdCardReader.class);
 
-    // SDK实例
-    private IDReader reader;
-    private static final String CONFIG_PATH = "./config";
+    // HTTP客户端实例
+    private HttpClient httpClient;
+    private static final String READER_BASE_URL = "http://127.0.0.1:7846";
+    private static final int CONNECTION_TIMEOUT = 10; // 秒
+    
+    // RSA公钥 - 用于验证身份证数据签名（来自SDK文档示例）
+    private static final String RSA_PUBLIC_KEY = 
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8KVhMYEpLg8PiGS8rv4h" +
+        "EKRX86FBJFKLvEL/o4Rz2O2BceWV4+mwzmyrbsI4Re8GP8RpqgwOFG/Zn3pMlCfo" + 
+        "vDzGT5dHu329NQJBYCjvThsITdv7Km979PZ1tgAQnXd3DTy9rxfmPxIaqFzIuj/g" + 
+        "+Z2hLJB3GZJXYlq1RSDROSgf6zry97SKBQpD/Og5odxw9QoNhu6k+DP9X8El/D1S" + 
+        "NzHyl5LGXkifMEFy3bngC5fSQVtrgIqTW6NGPa10e/JWNsWO9DZXOyOjlnKJ3uj3" + 
+        "gg3hjEfEAoe5r+5BSQKixqFwaRYC+NQcPoELTTqLh0JyRPI6QH6H0JsxjDzv1vij" + 
+        "xwIDAQAB";
     
     // 连接状态
     private boolean isConnected = false;
     private String deviceName = "";
     
-    // 错误代码常量
-    public static final int ERROR_NONE = 0;
-    public static final int ERROR_DEVICE_NOT_FOUND = 1001;
-    public static final int ERROR_DRIVER_NOT_INSTALLED = 1002;
-    public static final int ERROR_PORT_OCCUPIED = 1003;
-    public static final int ERROR_COMMUNICATION_FAILED = 1004;
-    public static final int ERROR_DEVICE_TIMEOUT = 1005;
-    public static final int ERROR_CARD_NOT_DETECTED = 2001;
-    public static final int ERROR_CARD_READ_FAILED = 2002;
-    public static final int ERROR_CARD_DATA_INVALID = 2003;
-    public static final int ERROR_PERMISSION_DENIED = 3001;
-    public static final int ERROR_UNKNOWN = 9999;
+    // 配置选项
+    private boolean enableSignatureVerification = true; // 是否启用签名验证
+    
+    // 错误代码常量 - 根据SDK文档第7章错误码定义
+    public static final int ERROR_NONE = 0;                    // 成功
+    public static final int ERROR_INVALID_PARAM = 1;           // 输入参数错误
+    public static final int ERROR_DEVICE_NOT_FOUND = 2;        // 设备不存在（比如阅读器未连接）
+    public static final int ERROR_CARD_NOT_DETECTED = 3;       // 找卡失败
+    public static final int ERROR_COMMUNICATION_FAILED = 100;  // 通信连接失败
+    public static final int ERROR_FUNCTION_NOT_SUPPORTED = 4;  // 该功能不支持
+    public static final int ERROR_CARD_SELECT_FAILED = 5;      // 选卡失败
+    public static final int ERROR_CARD_READ_FAILED = 6;        // 读卡失败
+    public static final int ERROR_CARD_WRITE_FAILED = 7;       // 写卡失败
+    public static final int ERROR_CARD_DATA_FORMAT = 8;        // 卡片数据格式错误
+    public static final int ERROR_PHOTO_BASE64 = 9;            // 照片Base64编码错误
+    public static final int ERROR_TEXT_FORMAT = 10;            // 卡片文本格式错误
+    public static final int ERROR_IMAGE_LIBRARY = 11;          // 图片解码库加载失败
+    public static final int ERROR_BMP_TO_JPG = 12;             // BMP转JPG函数缺失
+    public static final int ERROR_IMAGE_FORMAT = 13;           // 图片格式不支持
+    public static final int ERROR_TEMP_WRITE = 14;             // 临时目录写失败
+    public static final int ERROR_WLT_DECODE = 15;             // WLT解码BMP失败
+    public static final int ERROR_TEMP_READ = 16;              // 临时目录读失败
+    public static final int ERROR_BMP_ENCODE = 17;             // BMP编码JPG失败
+    public static final int ERROR_JPG_BASE64 = 18;             // JPG图片BASE64编码失败
+    public static final int ERROR_BMP_BASE64 = 19;             // BMP图片BASE64编码失败
+    public static final int ERROR_URL_DECODE = 20;             // URL解码失败
+    public static final int ERROR_IMAGE_FORMAT_ERROR = 21;     // 图片格式错误
+    public static final int ERROR_DATA_EXCEED_LIMIT = 22;      // 写入数据超过限制
+    public static final int ERROR_UNKNOWN = 9999;              // 未知错误
     
     // 错误状态
     private int errorCode = ERROR_NONE;
@@ -62,7 +101,9 @@ public class IdCardReader {
      * 构造函数
      */
     public IdCardReader() {
-        reader = new IDReader();
+        httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(CONNECTION_TIMEOUT))
+            .build();
         initializeReader();
     }
 
@@ -74,90 +115,86 @@ public class IdCardReader {
         
         try {
             connectionAttempts.clear();
-            lastPhase = "Init";
+            lastPhase = "初始化";
             lastApi = "";
             lastReturnCode = null;
             lastJsonSnippet = "";
             lastExceptionMessage = "";
 
-            // 步骤1: 初始化SDK (attemptConnection方法)
-            logger.info("步骤1: 初始化SDK和加载驱动...");
-            if (!attemptConnection()) {
-                setError(ERROR_COMMUNICATION_FAILED, "attemptConnection()方法失败 - SDK初始化失败");
-                logger.error("初始化失败: attemptConnection()方法返回false");
-                return;
+            // 测试HTTP服务连接
+            logger.info("测试HTTP服务连接...");
+            if (testConnection()) {
+                deviceName = "身份证读卡器 HTTP服务";
+                isConnected = true;
+                errorCode = ERROR_NONE;
+                lastError = "";
+                logger.info("身份证读卡器HTTP服务连接成功: {}", deviceName);
+                
+                // 通知UI连接状态变化
+                if (onConnectionStatusChanged != null) {
+                    onConnectionStatusChanged.accept(true);
+                }
+            } else {
+                setError(ERROR_COMMUNICATION_FAILED, "HTTP服务连接失败");
+                logger.error("初始化失败: HTTP服务连接失败");
+                
+                // 通知UI连接失败
+                if (onConnectionStatusChanged != null) {
+                    onConnectionStatusChanged.accept(false);
+                }
             }
-            
-            // 步骤2: 检测硬件设备 (detectDevice方法)
-            logger.info("步骤2: 检测硬件设备...");
-            if (!detectDevice()) {
-                setError(ERROR_DEVICE_NOT_FOUND, "detectDevice()方法失败 - 未检测到身份证读卡器硬件设备");
-                logger.error("初始化失败: detectDevice()方法返回false");
-                return;
-            }
-            
-            // 初始化成功
-            deviceName = "身份证读卡器 v2.1";
-            isConnected = true;
-            errorCode = ERROR_NONE;
-            lastError = "";
-            
-            logger.info("身份证读卡器初始化成功: {}", deviceName);
             
         } catch (Exception e) {
             setError(ERROR_UNKNOWN, "initializeReader()方法异常: " + e.getMessage());
             logger.error("身份证读卡器初始化异常", e);
             lastExceptionMessage = e.getMessage();
+            
+            // 通知UI连接失败
+            if (onConnectionStatusChanged != null) {
+                onConnectionStatusChanged.accept(false);
+            }
         }
     }
     
     /**
-     * 检测设备是否存在
-     * 通过尝试获取SAM信息来检测设备
+     * 测试HTTP服务连接
+     * 简化的连接测试，基于HTTP通信
      */
-    private boolean detectDevice() {
+    private boolean testConnection() {
         try {
-            logger.info("正在检测身份证读卡器硬件...");
-            lastPhase = "DetectSAM";
-            lastApi = "getsam";
+            logger.info("正在测试身份证读卡器HTTP服务连接...");
+            lastPhase = "HTTP连接测试";
+            lastApi = "getReaderInfo";
             
-            // 尝试多次检测设备，参考厂商demo的实现
-            int maxAttempts = 10;
-            for (int i = 0; i < maxAttempts; i++) {
-                try {
-                    String result = reader.WebSocketAPI("{\"module\":\"idcard\",\"msgid\":\"0\",\"function\":\"getsam\"}");
-                    JSONObject jsondata = new JSONObject(result);
-                    lastJsonSnippet = truncateJson(result);
-                    
-                    if (!jsondata.has("errorMsg") && jsondata.has("data")) {
-                        JSONObject data = jsondata.getJSONObject("data");
-                        if (data.has("samid")) {
-                            String samId = data.getString("samid");
-                            logger.info("检测到身份证读卡器设备, SAM ID: {}", samId);
-                            connectionAttempts.add("getsam 成功, SAM ID=" + samId);
-                            return true;
-                        }
-                    }
-                    
-                    if (i < maxAttempts - 1) {
-                        Thread.sleep(100);
-                    }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+            // 测试HTTP服务是否可用并获取设备信息
+            String result = makeHttpRequest("/getReaderInfo");
+            JSONObject jsondata = new JSONObject(result);
+            lastJsonSnippet = truncateJson(result);
+            
+            // 检查是否成功返回设备信息
+            if (jsondata.has("result") && jsondata.getInt("result") == 0) {
+                // 解析设备信息
+                String samId = jsondata.optString("samid", "未知SAM ID");
+                String version = jsondata.optString("readerVersion", "未知版本");
+                String sn = jsondata.optString("sn", "未知序列号");
+                
+                logger.info("身份证读卡器HTTP服务连接成功:");
+                logger.info("- SAM ID: {}", samId);
+                logger.info("- 版本: {}", version);
+                logger.info("- 序列号: {}", sn);
+                
+                connectionAttempts.add("HTTP服务连接成功: " + version + ", SAM=" + samId);
+                return true;
+            } else {
+                logger.warn("设备响应错误: result={}", jsondata.optInt("result", -1));
+                connectionAttempts.add("设备响应错误: result=" + jsondata.optInt("result", -1));
+                return false;
             }
             
-            logger.warn("未检测到有效的身份证读卡器设备");
-            setError(ERROR_DEVICE_NOT_FOUND, "未检测到有效的身份证读卡器设备");
-            connectionAttempts.add("getsam 失败: 多次尝试后仍未检测到设备");
-            return false;
-            
         } catch (Exception e) {
-            logger.error("detectDevice()异常", e);
-            setError(ERROR_DEVICE_NOT_FOUND, "detectDevice()方法异常: " + e.getMessage());
+            logger.error("testConnection()异常", e);
             lastExceptionMessage = e.getMessage();
-            connectionAttempts.add("getsam 异常: " + e.getMessage());
+            connectionAttempts.add("HTTP连接异常: " + e.getMessage());
             return false;
         }
     }
@@ -166,33 +203,61 @@ public class IdCardReader {
 
     /**
      * 尝试建立连接
-     * 初始化IDReader SDK和加载本地库
+     * 初始化HTTP客户端连接
      */
     private boolean attemptConnection() {
         try {
-            logger.info("正在初始化身份证读卡器SDK...");
+            logger.info("正在初始化身份证读卡器HTTP连接...");
             
-            // 初始化IDReader SDK (使用厂商的Init方法)
             lastPhase = "Init";
-            int result = reader.Init(CONFIG_PATH);
-            lastReturnCode = result;
-            if (result < 0) {
-                logger.error("SDK初始化失败, 返回码: {}", result);
-                setError(ERROR_COMMUNICATION_FAILED, "SDK初始化失败, 返回码: " + result);
-                connectionAttempts.add("SDK初始化失败: ret=" + result + ", configPath=" + new File(CONFIG_PATH).getAbsolutePath());
+            
+            // 测试HTTP服务是否可用
+            String testUrl = "/getReaderInfo";
+            String result = makeHttpRequest(testUrl);
+            
+            if (result != null && !result.isEmpty()) {
+                logger.info("身份证读卡器HTTP服务连接成功");
+                connectionAttempts.add("HTTP服务连接成功, URL=" + READER_BASE_URL);
+                return true;
+            } else {
+                logger.error("HTTP服务连接失败: 空响应");
+                setError(ERROR_COMMUNICATION_FAILED, "HTTP服务连接失败: 空响应");
+                connectionAttempts.add("HTTP服务连接失败: 空响应");
                 return false;
             }
             
-            logger.info("身份证读卡器SDK初始化成功");
-            connectionAttempts.add("SDK初始化成功");
-            return true;
-            
-        } catch (Throwable e) { // 捕获包括 UnsatisfiedLinkError 在内的所有错误
+        } catch (Exception e) {
             logger.error("attemptConnection()异常", e);
             setError(ERROR_COMMUNICATION_FAILED, "attemptConnection()方法异常: " + e.getMessage());
             lastExceptionMessage = e.getMessage();
-            connectionAttempts.add("SDK初始化异常: " + e.getMessage());
+            connectionAttempts.add("HTTP连接异常: " + e.getMessage());
             return false;
+        }
+    }
+    
+    /**
+     * 发送HTTP请求到身份证读卡器服务
+     */
+    private String makeHttpRequest(String endpoint) throws Exception {
+        String url = READER_BASE_URL + endpoint;
+        
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofSeconds(CONNECTION_TIMEOUT))
+            .GET()
+            .build();
+            
+        logger.debug("发送HTTP请求: {}", url);
+        
+        HttpResponse<String> response = httpClient.send(request, 
+            HttpResponse.BodyHandlers.ofString());
+            
+        if (response.statusCode() == 200) {
+            String body = response.body();
+            logger.debug("HTTP响应: {}", truncateJson(body));
+            return body;
+        } else {
+            throw new Exception("HTTP请求失败, 状态码: " + response.statusCode());
         }
     }
     
@@ -216,18 +281,19 @@ public class IdCardReader {
         try {
             logger.info("开始读取身份证信息...");
             
-            if (!isConnected) {
-                setError(ERROR_COMMUNICATION_FAILED, "设备未连接");
+            // 检查HTTP服务连接状态
+            if (!ensureConnected()) {
+                setError(ERROR_COMMUNICATION_FAILED, "HTTP服务未连接");
                 if (onIdCardRead != null) {
                     onIdCardRead.accept(null);
                 }
                 return;
             }
 
-            // 使用真实的身份证读卡器API
-            lastPhase = "Read";
-            lastApi = "readcard";
-            String result = reader.WebSocketAPI("{\"module\":\"idcard\",\"msgid\":\"0\",\"function\":\"readcard\"}");
+            // 使用HTTP API读取身份证
+            lastPhase = "读取身份证";
+            lastApi = "readCard";
+            String result = makeHttpRequest("/api/readCard?utf8=1");
             lastJsonSnippet = truncateJson(result);
             FarmerInfo farmerInfo = parseRealIdCardData(result);
 
@@ -242,7 +308,7 @@ public class IdCardReader {
                     onIdCardRead.accept(farmerInfo);
                 }
             } else {
-                setError(ERROR_CARD_DATA_INVALID, "身份证数据无效或读取失败");
+                setError(ERROR_CARD_DATA_FORMAT, "身份证数据无效或读取失败");
                 connectionAttempts.add("读卡失败");
                 if (onIdCardRead != null) {
                     onIdCardRead.accept(null);
@@ -272,57 +338,72 @@ public class IdCardReader {
             
             JSONObject jsondata = new JSONObject(jsonResult);
             
-            // 检查是否是读卡消息
-            if (jsondata.has("function") && !jsondata.getString("function").equals("readcard")) {
-                logger.warn("非读卡消息，跳过解析");
-                return null;
-            }
-            
-            // 检查错误信息
+            // 检查HTTP API错误信息（不同于WebSocket API格式）
             if (jsondata.has("errorMsg")) {
                 String errorMsg = jsondata.getString("errorMsg");
-                logger.error("读卡失败: {}", errorMsg);
-                setError(ERROR_CARD_READ_FAILED, "读卡失败: " + errorMsg);
-                connectionAttempts.add("readcard 失败: " + errorMsg);
+                if (!"OK".equals(errorMsg)) {
+                    logger.error("读卡失败: {}", errorMsg);
+                    setError(ERROR_CARD_READ_FAILED, "读卡失败: " + errorMsg);
+                    connectionAttempts.add("readCard 失败: " + errorMsg);
+                    return null;
+                }
+            }
+            
+            // 检查返回标志（HTTP API使用 resultFlag）
+            if (jsondata.has("resultFlag")) {
+                String resultFlag = jsondata.getString("resultFlag");
+                if (!"0".equals(resultFlag)) {
+                    logger.error("读卡返回错误标志: {}", resultFlag);
+                    int errorCode = Integer.parseInt(resultFlag);
+                    lastReturnCode = errorCode;
+                    
+                    // 根据错误码映射
+                    int mappedError = mapSdkErrorCode(errorCode);
+                    setError(mappedError, "读卡返回错误标志: " + resultFlag + " (" + getErrorDescription(errorCode) + ")");
+                    connectionAttempts.add("readCard resultFlag=" + resultFlag + " - " + getErrorDescription(errorCode));
+                    return null;
+                }
+            }
+            
+            // HTTP API 的数据在 resultContent 字段中
+            if (!jsondata.has("resultContent")) {
+                logger.error("读卡结果中缺少resultContent字段");
+                setError(ERROR_CARD_DATA_FORMAT, "读卡结果中缺少resultContent字段");
                 return null;
             }
             
-            // 检查返回码
-            if (jsondata.has("ret") && jsondata.getInt("ret") != 0) {
-                int rc = jsondata.getInt("ret");
-                lastReturnCode = rc;
-                logger.error("读卡返回错误码: {}", rc);
-                setError(ERROR_CARD_READ_FAILED, "读卡返回错误码: " + rc);
-                connectionAttempts.add("readcard ret=" + rc);
-                return null;
+            JSONObject content = jsondata.getJSONObject("resultContent");
+            
+            // 验证数字签名（如果启用且存在签名）
+            if (enableSignatureVerification && (content.has("sign1") || content.has("sign2"))) {
+                boolean signatureValid = verifySignature(content);
+                if (!signatureValid) {
+                    logger.warn("身份证数据签名验证失败");
+                    setError(ERROR_CARD_DATA_FORMAT, "身份证数据签名验证失败");
+                    return null;
+                } else {
+                    logger.info("身份证数据签名验证成功");
+                }
+            } else if (!enableSignatureVerification) {
+                logger.debug("签名验证已禁用");
             }
             
-            if (!jsondata.has("data")) {
-                logger.error("读卡结果中缺少data字段");
-                setError(ERROR_CARD_DATA_INVALID, "读卡结果中缺少data字段");
-                return null;
-            }
+            // HTTP API 只返回基本的身份证信息，没有复杂的证件类型区分
+            logger.info("证件类型: 居民身份证 (HTTP API)");
             
-            JSONObject content = jsondata.getJSONObject("data");
-            
-            // 检查证件类型（居民身份证、外国人永久居留证、港澳台居住证）
-            String type = content.optString("type", " ");
-            if (!type.equals(" ")) {
-                logger.info("证件类型: {}", type.equals("I") ? "外国人永久居留证" : 
-                                          type.equals("J") ? "港澳台居住证" : "未知");
-            }
-            
-            // 解析身份证基本信息
+            // 解析HTTP API返回的字段
             String name = content.getString("name");
-            String idNumber = content.getString("number");
-            String gender = content.getInt("gender") == 1 ? "男" : 
-                           content.getInt("gender") == 2 ? "女" : "未知";
-            String nationality = type.equals(" ") ? getRaceName(content.getString("race")) : "其他";
+            String idNumber = content.getString("idNum");  // HTTP API使用 idNum
+            String gender = "1".equals(content.getString("gender")) ? "男" : 
+                           "2".equals(content.getString("gender")) ? "女" : "未知";
             String birthDate = content.getString("birthday");
-            String address = type.equals("I") ? "" : content.getString("address"); // 外国人永久居留证无住址
-            String issuer = content.getString("issuer");
-            String validStart = content.getString("valid"); // 注意：厂商拼写为"valied"而非"valid"
-            String validEnd = content.getString("expire");
+            String address = content.getString("address");
+            String issueOrg = content.getString("issueOrg");  // HTTP API使用 issueOrg
+            String effectDate = content.getString("effectDate");  // HTTP API使用 effectDate
+            String expireDate = content.getString("expireDate");  // HTTP API使用 expireDate
+            
+            // 民族信息处理
+            String nationality = getRaceName(content.getString("nation"));  // HTTP API使用 nation
             
             // 解析照片
             byte[] photo = null;
@@ -334,19 +415,17 @@ public class IdCardReader {
                 }
             }
             
-            // 生成合同号（业务逻辑）
-            String contractNumber = generateContractNumber(name);
-            
             logger.info("成功解析身份证: {} ({})", name, 
                     idNumber.length() > 14 ? idNumber.substring(0, 6) + "****" + idNumber.substring(14) : idNumber);
             
-            return FarmerInfo.createWithIdCard(name, contractNumber, idNumber,
+            // 不生成合同号，让MainController从数据库查询
+            return FarmerInfo.createWithIdCard(name, "", idNumber,
                     gender, nationality, birthDate, address,
-                    issuer, validStart, validEnd, photo);
+                    issueOrg, effectDate, expireDate, photo);
 
         } catch (Exception e) {
             logger.error("解析身份证数据失败", e);
-            setError(ERROR_CARD_DATA_INVALID, "解析身份证数据失败: " + e.getMessage());
+            setError(ERROR_CARD_DATA_FORMAT, "解析身份证数据失败: " + e.getMessage());
             return null;
         }
     }
@@ -381,15 +460,7 @@ public class IdCardReader {
         return "其他";
     }
     
-    /**
-     * 生成合同号
-     */
-    private String generateContractNumber(String farmerName) {
-        // 根据农户姓名和时间戳生成合同号
-        String nameCode = String.valueOf(farmerName.hashCode()).replace("-", "");
-        String timeCode = String.valueOf(System.currentTimeMillis()).substring(8);
-        return "HT" + nameCode.substring(0, Math.min(4, nameCode.length())) + timeCode;
-    }
+
     
     /**
      * 根据身份证号生成签发机关
@@ -440,10 +511,9 @@ public class IdCardReader {
      */
     public boolean connect() {
         try {
-            logger.info("尝试连接身份证读卡器...");
+            logger.info("尝试连接身份证读卡器HTTP服务...");
             
-            // 重新初始化设备
-            logger.info("执行初始化流程...");
+            // 重新初始化设备（基于HTTP连接）
             initializeReader();
             
             if (isConnected) {
@@ -477,23 +547,11 @@ public class IdCardReader {
      */
     public void disconnect() {
         try {
-            if (reader != null && isConnected) {
-                try {
-                    // 使用厂商的ServiceStop方法停止服务
-                    int result = IDReader.ServiceStop();
-                    if (result < 0) {
-                        logger.warn("ServiceStop返回错误码: {}", result);
-                    } else {
-                        logger.info("IDReader SDK服务已停止");
-                    }
-                } catch (Throwable nativeErr) {
-                    // 捕获 UnsatisfiedLinkError 等所有原生级错误
-                    logger.warn("停止SDK服务时出现异常: {}", nativeErr.getMessage());
-                    lastExceptionMessage = nativeErr.getMessage();
-                    connectionAttempts.add("ServiceStop 异常: " + nativeErr.getMessage());
-                }
+            if (httpClient != null && isConnected) {
+                logger.info("关闭HTTP客户端连接");
+                // HttpClient会自动管理连接，无需手动关闭
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
             logger.warn("disconnect()异常: {}", e.getMessage());
         }
         
@@ -509,9 +567,77 @@ public class IdCardReader {
 
     /**
      * 获取连接状态
+     * 基于HTTP服务可用性实时检测
      */
     public boolean isConnected() {
         return isConnected;
+    }
+    
+    /**
+     * 检查当前连接状态
+     * 通过快速HTTP请求验证连接是否有效
+     */
+    public void checkConnectionStatus() {
+        try {
+            // 快速测试连接（无日志干扰）
+            boolean wasConnected = isConnected;
+            String result = makeHttpRequest("/getReaderInfo");
+            
+            if (result != null && !result.isEmpty()) {
+                JSONObject jsondata = new JSONObject(result);
+                boolean isNowConnected = jsondata.has("result") && jsondata.getInt("result") == 0;
+                
+                if (isNowConnected != wasConnected) {
+                    isConnected = isNowConnected;
+                    logger.info("身份证读卡器连接状态变化: {}", isConnected ? "已连接" : "已断开");
+                    
+                    if (onConnectionStatusChanged != null) {
+                        onConnectionStatusChanged.accept(isConnected);
+                    }
+                }
+            } else if (wasConnected) {
+                // 之前连接正常，现在无响应
+                isConnected = false;
+                logger.warn("身份证读卡器连接丢失");
+                
+                if (onConnectionStatusChanged != null) {
+                    onConnectionStatusChanged.accept(false);
+                }
+            }
+            
+        } catch (Exception e) {
+            if (isConnected) {
+                isConnected = false;
+                logger.warn("身份证读卡器连接检查失败: {}", e.getMessage());
+                
+                if (onConnectionStatusChanged != null) {
+                    onConnectionStatusChanged.accept(false);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 确保连接可用
+     * 在执行操作前检查并尝试恢复连接
+     */
+    private boolean ensureConnected() {
+        if (isConnected) {
+            // 快速验证当前连接
+            try {
+                String result = makeHttpRequest("/getReaderInfo");
+                if (result != null && !result.isEmpty()) {
+                    JSONObject jsondata = new JSONObject(result);
+                    return jsondata.has("result") && jsondata.getInt("result") == 0;
+                }
+            } catch (Exception e) {
+                logger.debug("连接验证失败: {}", e.getMessage());
+            }
+        }
+        
+        // 连接无效，尝试重新连接
+        isConnected = false;
+        return testConnection();
     }
 
     /**
@@ -550,6 +676,14 @@ public class IdCardReader {
     }
 
     /**
+     * 设置是否启用签名验证
+     */
+    public void setEnableSignatureVerification(boolean enable) {
+        this.enableSignatureVerification = enable;
+        logger.info("签名验证已{}", enable ? "启用" : "禁用");
+    }
+
+    /**
      * 获取最后的错误信息
      */
     public String getLastError() {
@@ -565,32 +699,30 @@ public class IdCardReader {
                 return "无错误";
                 
             case ERROR_DEVICE_NOT_FOUND:
-                return String.format("[错误代码 %d] detectDevice()方法失败\n" +
-                        "问题: 硬件设备检测失败\n" +
-                        "检查: USB连接、设备电源、设备管理器状态", ERROR_DEVICE_NOT_FOUND);
+                return String.format("[错误代码 %d] HTTP服务不可用\n" +
+                        "问题: 无法连接到身份证读卡器HTTP服务\n" +
+                        "检查: 端口7846是否开放、读卡器服务是否启动", ERROR_DEVICE_NOT_FOUND);
                         
-            case ERROR_DRIVER_NOT_INSTALLED:
-                return String.format("[错误代码 %d] checkDriver()方法失败\n" +
-                        "问题: 驱动程序检查失败\n" +
-                        "检查: 驱动安装、版本兼容性、权限", ERROR_DRIVER_NOT_INSTALLED);
+            case ERROR_FUNCTION_NOT_SUPPORTED:
+                return String.format("[错误代码 %d] 功能不支持\n" +
+                        "问题: 请求的功能不被设备支持\n" +
+                        "检查: 设备型号和固件版本", ERROR_FUNCTION_NOT_SUPPORTED);
                         
             case ERROR_COMMUNICATION_FAILED:
-                return String.format("[错误代码 %d] attemptConnection()方法失败\n" +
-                        "问题: 设备通信连接失败\n" +
-                        "检查: 设备响应、端口占用、通信协议\n\n" +
+                return String.format("[错误代码 %d] HTTP通信失败\n" +
+                        "问题: 无法与身份证读卡器HTTP服务通信\n" +
+                        "检查: 网络连接、端口7846状态、防火墙设置\n\n" +
                         "%s", ERROR_COMMUNICATION_FAILED, buildDiagnosis());
                         
             case ERROR_CARD_NOT_DETECTED:
-                return String.format("[错误代码 %d] 身份证读取 - 未检测到卡片\n" +
-                        "问题: readIdCard()中卡片检测失败\n" +
-                        "检查: 身份证放置位置和接触\n\n" +
-                        "%s", ERROR_CARD_NOT_DETECTED, buildDiagnosis());
+                return String.format("[错误代码 %d] 未检测到身份证\n" +
+                        "问题: 读卡器未检测到身份证卡片\n" +
+                        "检查: 身份证放置位置和接触", ERROR_CARD_NOT_DETECTED);
                         
             case ERROR_CARD_READ_FAILED:
-                return String.format("[错误代码 %d] 身份证读取 - 读取失败\n" +
-                        "问题: readIdCard()中数据读取失败\n" +
-                        "检查: 身份证状态和读卡器功能\n\n" +
-                        "%s", ERROR_CARD_READ_FAILED, buildDiagnosis());
+                return String.format("[错误代码 %d] 身份证读取失败\n" +
+                        "问题: 身份证数据读取失败\n" +
+                        "检查: 身份证状态和读卡器功能", ERROR_CARD_READ_FAILED);
                         
             default:
                 return String.format("[错误代码 %d] %s\n\n%s", errorCode, lastError, buildDiagnosis());
@@ -598,28 +730,36 @@ public class IdCardReader {
     }
 
     private String buildDiagnosis() {
-        String os = System.getProperty("os.name") + " " + System.getProperty("os.arch");
-        String java = System.getProperty("java.version");
         StringBuilder sb = new StringBuilder();
         sb.append("诊断信息:\n");
-        sb.append("- 操作系统: ").append(os).append('\n');
-        sb.append("- Java: ").append(java).append('\n');
-        sb.append("- 上一步骤: ").append(lastPhase).append('\n');
-        if (!lastApi.isEmpty()) sb.append("- 最近API: ").append(lastApi).append('\n');
-        if (lastReturnCode != null) sb.append("- 返回码: ").append(lastReturnCode).append('\n');
-        if (!lastExceptionMessage.isEmpty()) sb.append("- 异常: ").append(lastExceptionMessage).append('\n');
-        if (!lastJsonSnippet.isEmpty()) sb.append("- 返回JSON: ").append(lastJsonSnippet).append('\n');
+        sb.append("- HTTP服务地址: ").append(READER_BASE_URL).append('\n');
+        sb.append("- 当前状态: ").append(lastPhase).append('\n');
+        
+        if (!lastApi.isEmpty()) {
+            sb.append("- 最近API调用: ").append(lastApi).append('\n');
+        }
+        
+        if (!lastExceptionMessage.isEmpty()) {
+            sb.append("- 连接异常: ").append(lastExceptionMessage).append('\n');
+        }
+        
+        if (!lastJsonSnippet.isEmpty()) {
+            sb.append("- 服务响应: ").append(lastJsonSnippet).append('\n');
+        }
+        
         if (!connectionAttempts.isEmpty()) {
-            sb.append("- 尝试记录:\n");
-            int max = Math.min(connectionAttempts.size(), 8);
+            sb.append("- 连接尝试:\n");
+            int max = Math.min(connectionAttempts.size(), 3); // 只显示最近3次
             for (int i = connectionAttempts.size() - max; i < connectionAttempts.size(); i++) {
                 sb.append("  • ").append(connectionAttempts.get(i)).append('\n');
             }
         }
-        String osName = System.getProperty("os.name", "").toLowerCase();
-        if (!osName.contains("win")) {
-            sb.append("- 提示: 当前为非Windows平台，SDK可能不完全支持。请在Windows上配套驱动与DLL测试\n");
-        }
+        
+        sb.append("- 建议:\n");
+        sb.append("  • 确认身份证读卡器服务已启动\n");
+        sb.append("  • 检查端口7846是否被占用\n");
+        sb.append("  • 或使用模拟模式进行测试\n");
+        
         return sb.toString();
     }
 
@@ -640,28 +780,199 @@ public class IdCardReader {
      * 测试读卡器
      */
     public boolean testReader() {
+        logger.info("测试身份证读卡器HTTP服务...");
+        return ensureConnected();
+    }
+    
+    /**
+     * 读取SAM ID
+     */
+    public String readSamId() {
         try {
-            logger.info("测试身份证读卡器...");
-
-            // 模拟测试过程
-            Thread.sleep(1000);
-
-            logger.info("身份证读卡器测试成功");
-            return true;
-
+            if (!ensureConnected()) {
+                logger.error("读取SAM ID失败: HTTP服务未连接");
+                return null;
+            }
+            
+            String result = makeHttpRequest("/readSamID");
+            JSONObject jsondata = new JSONObject(result);
+            
+            if (jsondata.has("result") && jsondata.getInt("result") == 0) {
+                return jsondata.getString("samid");
+            }
+            return null;
         } catch (Exception e) {
-            logger.error("身份证读卡器测试失败", e);
+            logger.error("读取SAM ID失败", e);
+            return null;
+        }
+    }
+    
+    /**
+     * 读取身份证物理卡号
+     */
+    public String readCardNumber() {
+        try {
+            if (!ensureConnected()) {
+                logger.error("读取身份证物理卡号失败: HTTP服务未连接");
+                return null;
+            }
+            
+            String result = makeHttpRequest("/readCardNo");
+            JSONObject jsondata = new JSONObject(result);
+            
+            if (jsondata.has("result") && jsondata.getInt("result") == 0) {
+                return jsondata.getString("cardNo");
+            }
+            return null;
+        } catch (Exception e) {
+            logger.error("读取身份证物理卡号失败", e);
+            return null;
+        }
+    }
+    
+
+
+    /**
+     * 验证身份证数据的RSA数字签名
+     * 根据SDK文档中的签名验证示例实现
+     */
+    private boolean verifySignature(JSONObject content) {
+        try {
+            // 获取RSA公钥
+            PublicKey publicKey = KeyFactory.getInstance("RSA")
+                .generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(RSA_PUBLIC_KEY)));
+            
+            boolean sign1Valid = true;
+            boolean sign2Valid = true;
+            
+            // 验证签名1 - SHA1withRSA签名验证
+            if (content.has("sign1")) {
+                try {
+                    Signature signature = Signature.getInstance("SHA1withRSA");
+                    signature.initVerify(publicKey);
+                    
+                    // 签名1使用UTF-16LE编码的文本数据和原始照片数据
+                    signature.update(content.getString("text").getBytes(StandardCharsets.UTF_16LE));
+                    signature.update(Base64.getDecoder().decode(content.getString("wlt")));
+                    
+                    byte[] signatureBytes = Base64.getDecoder().decode(content.getString("sign1"));
+                    sign1Valid = signature.verify(signatureBytes);
+                    
+                    if (!sign1Valid) {
+                        logger.warn("签名1验证失败");
+                    } else {
+                        logger.debug("签名1验证成功");
+                    }
+                } catch (Exception e) {
+                    logger.warn("签名1验证异常: {}", e.getMessage());
+                    sign1Valid = false;
+                }
+            }
+            
+            // 验证签名2 - RSA解密验证
+            if (content.has("sign2")) {
+                try {
+                    Cipher cipher = Cipher.getInstance("RSA");
+                    cipher.init(Cipher.DECRYPT_MODE, publicKey);
+                    byte[] encryptedBytes = Base64.getDecoder().decode(content.getString("sign2"));
+                    byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
+                    
+                    String decryptedInfo = new String(decryptedBytes, StandardCharsets.UTF_8);
+                    logger.debug("签名2解密结果: {}", decryptedInfo);
+                    
+                    // 签名2包含用'|'分隔的信息，可以进一步验证内容一致性
+                    String[] signData = decryptedInfo.split("\\|");
+                    if (signData.length >= 3) {
+                        String signIdNumber = signData[2];
+                        String actualIdNumber = content.getString("number");
+                        sign2Valid = signIdNumber.equals(actualIdNumber);
+                        
+                        if (!sign2Valid) {
+                            logger.warn("签名2身份证号不匹配: 签名中={}, 实际={}", signIdNumber, actualIdNumber);
+                        } else {
+                            logger.debug("签名2验证成功");
+                        }
+                    } else {
+                        logger.warn("签名2解密数据格式不正确");
+                        sign2Valid = false;
+                    }
+                } catch (Exception e) {
+                    logger.warn("签名2验证异常: {}", e.getMessage());
+                    sign2Valid = false;
+                }
+            }
+            
+            return sign1Valid && sign2Valid;
+            
+        } catch (Exception e) {
+            logger.error("签名验证失败", e);
             return false;
         }
     }
 
     /**
-     * 检查并通知连接状态
-     * 在UI注册回调后调用此方法
+     * 映射SDK错误码到本地错误码
      */
-    public void checkConnectionStatus() {
-        if (onConnectionStatusChanged != null) {
-            onConnectionStatusChanged.accept(isConnected);
+    private int mapSdkErrorCode(int sdkErrorCode) {
+        switch (sdkErrorCode) {
+            case 0: return ERROR_NONE;
+            case 1: return ERROR_INVALID_PARAM;
+            case 2: return ERROR_DEVICE_NOT_FOUND;
+            case 3: return ERROR_CARD_NOT_DETECTED;
+            case 4: return ERROR_FUNCTION_NOT_SUPPORTED;
+            case 100: return ERROR_COMMUNICATION_FAILED;
+            case 5: return ERROR_CARD_SELECT_FAILED;
+            case 6: return ERROR_CARD_READ_FAILED;
+            case 7: return ERROR_CARD_WRITE_FAILED;
+            case 8: return ERROR_CARD_DATA_FORMAT;
+            case 9: return ERROR_PHOTO_BASE64;
+            case 10: return ERROR_TEXT_FORMAT;
+            case 11: return ERROR_IMAGE_LIBRARY;
+            case 12: return ERROR_BMP_TO_JPG;
+            case 13: return ERROR_IMAGE_FORMAT;
+            case 14: return ERROR_TEMP_WRITE;
+            case 15: return ERROR_WLT_DECODE;
+            case 16: return ERROR_TEMP_READ;
+            case 17: return ERROR_BMP_ENCODE;
+            case 18: return ERROR_JPG_BASE64;
+            case 19: return ERROR_BMP_BASE64;
+            case 20: return ERROR_URL_DECODE;
+            case 21: return ERROR_IMAGE_FORMAT_ERROR;
+            case 22: return ERROR_DATA_EXCEED_LIMIT;
+            default: return ERROR_UNKNOWN;
+        }
+    }
+    
+    /**
+     * 获取错误码描述
+     */
+    private String getErrorDescription(int errorCode) {
+        switch (errorCode) {
+            case 0: return "成功";
+            case 1: return "输入参数错误";
+            case 2: return "设备不存在（比如阅读器未连接）";
+            case 3: return "找卡失败";
+            case 4: return "该功能不支持";
+            case 100: return "通信连接失败";
+            case 5: return "选卡失败";
+            case 6: return "读卡失败";
+            case 7: return "写卡失败";
+            case 8: return "卡片数据格式错误";
+            case 9: return "照片Base64编码错误";
+            case 10: return "卡片文本格式错误";
+            case 11: return "图片解码库加载失败";
+            case 12: return "BMP转JPG函数缺失";
+            case 13: return "图片格式不支持";
+            case 14: return "临时目录写失败";
+            case 15: return "WLT解码BMP失败";
+            case 16: return "临时目录读失败";
+            case 17: return "BMP编码JPG失败";
+            case 18: return "JPG图片BASE64编码失败";
+            case 19: return "BMP图片BASE64编码失败";
+            case 20: return "URL解码失败";
+            case 21: return "图片格式错误";
+            case 22: return "写入数据超过限制";
+            default: return "未知错误";
         }
     }
 
