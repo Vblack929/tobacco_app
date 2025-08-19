@@ -1,0 +1,48 @@
+{
+  "licenses": {
+    "YC-TWW-2025-DEMO-0001-TEST": {
+      "licenseId": "YC-TWW-2025-DEMO-0001-TEST",
+      "customerName": "演示客户",
+      "maxDevices": 2,
+      "status": "active",
+      "createdDate": "2025-01-01T00:00:00Z",
+      "expiryDate": "2025-12-31T23:59:59Z",
+      "boundDevices": [
+        {
+          "deviceFingerprint": "ABC123-DEF456-GHI789",
+          "deviceName": "DESKTOP-EXAMPLE1",
+          "bindTime": "2025-01-15T10:30:00Z",
+          "lastUsedTime": "2025-01-20T14:25:00Z",
+          "ipAddress": "192.168.1.100",
+          "active": true
+        }
+      ],
+      "activationHistory": [
+        {
+          "timestamp": "2025-01-15T10:30:00Z",
+          "action": "device_bind",
+          "deviceFingerprint": "ABC123-DEF456-GHI789",
+          "deviceName": "DESKTOP-EXAMPLE1",
+          "ipAddress": "192.168.1.100"
+        }
+      ]
+    },
+    "YC-TWW-2025-PROD-0001-REAL": {
+      "licenseId": "YC-TWW-2025-PROD-0001-REAL",
+      "customerName": "生产环境客户",
+      "maxDevices": 2,
+      "status": "active",
+      "createdDate": "2025-01-01T00:00:00Z",
+      "expiryDate": "2026-01-01T00:00:00Z",
+      "boundDevices": [],
+      "activationHistory": []
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-20T15:00:00Z",
+    "description": "烟叶称重系统许可证数据库",
+    "totalLicenses": 2,
+    "activeLicenses": 2
+  }
+}
