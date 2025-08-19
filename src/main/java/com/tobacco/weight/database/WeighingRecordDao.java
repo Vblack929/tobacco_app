@@ -327,4 +327,28 @@ public class WeighingRecordDao {
         }
         return result;
     }
+
+    /**
+     * 根据身份证号查询合同号
+     */
+    public String getContractNumberByIdCard(String idCardNumber) throws SQLException {
+        String sql = "SELECT contract_no FROM farmer_contracts WHERE national_id = ? AND contract_no IS NOT NULL AND contract_no != ''";
+
+        try (Connection conn = databaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, idCardNumber);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String contractNo = rs.getString("contract_no");
+                    logger.info("根据身份证号 {} 查询到合同号: {}", idCardNumber, contractNo);
+                    return contractNo;
+                } else {
+                    logger.info("未找到身份证号 {} 对应的合同号", idCardNumber);
+                    return null;
+                }
+            }
+        }
+    }
 }

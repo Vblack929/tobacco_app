@@ -130,14 +130,14 @@ public class FarmerInfoDao {
     }
 
     /**
-     * 获取所有烟农信息 - 从称重记录和农户信息表合并获取
+     * 获取所有烟农信息 - 从称重记录、农户信息表和合同表合并获取
      */
     public List<FarmerInfo> findAll() throws SQLException {
         String sql = """
                 SELECT DISTINCT
-                    COALESCE(fi.farmer_name, wr.farmer_name) as farmer_name,
-                    COALESCE(fi.contract_number, wr.contract_number) as contract_number,
-                    COALESCE(fi.id_card_number, wr.id_card_number) as id_card_number,
+                    COALESCE(fi.farmer_name, wr.farmer_name, '') as farmer_name,
+                    COALESCE(fi.contract_number, wr.contract_number, fc.contract_no) as contract_number,
+                    COALESCE(fi.id_card_number, wr.id_card_number, fc.national_id) as id_card_number,
                     fi.gender,
                     fi.nationality,
                     fi.birth_date,
@@ -154,11 +154,22 @@ public class FarmerInfoDao {
                     -- 从weighing_records表查询农户
                     SELECT farmer_name, contract_number, id_card_number FROM weighing_records
                     WHERE farmer_name IS NOT NULL AND farmer_name != ''
+                    UNION
+                    -- 从farmer_contracts表查询农户，但只返回有农户姓名匹配的记录
+                    SELECT fi2.farmer_name, fc.contract_no as contract_number, fc.national_id as id_card_number
+                    FROM farmer_contracts fc
+                    INNER JOIN farmer_info fi2 ON fc.national_id = fi2.id_card_number
+                    WHERE fc.contract_no IS NOT NULL
+                        AND fc.contract_no != ''
+                        AND fi2.farmer_name IS NOT NULL
+                        AND fi2.farmer_name != ''
                 ) combined_farmers
                 LEFT JOIN farmer_info fi ON combined_farmers.id_card_number = fi.id_card_number
                     OR (combined_farmers.farmer_name = fi.farmer_name AND combined_farmers.contract_number = fi.contract_number)
                 LEFT JOIN weighing_records wr ON combined_farmers.id_card_number = wr.id_card_number
                     OR (combined_farmers.farmer_name = wr.farmer_name AND combined_farmers.contract_number = wr.contract_number)
+                LEFT JOIN farmer_contracts fc ON combined_farmers.id_card_number = fc.national_id
+                    OR combined_farmers.contract_number = fc.contract_no
                 ORDER BY farmer_name
                 """;
 
@@ -175,7 +186,7 @@ public class FarmerInfoDao {
     }
 
     /**
-     * 根据姓名、合同号或身份证号搜索烟农 - 从称重记录和农户信息表合并搜索
+     * 根据姓名、合同号、身份证号或合同量搜索烟农 - 从称重记录和农户信息表合并搜索
      */
     public List<FarmerInfo> searchByNameOrContract(String searchTerm) throws SQLException {
         String sql = """
@@ -201,6 +212,16 @@ public class FarmerInfoDao {
                     SELECT farmer_name, contract_number, id_card_number FROM weighing_records
                     WHERE (farmer_name LIKE ? OR contract_number LIKE ? OR id_card_number LIKE ?)
                         AND farmer_name IS NOT NULL AND farmer_name != ''
+                                        UNION
+                    -- 从farmer_contracts表按合同量搜索，但只返回有农户姓名匹配的记录
+                    SELECT fi2.farmer_name, fc.contract_no as contract_number, fc.national_id as id_card_number
+                    FROM farmer_contracts fc
+                    INNER JOIN farmer_info fi2 ON fc.national_id = fi2.id_card_number
+                    WHERE fc.contract_amount LIKE ?
+                        AND fc.contract_no IS NOT NULL
+                        AND fc.contract_no != ''
+                        AND fi2.farmer_name IS NOT NULL
+                        AND fi2.farmer_name != ''
                 ) search_results
                 LEFT JOIN farmer_info fi ON search_results.id_card_number = fi.id_card_number
                     OR (search_results.farmer_name = fi.farmer_name AND search_results.contract_number = fi.contract_number)
@@ -221,6 +242,8 @@ public class FarmerInfoDao {
             stmt.setString(4, likeTerm); // farmer_name
             stmt.setString(5, likeTerm); // contract_number
             stmt.setString(6, likeTerm); // id_card_number
+            // 为farmer_contracts表的合同量搜索条件设置参数
+            stmt.setString(7, likeTerm); // contract_amount
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FarmerInfo> farmers = new ArrayList<>();
