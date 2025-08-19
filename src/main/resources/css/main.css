@@ -296,6 +296,33 @@
     -fx-cursor: default;
 }
 
+/* Retry connection button */
+.retry-button {
+    -fx-background-color: #FF9800;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 12;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 2, 0, 0, 1);
+}
+
+.retry-button:hover {
+    -fx-background-color: #F57C00;
+}
+
+.retry-button:pressed {
+    -fx-background-color: #E65100;
+}
+
+.retry-button:disabled {
+    -fx-background-color: #ccc;
+    -fx-text-fill: #666;
+    -fx-cursor: default;
+}
+
 /* Status icon styles */
 .status-icon {
     -fx-font-size: 14px;

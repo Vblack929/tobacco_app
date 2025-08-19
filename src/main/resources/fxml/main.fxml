@@ -34,15 +34,18 @@
                         <TextField fx:id="idCardNumberField" promptText="请输入身份证号" styleClass="farmer-input-field" prefHeight="45" style="-fx-font-size: 18px;"/>
                     </VBox>
 
-                    <!-- 读取身份证按钮 - 增大尺寸 -->
-                    <Button fx:id="readIdCardButton" styleClass="id-card-button" prefHeight="50" style="-fx-font-size: 18px; -fx-font-weight: bold;">
-                        <graphic>
-                            <HBox spacing="6" alignment="CENTER">
-                                <Label fx:id="idCardStatusIcon" text="●" styleClass="status-icon"/>
-                                <Label text="读取身份证" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                            </HBox>
-                        </graphic>
-                    </Button>
+                    <!-- 身份证读卡器按钮区 -->
+                    <HBox spacing="8" alignment="CENTER">
+                        <Button fx:id="readIdCardButton" styleClass="id-card-button" prefHeight="50" prefWidth="200" style="-fx-font-size: 16px; -fx-font-weight: bold;">
+                            <graphic>
+                                <HBox spacing="6" alignment="CENTER">
+                                    <Label fx:id="idCardStatusIcon" text="●" styleClass="status-icon"/>
+                                    <Label text="读取身份证" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                                </HBox>
+                            </graphic>
+                        </Button>
+                        <Button fx:id="retryConnectionButton" text="重连" styleClass="retry-button" prefHeight="50" prefWidth="70" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                    </HBox>
                     
                 </VBox>
                 </VBox>
