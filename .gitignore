@@ -231,16 +231,14 @@ GoogleService-Info.plist
 logs/
 exports/
 *.xlsx
-*.;,sv
+*.csv
 
 license.json
 
 # ===============================================================
-# 敏感配置文件 (Sensitive Configuration Files)
+# License Configuration Files (contains sensitive tokens)
 # ===============================================================
-# 包含 GitHub Token 等敏感信息的配置文件
 license_config.properties
 src/main/resources/license_config.properties
-# 备份原始配置文件模板
-license_config.properties.template
-src/main/resources/license_config.properties.template
+license_config.properties.backup
+src/main/resources/license_config.properties.backup
