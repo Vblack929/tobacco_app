@@ -33,6 +33,10 @@ proguard/
 # Log Files
 *.log
 
+# License configuration files (contains sensitive tokens)
+license_config.properties
+src/main/resources/license_config.properties
+
 # Android Studio Navigation editor temp files
 .navigation/
 
