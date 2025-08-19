@@ -32,11 +32,10 @@ public class TobaccoWeightApp extends Application {
             DatabaseManager.getInstance();
             logger.info("数据库初始化完成");
 
-            // 许可校验（阻塞式，对话框最多尝试3次）
-            boolean licensed = LicenseService.getInstance().ensureLicensed(primaryStage);
-            if (!licensed) {
-                logger.warn("未通过许可校验，应用即将退出");
-                javafx.application.Platform.exit();
+            // 动态绑定许可证验证
+            if (!LicenseService.getInstance().ensureLicensed(primaryStage)) {
+                logger.warn("许可证验证失败，应用程序将退出");
+                Platform.exit();
                 return;
             }
 
