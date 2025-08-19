@@ -234,3 +234,13 @@ exports/
 *.;,sv
 
 license.json
+
+# ===============================================================
+# 敏感配置文件 (Sensitive Configuration Files)
+# ===============================================================
+# 包含 GitHub Token 等敏感信息的配置文件
+license_config.properties
+src/main/resources/license_config.properties
+# 备份原始配置文件模板
+license_config.properties.template
+src/main/resources/license_config.properties.template
