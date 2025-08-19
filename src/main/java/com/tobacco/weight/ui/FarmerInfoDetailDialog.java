@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import javafx.beans.property.SimpleStringProperty;
 
 /**
  * 农户信息详情对话框
@@ -117,23 +118,40 @@ public class FarmerInfoDetailDialog extends Stage {
 
         // 创建表格列
         TableColumn<WeighingRecord, String> precheckCol = new TableColumn<>("预检编号");
-        precheckCol.setCellValueFactory(new PropertyValueFactory<>("precheckId"));
-        precheckCol.setPrefWidth(240);
-        precheckCol.setMinWidth(220);
+        precheckCol.setCellValueFactory(data -> {
+            String precheckId = data.getValue().getPrecheckId();
+            if (precheckId != null && precheckId.length() >= 5) {
+                // 检查预检编号是否被错误地设置为身份证号（身份证号通常是18位）
+                if (precheckId.length() == 18 && precheckId.matches("\\d{17}[\\dXx]")) {
+                    // 这是身份证号，不是预检编号，显示错误提示
+                    return new SimpleStringProperty("数据错误");
+                } else {
+                    // 显示完整的预检编号（17位：6+6+5）
+                    return new SimpleStringProperty(precheckId);
+                }
+            } else {
+                return new SimpleStringProperty(precheckId != null ? precheckId : "");
+            }
+        });
+        precheckCol.setPrefWidth(200);
+        precheckCol.setMinWidth(180);
         precheckCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> leafCol = new TableColumn<>("部叶类型");
         leafCol.setCellValueFactory(new PropertyValueFactory<>("leafType"));
-        leafCol.setPrefWidth(90);
+        leafCol.setPrefWidth(80);
         leafCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, Integer> bundleCol = new TableColumn<>("捆数");
         bundleCol.setCellValueFactory(new PropertyValueFactory<>("bundleCount"));
-        bundleCol.setPrefWidth(70);
+        bundleCol.setPrefWidth(60);
         bundleCol.setStyle("-fx-alignment: CENTER;");
 
-        TableColumn<WeighingRecord, Double> weightCol = new TableColumn<>("重量(kg)");
-        weightCol.setCellValueFactory(new PropertyValueFactory<>("weight"));
+        TableColumn<WeighingRecord, String> weightCol = new TableColumn<>("重量(kg)");
+        weightCol.setCellValueFactory(data -> {
+            double weight = data.getValue().getWeight();
+            return new javafx.beans.property.SimpleStringProperty(String.format("%.2f", weight));
+        });
         weightCol.setPrefWidth(90);
         weightCol.setStyle("-fx-alignment: CENTER;");
 
@@ -141,22 +159,22 @@ public class FarmerInfoDetailDialog extends Stage {
         timeCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
         // 足够容纳完整时间（例如 2025-07-27 16:23:38.731）
         timeCol.setPrefWidth(240);
-        timeCol.setMinWidth(220);
+        timeCol.setMinWidth(200);
         timeCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> operatorCol = new TableColumn<>("操作员");
         operatorCol.setCellValueFactory(new PropertyValueFactory<>("operator"));
-        operatorCol.setPrefWidth(90);
+        operatorCol.setPrefWidth(80);
         operatorCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<WeighingRecord, String> statusCol = new TableColumn<>("状态");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        statusCol.setPrefWidth(70);
+        statusCol.setPrefWidth(60);
         statusCol.setStyle("-fx-alignment: CENTER;");
 
         // 操作按钮列
         TableColumn<WeighingRecord, Void> printCol = new TableColumn<>("操作");
-        printCol.setPrefWidth(160);
+        printCol.setPrefWidth(180);
         printCol.setCellFactory(new Callback<TableColumn<WeighingRecord, Void>, TableCell<WeighingRecord, Void>>() {
             @Override
             public TableCell<WeighingRecord, Void> call(TableColumn<WeighingRecord, Void> param) {
@@ -236,10 +254,14 @@ public class FarmerInfoDetailDialog extends Stage {
                             if (matchingRecords.isEmpty()) {
                                 statusLabel.setText("该农户暂无称重记录");
                             } else {
-                                double totalWeight = matchingRecords.stream().mapToDouble(WeighingRecord::getWeight)
+                                double totalWeight = matchingRecords.stream()
+                                        .mapToDouble(record -> record.getWeight() * record.getBundleCount())
                                         .sum();
                                 statusLabel.setText(String.format("共 %d 条记录，总重量: %.2f kg",
                                         matchingRecords.size(), totalWeight));
+
+                                // 检查并修复错误的预检编号数据
+                                fixIncorrectPrecheckIds();
                             }
                         });
                     }
@@ -774,5 +796,84 @@ public class FarmerInfoDetailDialog extends Stage {
         }
 
         return "未知站点";
+    }
+
+    /**
+     * 修复错误的预检编号数据
+     * 如果预检编号被错误地设置为身份证号，则尝试修复
+     */
+    private void fixIncorrectPrecheckIds() {
+        if (weighingRecordRepository == null) {
+            return;
+        }
+
+        // 在后台线程执行数据修复
+        new Thread(() -> {
+            try {
+                // 根据农户姓名查询所有记录
+                weighingRecordRepository.findByFarmerName(currentFarmerInfo.getFarmerName(),
+                        new WeighingRecordRepository.OnResultListener<List<WeighingRecord>>() {
+                            @Override
+                            public void onSuccess(List<WeighingRecord> records) {
+                                boolean hasFixed = false;
+
+                                for (WeighingRecord record : records) {
+                                    String precheckId = record.getPrecheckId();
+                                    if (precheckId != null && precheckId.length() == 18 &&
+                                            precheckId.matches("\\d{17}[\\dXx]")) {
+                                        // 这是身份证号，需要修复为预检编号
+                                        try {
+                                            // 生成新的预检编号：身份证后6位+合同号后6位+随机序列
+                                            // 获取烟农信息中实际的身份证号
+                                            String actualIdCard = record.getIdCardNumber();
+                                            if (actualIdCard == null || actualIdCard.trim().isEmpty()) {
+                                                // 如果记录中没有身份证号，尝试从农户信息中获取
+                                                actualIdCard = currentFarmerInfo.getIdCardNumber();
+                                            }
+
+                                            String idCardLast6 = actualIdCard != null && actualIdCard.length() >= 6
+                                                    ? actualIdCard.substring(actualIdCard.length() - 6)
+                                                    : "000000";
+                                            String contractLast6 = record.getContractNumber() != null &&
+                                                    record.getContractNumber().length() >= 6
+                                                            ? record.getContractNumber()
+                                                                    .substring(record.getContractNumber().length() - 6)
+                                                            : "000000";
+
+                                            // 使用记录ID作为序列号
+                                            String seq = String.format("%05d",
+                                                    record.getId() != null ? record.getId().intValue() : 0);
+                                            String newPrecheckId = idCardLast6 + contractLast6 + seq;
+
+                                            // 更新记录
+                                            record.setPrecheckId(newPrecheckId);
+                                            hasFixed = true;
+
+                                            logger.info("修复预检编号: {} -> {}", precheckId, newPrecheckId);
+                                        } catch (Exception e) {
+                                            logger.error("修复预检编号失败", e);
+                                        }
+                                    }
+                                }
+
+                                if (hasFixed) {
+                                    // 刷新表格显示
+                                    Platform.runLater(() -> {
+                                        recordTable.getItems().clear();
+                                        recordTable.getItems().addAll(records);
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onError(Exception e) {
+                                logger.error("修复预检编号数据失败", e);
+                            }
+                        });
+
+            } catch (Exception e) {
+                logger.error("修复预检编号数据时发生异常", e);
+            }
+        }).start();
     }
 }

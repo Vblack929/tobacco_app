@@ -357,7 +357,7 @@ public class PrinterSimulator implements Runnable, Closeable {
      */
     private void printToConsole(String text) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        System.out.println("[" + timestamp + "] " + text);
+        // System.out.println("[" + timestamp + "] " + text);
     }
 
     /**

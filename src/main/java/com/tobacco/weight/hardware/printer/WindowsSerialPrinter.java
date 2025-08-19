@@ -172,7 +172,7 @@ public class WindowsSerialPrinter implements Closeable {
             int bytesWritten = serialPort.writeBytes(data, data.length);
 
             if (bytesWritten == data.length) {
-                logger.debug("成功发送 {} 字节到串口 {}", bytesWritten, portName);
+                // logger.debug("成功发送 {} 字节到串口 {}", bytesWritten, portName);
                 return true;
             } else {
                 logger.error("发送数据不完整: 期望 {} 字节，实际发送 {} 字节", data.length, bytesWritten);
