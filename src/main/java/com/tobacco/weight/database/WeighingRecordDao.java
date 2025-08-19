@@ -294,17 +294,48 @@ public class WeighingRecordDao {
      * 注意：这里用称重累计重量近似"合同量"，若后续有独立合同量字段，可替换为对应查询
      */
     public java.util.Map<String, Double> getTotalWeightByContract() throws SQLException {
-        String sql = "SELECT contract_number, SUM(weight) AS total_weight FROM weighing_records WHERE contract_number IS NOT NULL AND contract_number != '' GROUP BY contract_number";
+        String sql = "SELECT contract_number, SUM(weight * bundle_count) AS total_weight FROM weighing_records WHERE contract_number IS NOT NULL AND contract_number != '' GROUP BY contract_number";
         java.util.Map<String, Double> result = new java.util.HashMap<>();
-        try (Connection conn = databaseManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql);
-                ResultSet rs = pstmt.executeQuery()) {
+
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = databaseManager.getConnection();
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
+
             while (rs.next()) {
                 String contract = rs.getString("contract_number");
                 double total = rs.getDouble("total_weight");
                 result.put(contract, total);
             }
+        } finally {
+            // 手动关闭资源，确保正确的关闭顺序
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
         }
+
         return result;
     }
 
@@ -314,9 +345,16 @@ public class WeighingRecordDao {
     public java.util.Map<String, Double> getContractAmountsByContract() throws SQLException {
         String sql = "SELECT contract_no, contract_amount FROM farmer_contracts WHERE contract_no IS NOT NULL AND contract_no != ''";
         java.util.Map<String, Double> result = new java.util.HashMap<>();
-        try (Connection conn = databaseManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql);
-                ResultSet rs = pstmt.executeQuery()) {
+
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = databaseManager.getConnection();
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
+
             while (rs.next()) {
                 String contractNo = rs.getString("contract_no");
                 double amount = rs.getDouble("contract_amount");
@@ -324,7 +362,31 @@ public class WeighingRecordDao {
                     result.put(contractNo, amount);
                 }
             }
+        } finally {
+            // 手动关闭资源，确保正确的关闭顺序
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
         }
+
         return result;
     }
 
@@ -334,19 +396,45 @@ public class WeighingRecordDao {
     public String getContractNumberByIdCard(String idCardNumber) throws SQLException {
         String sql = "SELECT contract_no FROM farmer_contracts WHERE national_id = ? AND contract_no IS NOT NULL AND contract_no != ''";
 
-        try (Connection conn = databaseManager.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
 
+        try {
+            conn = databaseManager.getConnection();
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, idCardNumber);
 
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    String contractNo = rs.getString("contract_no");
-                    logger.info("根据身份证号 {} 查询到合同号: {}", idCardNumber, contractNo);
-                    return contractNo;
-                } else {
-                    logger.info("未找到身份证号 {} 对应的合同号", idCardNumber);
-                    return null;
+            rs = pstmt.executeQuery();
+            if (rs.next()) {
+                String contractNo = rs.getString("contract_no");
+                logger.info("根据身份证号 {} 查询到合同号: {}", idCardNumber, contractNo);
+                return contractNo;
+            } else {
+                logger.info("未找到身份证号 {} 对应的合同号", idCardNumber);
+                return null;
+            }
+        } finally {
+            // 手动关闭资源，确保正确的关闭顺序
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    // 忽略关闭时的异常
                 }
             }
         }

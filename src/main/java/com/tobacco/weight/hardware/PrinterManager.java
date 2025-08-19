@@ -488,7 +488,7 @@ public class PrinterManager {
     private void drawLabelContent(Graphics2D g2d, int labelWidth, int labelHeight,
             BufferedImage qrCodeImage, LabelInfo labelInfo) {
         // 调试信息
-        logger.debug("绘制区域: {}x{}", labelWidth, labelHeight);
+        // logger.debug("绘制区域: {}x{}", labelWidth, labelHeight);
 
         // 绘制边框（调试用，生产环境请注释掉）
         g2d.setColor(Color.BLACK);
@@ -534,6 +534,12 @@ public class PrinterManager {
 
         if (labelInfo.getPrecheckId() != null && textY + lineHeight <= labelHeight - bottomMargin) {
             g2d.drawString("预检:" + truncateString(labelInfo.getPrecheckId(), 16), leftPadding, textY);
+            textY += lineHeight;
+        }
+
+        // 显示重量信息
+        if (labelInfo.getWeight() > 0 && textY + lineHeight <= labelHeight - bottomMargin) {
+            g2d.drawString("重量:" + String.format("%.2f", labelInfo.getWeight()) + "kg", leftPadding, textY);
             textY += lineHeight;
         }
 
@@ -639,9 +645,10 @@ public class PrinterManager {
         private String leafType;
         private String inspector;
         private String date;
+        private double weight; // 添加重量字段
 
         public LabelInfo(String address, String idCardNumber, String contractNumber, String farmerName,
-                String precheckId, String leafType, String inspector, String date) {
+                String precheckId, String leafType, String inspector, String date, double weight) {
             this.address = address;
             this.idCardNumber = idCardNumber;
             this.contractNumber = contractNumber;
@@ -650,6 +657,13 @@ public class PrinterManager {
             this.leafType = leafType;
             this.inspector = inspector;
             this.date = date;
+            this.weight = weight;
+        }
+
+        // 保持向后兼容的构造函数
+        public LabelInfo(String address, String idCardNumber, String contractNumber, String farmerName,
+                String precheckId, String leafType, String inspector, String date) {
+            this(address, idCardNumber, contractNumber, farmerName, precheckId, leafType, inspector, date, 0.0);
         }
 
         // Getters
@@ -683,6 +697,10 @@ public class PrinterManager {
 
         public String getDate() {
             return date;
+        }
+
+        public double getWeight() {
+            return weight;
         }
     }
 }
