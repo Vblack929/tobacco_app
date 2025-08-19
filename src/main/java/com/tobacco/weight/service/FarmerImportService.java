@@ -419,8 +419,8 @@ public class FarmerImportService {
             stmt.setString(4, station);
 
             int affected = stmt.executeUpdate();
-            logger.debug("保存合同信息: 身份证={}, 合同号={}, 合同量={}, 站点={}", 
-                        nationalId, contractNo, contractAmount, station);
+            // logger.debug("保存合同信息: 身份证={}, 合同号={}, 合同量={}, 站点={}", 
+            //             nationalId, contractNo, contractAmount, station);
             return affected > 0;
 
         } catch (SQLException e) {

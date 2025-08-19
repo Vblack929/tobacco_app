@@ -186,13 +186,13 @@ public class ScaleManager {
 
             // 处理完整的数据行
             if (!completeLine.trim().isEmpty()) {
-                logger.debug("处理完整数据行: '{}'", completeLine);
+                // logger.debug("处理完整数据行: '{}'", completeLine);
                 parseWeightData(completeLine.trim());
             }
         } else if (currentTime - lastDataTime > DATA_TIMEOUT && bufferContent.trim().length() > 0) {
             // 超时处理：如果超过100ms没有新数据，且缓冲区有内容，尝试处理
             String timeoutData = bufferContent.trim();
-            logger.debug("超时处理数据: '{}'", timeoutData);
+            // logger.debug("超时处理数据: '{}'", timeoutData);
 
             // 检查是否是完整的重量数据
             if (isCompleteWeightData(timeoutData)) {
@@ -245,13 +245,13 @@ public class ScaleManager {
      */
     private void parseWeightData(String data) {
         try {
-            logger.debug("正在解析数据: '{}'", data);
+            // logger.debug("正在解析数据: '{}'", data);
 
             // 尝试解析电子秤数据格式
             ScaleData scaleData = parseScaleData(data);
 
             if (scaleData != null && scaleData.isValid()) {
-                logger.debug("解析成功: 重量={}, 状态={}", scaleData.getWeight(), scaleData.getStatus());
+                // logger.debug("解析成功: 重量={}, 状态={}", scaleData.getWeight(), scaleData.getStatus());
 
                 // 更新当前重量
                 if (Math.abs(scaleData.getWeight() - currentWeight) > 0.005) {
@@ -260,7 +260,7 @@ public class ScaleManager {
 
                     // 通知重量变化
                     if (onWeightChanged != null) {
-                        logger.debug("调用重量变化回调: {} kg", currentWeight);
+                        // logger.debug("调用重量变化回调: {} kg", currentWeight);
                         onWeightChanged.accept(currentWeight);
                     } else {
                         logger.warn("重量变化回调未设置");
@@ -268,7 +268,7 @@ public class ScaleManager {
 
                     logger.info("重量更新: {} kg, 状态: {}", currentWeight, scaleData.getStatus());
                 } else {
-                    logger.debug("重量无变化: {} kg", currentWeight);
+                    // logger.debug("重量无变化: {} kg", currentWeight);
                 }
             } else {
                 logger.warn("无法解析重量数据: '{}'", data);
@@ -290,7 +290,7 @@ public class ScaleManager {
 
         try {
             String cleanData = data.trim();
-            logger.debug("开始解析数据: '{}'", cleanData);
+            // logger.debug("开始解析数据: '{}'", cleanData);
 
             // 检查是否是电子秤数据格式
             if (cleanData.contains(",") && cleanData.contains("kg")) {
@@ -322,7 +322,7 @@ public class ScaleManager {
                         // 判断是否稳定
                         boolean isStable = "ST".equals(status);
 
-                        logger.debug("解析成功: 重量={} kg, 状态={}, 类型={}", weight, status, type);
+                        // logger.debug("解析成功: 重量={} kg, 状态={}, 类型={}", weight, status, type);
                         return new ScaleData(weight, isStable, status, type);
                     } else {
                         logger.warn("无法从重量部分提取数值: '{}'", weightPart);
@@ -417,7 +417,7 @@ public class ScaleManager {
         }
 
         String trimmed = data.trim();
-        logger.debug("尝试解析其他格式: '{}'", trimmed);
+        // logger.debug("尝试解析其他格式: '{}'", trimmed);
 
         // 格式1: 带kg单位 (如: "12.34kg", "5.67 kg")
         if (trimmed.toLowerCase().contains("kg")) {
@@ -431,7 +431,7 @@ public class ScaleManager {
 
                     // 验证重量值的合理性
                     if (weight >= 0 && weight <= 9999) {
-                        logger.debug("解析kg格式成功: {} kg", weight);
+                        // logger.debug("解析kg格式成功: {} kg", weight);
                         return new ScaleData(weight, true, "ST", "NT");
                     } else {
                         logger.warn("kg格式重量值超出范围: {} kg", weight);
@@ -454,7 +454,7 @@ public class ScaleManager {
 
                 // 验证重量值的合理性
                 if (weight >= 0 && weight <= 9999) {
-                    logger.debug("解析纯数字格式成功: {} kg", weight);
+                    // logger.debug("解析纯数字格式成功: {} kg", weight);
                     return new ScaleData(weight, true, "ST", "NT");
                 } else {
                     logger.warn("纯数字格式重量值超出范围: {} kg", weight);
@@ -522,7 +522,7 @@ public class ScaleManager {
     private void clearDataBuffer() {
         dataBuffer.setLength(0);
         lastDataTime = 0;
-        logger.debug("数据缓冲区已清理");
+        // logger.debug("数据缓冲区已清理");
     }
 
     /**
@@ -580,7 +580,7 @@ public class ScaleManager {
             int bytesWritten = serialPort.writeBytes(data, data.length);
 
             if (bytesWritten == data.length) {
-                logger.debug("命令发送成功: {}", command);
+                // logger.debug("命令发送成功: {}", command);
                 return true;
             } else {
                 logger.error("命令发送失败: {}", command);

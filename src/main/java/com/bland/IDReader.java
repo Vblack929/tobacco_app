@@ -33,7 +33,7 @@ public class IDReader {
 		}
 		
 		System.load(libFile.getAbsolutePath()); 
-		System.out.println("Loaded library: " + libFile.getAbsolutePath()); 
+        // System.out.println("Loaded library: " + libFile.getAbsolutePath()); 
 		return libFile.getAbsolutePath();
 	}
 
@@ -81,13 +81,13 @@ public class IDReader {
 			}
 			else {
 				// Non-Windows platform - ID card reader not supported
-				System.out.println("警告: 身份证读卡器仅支持Windows平台，当前平台: " + systemType + " " + systemArch);
+				// System.out.println("警告: 身份证读卡器仅支持Windows平台，当前平台: " + systemType + " " + systemArch);
 				ret = -1; // Return failure code for non-Windows platforms
 			}
 		}
 		catch (Exception e)
 		{
-			System.out.println("IDReader初始化失败: " + e.getMessage());
+			// System.out.println("IDReader初始化失败: " + e.getMessage());
 			e.printStackTrace(); 
 			ret = -1;
 		}
