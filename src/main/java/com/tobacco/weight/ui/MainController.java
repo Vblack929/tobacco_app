@@ -2535,9 +2535,14 @@ public class MainController implements Initializable {
             String safeLeafType = leafType != null ? leafType : "N/A";
             String safeInspector = operator != null ? operator : "系统";
 
-            // 地址字段已删除，使用默认值
-            String address = "待完善";
-            String idCardNumber = idCardNumberField.getText().trim();
+            // 获取烟农真实地址和站点名称
+            String currentIdCardNumber = idCardNumberField.getText().trim();
+            String address = getFarmerAddress(currentIdCardNumber);
+            String stationName = getStationName(currentIdCardNumber);
+            if (address == null || address.trim().isEmpty() || "待完善".equals(address.trim())) {
+                address = "实时录入";
+            }
+            String idCardNumber = currentIdCardNumber;
             if (idCardNumber.isEmpty())
                 idCardNumber = "XXX";
             String currentDate = java.time.LocalDate.now()

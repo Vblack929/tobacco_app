@@ -494,67 +494,103 @@ public class PrinterManager {
         g2d.setColor(Color.BLACK);
         g2d.drawRect(0, 0, labelWidth - 1, labelHeight - 1);
 
-        // 统一左侧内边距（与文本对齐）
+        // 双联标签布局 - 左右两栏
+        int colWidth = labelWidth / 2;
+        int spacing = 12; // 两栏之间的间距
+        int leftColX = 6; // 左栏起始位置
+        int rightColX = colWidth + spacing; // 右栏起始位置
+        
+        // 绘制左栏（正常方向）
+        drawSingleColumn(g2d, leftColX, 0, colWidth - spacing/2, labelHeight, qrCodeImage, labelInfo, false);
+        
+        // 绘制右栏（旋转180度）
+        Graphics2D g2dRight = (Graphics2D) g2d.create();
+        // 将坐标系移动到右栏中心，然后旋转180度
+        g2dRight.translate(rightColX + (colWidth - spacing/2)/2, labelHeight/2);
+        g2dRight.rotate(Math.PI);
+        g2dRight.translate(-(colWidth - spacing/2)/2, -labelHeight/2);
+        drawSingleColumn(g2dRight, 0, 0, colWidth - spacing/2, labelHeight, qrCodeImage, labelInfo, true);
+        g2dRight.dispose();
+    }
+    
+    /**
+     * 绘制单个标签栏
+     */
+    private void drawSingleColumn(Graphics2D g2d, int x, int y, int colWidth, int colHeight,
+            BufferedImage qrCodeImage, LabelInfo labelInfo, boolean isRotated) {
+        // 统一左侧内边距
         final int leftPadding = 2;
 
-        // 绘制二维码 (上半部分) - 极度紧凑以适应70x70mm，且与文本左对齐
+        // 绘制二维码 (上半部分)
         if (qrCodeImage != null) {
-            int qrSize = 55; // 极度缩小二维码 (从60->55)
-            int qrX = leftPadding; // 左对齐，与文本同边距
-            int qrY = 1; // 距离顶部1像素
+            int qrSize = Math.min(55, colWidth - 10); // 根据栏宽调整二维码大小
+            int qrX = x + leftPadding;
+            int qrY = y + 1;
             g2d.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize, null);
         }
 
-        // 设置字体 - 极小字体
-        Font font = new Font("SimSun", Font.PLAIN, 5); // 从6->5
+        // 设置字体
+        Font font = new Font("SimSun", Font.PLAIN, 5);
         g2d.setFont(font);
         g2d.setColor(Color.BLACK);
 
-        // 绘制文本信息 (下半部分) - 极度紧凑布局
-        int textY = 59; // 二维码下方，极度减少间距 (从66->59)
-        int lineHeight = 7; // 极度减少行高 (从8->7)
+        // 绘制文本信息 (下半部分)
+        int textY = y + 59;
+        int lineHeight = 7;
+        int bottomMargin = 3;
+        int textX = x + leftPadding;
 
-        // 绘制各个字段，确保不超出底部边界 - 使用更紧凑的格式
-        int bottomMargin = 3; // 底部预留3像素（从5->3）
-
-        if (labelInfo.getAddress() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("地址:" + truncateString(labelInfo.getAddress(), 16), leftPadding, textY);
+        // 获取站点名称（简化显示）
+        String stationName = "收购站"; // 可以从labelInfo中获取
+        
+        // 绘制各个字段
+        if (textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString(stationName, textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getIdCardNumber() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("身份证:" + truncateString(labelInfo.getIdCardNumber(), 16), leftPadding, textY);
+        if (labelInfo.getAddress() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString(truncateString(labelInfo.getAddress(), 12), textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getFarmerName() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("姓名:" + truncateString(labelInfo.getFarmerName(), 16), leftPadding, textY);
+        if (labelInfo.getContractNumber() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString(truncateString(labelInfo.getContractNumber(), 12), textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getPrecheckId() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("预检:" + truncateString(labelInfo.getPrecheckId(), 16), leftPadding, textY);
+        if (labelInfo.getFarmerName() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString("姓名:" + truncateString(labelInfo.getFarmerName(), 8), textX, textY);
+            textY += lineHeight;
+        }
+
+        if (labelInfo.getPrecheckId() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            // 只显示预检号的后5位
+            String shortPrecheck = labelInfo.getPrecheckId().length() > 5 ? 
+                labelInfo.getPrecheckId().substring(labelInfo.getPrecheckId().length() - 5) : 
+                labelInfo.getPrecheckId();
+            g2d.drawString("预检:" + shortPrecheck, textX, textY);
             textY += lineHeight;
         }
 
         // 显示重量信息
-        if (labelInfo.getWeight() > 0 && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("重量:" + String.format("%.2f", labelInfo.getWeight()) + "kg", leftPadding, textY);
+        if (labelInfo.getWeight() > 0 && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString("重量:" + String.format("%.2f", labelInfo.getWeight()) + "kg", textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getLeafType() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 16), leftPadding, textY);
+        if (labelInfo.getLeafType() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString("部位:" + truncateString(labelInfo.getLeafType(), 6), textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getDate() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("日期:" + truncateString(labelInfo.getDate(), 16), leftPadding, textY);
+        if (labelInfo.getInspector() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString("检验:" + truncateString(labelInfo.getInspector(), 6), textX, textY);
             textY += lineHeight;
         }
 
-        if (labelInfo.getInspector() != null && textY + lineHeight <= labelHeight - bottomMargin) {
-            g2d.drawString("检验:" + truncateString(labelInfo.getInspector(), 16), leftPadding, textY);
+        if (labelInfo.getDate() != null && textY + lineHeight <= y + colHeight - bottomMargin) {
+            g2d.drawString("预检日期:" + truncateString(labelInfo.getDate(), 10), textX, textY);
         }
     }
 

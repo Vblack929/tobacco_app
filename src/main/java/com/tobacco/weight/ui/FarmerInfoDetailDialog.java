@@ -332,6 +332,9 @@ public class FarmerInfoDetailDialog extends Stage {
             // 获取站点名称和地址
             String stationName = getStationName(currentFarmerInfo.getIdCardNumber());
             String locationInfo = getFarmerAddress(currentFarmerInfo.getIdCardNumber());
+            if (locationInfo == null || locationInfo.trim().isEmpty() || "待完善".equals(locationInfo.trim())) {
+                locationInfo = "实时录入";
+            }
 
             String displayPrecheck = getLast5Digits(precheckId);
             String currentDateStr = java.time.LocalDate.now()

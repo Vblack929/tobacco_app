@@ -512,7 +512,13 @@ public class FarmerDetailDialog extends Stage {
             String precheckId = record.getPrecheckId() != null ? record.getPrecheckId() : "N/A";
             String leafType = record.getLeafType() != null ? record.getLeafType() : "N/A";
             String inspector = record.getOperator() != null ? record.getOperator() : "系统";
-            String locationInfo = "默认地址";
+            
+            // 获取站点名称和地址
+            String stationName = getStationName(currentIdCardNumber);
+            String locationInfo = getFarmerAddress(currentIdCardNumber);
+            if (locationInfo == null || locationInfo.trim().isEmpty() || "待完善".equals(locationInfo.trim())) {
+                locationInfo = "实时录入";
+            }
 
             // 生成二维码图片（用于打印）
             BufferedImage qrCodeImage = QRCodeGenerator.generateQRCodeForPrint(contractNum, 80);
