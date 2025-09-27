@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.List;
 
 /**
@@ -21,12 +22,24 @@ import java.util.List;
 public class HardwareFingerprint {
 
     private static final Logger logger = LoggerFactory.getLogger(HardwareFingerprint.class);
+    private static final String MOCK_FINGERPRINT_ENV = "TWW_MOCK_FINGERPRINT";
+    private static final String MOCK_FINGERPRINT_PROP = "tww.mock.fingerprint";
 
     /**
      * 生成当前设备的硬件指纹
      * @return 设备指纹字符串（SHA-256哈希值）
      */
     public static String generateFingerprint() {
+        String mockValue = System.getenv(MOCK_FINGERPRINT_ENV);
+        if (mockValue == null || mockValue.isEmpty()) {
+            mockValue = System.getProperty(MOCK_FINGERPRINT_PROP);
+        }
+        if (mockValue != null && !mockValue.isEmpty()) {
+            String normalized = normalizeMockFingerprint(mockValue);
+            logger.debug("Using mock hardware fingerprint: {}", normalized);
+            return normalized;
+        }
+
         try {
             List<String> hardwareInfo = new ArrayList<>();
             
@@ -298,6 +311,15 @@ public class HardwareFingerprint {
     /**
      * 获取硬件指纹的可读格式（用于显示给用户）
      */
+
+    private static String normalizeMockFingerprint(String mock) {
+        String normalized = mock.replaceAll("[^0-9a-fA-F]", "").toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return generateFallbackFingerprint();
+        }
+        return normalized;
+    }
+
     public static String getReadableFingerprint() {
         String fingerprint = generateFingerprint();
         return formatFingerprint(fingerprint);

@@ -19,23 +19,40 @@ public class LicenseInfo {
     private LocalDateTime createdAt; // 创建时间
     private LocalDateTime expiresAt; // 过期时间
     private boolean active; // 是否激活
+    private LicenseType licenseType = LicenseType.CUSTOMER_LIMITED; // 许可证类型
     private List<DeviceBinding> boundDevices; // 已绑定的设备列表
 
     public LicenseInfo() {
         this.boundDevices = new ArrayList<>();
         this.active = true;
+        this.licenseType = LicenseType.CUSTOMER_LIMITED;
     }
 
     public LicenseInfo(String licenseId, String customerName, int maxDevices, int validDays) {
+        this(licenseId, customerName, maxDevices, validDays, LicenseType.CUSTOMER_LIMITED);
+    }
+
+    public LicenseInfo(String licenseId, String customerName, int maxDevices, int validDays, LicenseType licenseType) {
         this();
         this.licenseId = licenseId;
         this.customerName = customerName;
-        this.maxDevices = maxDevices;
         this.validDays = validDays;
+        this.licenseType = licenseType != null ? licenseType : LicenseType.CUSTOMER_LIMITED;
         this.createdAt = LocalDateTime.now();
+        applyMaxDevicePolicy(maxDevices);
 
         if (validDays > 0) {
             this.expiresAt = this.createdAt.plusDays(validDays);
+        }
+    }
+
+    private void applyMaxDevicePolicy(int requestedMaxDevices) {
+        if (licenseType.isUnlimitedDevices()) {
+            this.maxDevices = Integer.MAX_VALUE;
+        } else if (requestedMaxDevices > 0 && requestedMaxDevices < Integer.MAX_VALUE) {
+            this.maxDevices = requestedMaxDevices;
+        } else {
+            this.maxDevices = licenseType.getDefaultMaxDevices();
         }
     }
 
@@ -51,10 +68,21 @@ public class LicenseInfo {
     }
 
     /**
+     * 是否为无限制设备的许可证
+     */
+    @JsonIgnore
+    public boolean isUnlimitedDevices() {
+        return licenseType != null && licenseType.isUnlimitedDevices();
+    }
+
+    /**
      * 检查是否还能绑定更多设备
      */
     public boolean canBindMoreDevices() {
-        return boundDevices.size() < maxDevices;
+        if (isUnlimitedDevices()) {
+            return true;
+        }
+        return getActiveDeviceCount() < maxDevices;
     }
 
     /**
@@ -62,7 +90,10 @@ public class LicenseInfo {
      */
     @JsonIgnore
     public int getRemainingDeviceSlots() {
-        return Math.max(0, maxDevices - boundDevices.size());
+        if (isUnlimitedDevices()) {
+            return Integer.MAX_VALUE;
+        }
+        return Math.max(0, maxDevices - getActiveDeviceCount());
     }
 
     /**
@@ -70,14 +101,18 @@ public class LicenseInfo {
      */
     public boolean isDeviceBound(String deviceFingerprint) {
         return boundDevices.stream()
-                .anyMatch(device -> device.getDeviceFingerprint().equals(deviceFingerprint));
+                .anyMatch(device -> device.getDeviceFingerprint().equals(deviceFingerprint) && device.isActive());
     }
 
     /**
      * 添加设备绑定
      */
     public boolean addDeviceBinding(String deviceFingerprint, String deviceName) {
-        if (!canBindMoreDevices() || isDeviceBound(deviceFingerprint)) {
+        if (isDeviceBound(deviceFingerprint)) {
+            return false;
+        }
+
+        if (!canBindMoreDevices()) {
             return false;
         }
 
@@ -102,8 +137,6 @@ public class LicenseInfo {
                 .findFirst()
                 .orElse(null);
     }
-
-    // Getters and Setters
 
     public String getLicenseId() {
         return licenseId;
@@ -134,7 +167,7 @@ public class LicenseInfo {
     }
 
     public void setMaxDevices(int maxDevices) {
-        this.maxDevices = maxDevices;
+        applyMaxDevicePolicy(maxDevices);
     }
 
     public int getValidDays() {
@@ -174,7 +207,19 @@ public class LicenseInfo {
     }
 
     public void setBoundDevices(List<DeviceBinding> boundDevices) {
-        this.boundDevices = new ArrayList<>(boundDevices);
+        this.boundDevices = boundDevices != null ? new ArrayList<>(boundDevices) : new ArrayList<>();
+    }
+
+    /**
+     * 获取许可证类型
+     */
+    public LicenseType getLicenseType() {
+        return licenseType;
+    }
+
+    public void setLicenseType(LicenseType licenseType) {
+        this.licenseType = licenseType != null ? licenseType : LicenseType.CUSTOMER_LIMITED;
+        applyMaxDevicePolicy(this.maxDevices);
     }
 
     /**
@@ -227,7 +272,12 @@ public class LicenseInfo {
 
     @Override
     public String toString() {
-        return String.format("LicenseInfo{licenseId='%s', customer='%s', maxDevices=%d, boundDevices=%d, expired=%s}",
-                licenseId, customerName, maxDevices, boundDevices.size(), isExpired());
+        return String.format("LicenseInfo{licenseId='%s', customer='%s', type=%s, maxDevices=%s, boundDevices=%d, expired=%s}",
+                licenseId,
+                customerName,
+                licenseType,
+                isUnlimitedDevices() ? "无限制" : Integer.toString(maxDevices),
+                boundDevices.size(),
+                isExpired());
     }
 }

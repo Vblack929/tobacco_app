@@ -3,12 +3,18 @@ package com.tobacco.weight.license;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import javafx.stage.Stage;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,7 +46,7 @@ public class LicenseService {
 
     /**
      * 确保应用程序已获得许可
-     * 
+     *
      * @param primaryStage 主舞台（用于显示激活对话框）
      * @return 是否已获得许可
      */
@@ -49,7 +55,6 @@ public class LicenseService {
             return true;
         }
 
-        // 显示许可证激活对话框
         LicenseActivationDialog dialog = new LicenseActivationDialog(primaryStage);
         Optional<String> result = dialog.showAndWait();
 
@@ -69,14 +74,14 @@ public class LicenseService {
             return false;
         }
 
-        // 检查许可证是否过期
+        ensureLicenseDefaults(currentLicense);
+
         if (currentLicense.isExpired()) {
             logger.warn("许可证已过期: {}", currentLicense.getExpiryDate());
             isLicensed = false;
             return false;
         }
 
-        // 检查当前设备是否已绑定
         String currentFingerprint = HardwareFingerprint.generateFingerprint();
         boolean isDeviceBound = currentLicense.getDeviceBindings().stream()
                 .anyMatch(binding -> binding.getDeviceFingerprint().equals(currentFingerprint) && binding.isActive());
@@ -87,10 +92,7 @@ public class LicenseService {
             return false;
         }
 
-        // 更新设备最后使用时间
         updateDeviceLastUsed(currentFingerprint);
-
-        // 打印许可证状态信息
         printLicenseStatusInfo();
 
         isLicensed = true;
@@ -99,78 +101,74 @@ public class LicenseService {
 
     /**
      * 激活许可证
-     * 
+     *
      * @param licenseId 许可证ID
      * @return 是否激活成功
      */
     public boolean activateLicense(String licenseId) {
         try {
-            // 验证许可证ID格式
             if (!LicenseIdGenerator.validateLicenseId(licenseId)) {
                 logger.error("无效的许可证ID格式: {}", licenseId);
                 return false;
             }
 
-            // 解析许可证信息
-            LicenseInfo licenseInfo = LicenseIdGenerator.parseLicenseId(licenseId);
-            if (licenseInfo == null) {
+            LicenseInfo parsedInfo = LicenseIdGenerator.parseLicenseId(licenseId);
+            if (parsedInfo == null) {
                 logger.error("无法解析许可证ID: {}", licenseId);
                 return false;
             }
 
-            // 检查许可证是否过期
+            ensureLicenseDefaults(parsedInfo);
+            LicenseInfo licenseInfo = mergeWithExisting(parsedInfo);
+
             if (licenseInfo.isExpired()) {
                 logger.error("许可证已过期: {}", licenseInfo.getExpiryDate());
                 return false;
             }
 
-            // 获取当前设备信息
             String currentFingerprint = HardwareFingerprint.generateFingerprint();
             String deviceName = HardwareFingerprint.getDeviceName();
 
-            // 检查设备是否已绑定
             Optional<DeviceBinding> existingBinding = licenseInfo.getDeviceBindings().stream()
                     .filter(binding -> binding.getDeviceFingerprint().equals(currentFingerprint))
                     .findFirst();
 
             if (existingBinding.isPresent()) {
-                // 设备已绑定，激活设备
                 DeviceBinding binding = existingBinding.get();
                 binding.setActive(true);
                 binding.setLastUsedTime(LocalDateTime.now());
-                logger.info("设备重新激活: {} ({})", deviceName, HardwareFingerprint.formatFingerprint(currentFingerprint));
+                logger.info("设备重新激活: {} ({})", deviceName,
+                        HardwareFingerprint.formatFingerprint(currentFingerprint));
             } else {
-                // 新设备绑定
                 if (!licenseInfo.canBindMoreDevices()) {
-                    logger.error("许可证已达到最大设备绑定数量: {}/{}",
-                            licenseInfo.getActiveDeviceCount(), licenseInfo.getMaxDevices());
+                    int activeDevices = licenseInfo.getActiveDeviceCount();
+                    String limitLabel = licenseInfo.isUnlimitedDevices() ? "不限制" : String.valueOf(licenseInfo.getMaxDevices());
+                    logger.error("许可证已达到最大设备绑定数量: {}/{}", activeDevices, limitLabel);
                     return false;
                 }
 
-                // 创建新的设备绑定
                 DeviceBinding newBinding = new DeviceBinding(
                         currentFingerprint,
                         deviceName,
                         LocalDateTime.now(),
                         LocalDateTime.now(),
                         true);
-
                 licenseInfo.addDeviceBinding(newBinding);
-                logger.info("新设备绑定成功: {} ({})", deviceName, HardwareFingerprint.formatFingerprint(currentFingerprint));
+                logger.info("新设备绑定成功: {} ({})", deviceName,
+                        HardwareFingerprint.formatFingerprint(currentFingerprint));
             }
 
-            // 标记许可证为已激活
+            licenseInfo.setLicenseId(licenseId);
             licenseInfo.setActivated(true);
 
-            // 保存许可证信息
             this.currentLicense = licenseInfo;
             saveLicense();
 
             this.isLicensed = true;
-            logger.info("许可证激活成功: {} - 客户: {}", licenseId, licenseInfo.getCustomerName());
+            logger.info("许可证激活成功: {} - 客户: {} - 类型: {}", licenseId,
+                    licenseInfo.getCustomerName(), licenseInfo.getLicenseType());
 
             return true;
-
         } catch (Exception e) {
             logger.error("激活许可证失败: {}", licenseId, e);
             return false;
@@ -192,14 +190,23 @@ public class LicenseService {
             return "未激活";
         }
 
+        ensureLicenseDefaults(currentLicense);
+
         StringBuilder info = new StringBuilder();
         info.append("许可证ID: ").append(currentLicense.getLicenseId()).append("\n");
         info.append("客户名称: ").append(currentLicense.getCustomerName()).append("\n");
-        info.append("最大设备数: ").append(currentLicense.getMaxDevices()).append("\n");
+        info.append("许可证类型: ").append(currentLicense.getLicenseType()).append("\n");
+        info.append("最大设备数: ")
+                .append(currentLicense.isUnlimitedDevices() ? "不限制" : currentLicense.getMaxDevices())
+                .append("\n");
         info.append("已绑定设备: ").append(currentLicense.getActiveDeviceCount()).append("\n");
-        info.append("有效期至: ").append(currentLicense.getExpiryDate()).append("\n");
-        info.append("状态: ").append(currentLicense.isExpired() ? "已过期" : "有效");
-
+        if (currentLicense.getExpiryDate() != null) {
+            info.append("有效期至: ").append(currentLicense.getExpiryDate()).append("\n");
+            info.append("状态: ").append(currentLicense.isExpired() ? "已过期" : "有效");
+        } else {
+            info.append("有效期: 永久有效\n");
+            info.append("状态: 有效");
+        }
         return info.toString();
     }
 
@@ -208,17 +215,17 @@ public class LicenseService {
      */
     public String getDeviceBindingInfo() {
         if (currentLicense == null || currentLicense.getDeviceBindings().isEmpty()) {
-            return "无设备绑定";
+            return "暂无任何设备绑定";
         }
 
         StringBuilder info = new StringBuilder();
-        info.append("已绑定设备:\n");
+        info.append("已绑定设备\n");
 
         for (DeviceBinding binding : currentLicense.getDeviceBindings()) {
             if (binding.isActive()) {
                 info.append("- ").append(binding.getDeviceName())
                         .append(" (").append(binding.getDisplayFingerprint()).append(")")
-                        .append(" - 最后使用: ").append(binding.getLastUsedTime())
+                        .append(" - 最后使用 ").append(binding.getLastUsedTime())
                         .append("\n");
             }
         }
@@ -234,8 +241,7 @@ public class LicenseService {
         this.isLicensed = false;
 
         File licenseFile = new File(LICENSE_FILE);
-        if (licenseFile.exists()) {
-            licenseFile.delete();
+        if (licenseFile.exists() && licenseFile.delete()) {
             logger.info("许可证信息已清除");
         }
     }
@@ -267,9 +273,9 @@ public class LicenseService {
 
         try {
             this.currentLicense = objectMapper.readValue(licenseFile, LicenseInfo.class);
+            ensureLicenseDefaults(this.currentLicense);
             logger.info("许可证信息加载成功: {}", currentLicense.getLicenseId());
 
-            // 验证加载的许可证
             if (isLicensed()) {
                 logger.info("许可证验证通过");
             } else {
@@ -290,6 +296,8 @@ public class LicenseService {
             return;
         }
 
+        ensureLicenseDefaults(currentLicense);
+
         try {
             objectMapper.writerWithDefaultPrettyPrinter()
                     .writeValue(new File(LICENSE_FILE), currentLicense);
@@ -307,7 +315,10 @@ public class LicenseService {
             return false;
         }
 
-        // 如果距离过期时间少于30天，显示续期提醒
+        if (currentLicense.getExpiryDate() == null) {
+            return false;
+        }
+
         LocalDateTime expiryDate = currentLicense.getExpiryDate();
         LocalDateTime reminderDate = expiryDate.minusDays(30);
 
@@ -318,7 +329,7 @@ public class LicenseService {
      * 获取许可证剩余天数
      */
     public long getRemainingDays() {
-        if (currentLicense == null || currentLicense.isExpired()) {
+        if (currentLicense == null || currentLicense.isExpired() || currentLicense.getExpiryDate() == null) {
             return 0;
         }
 
@@ -335,14 +346,20 @@ public class LicenseService {
             return;
         }
 
+        ensureLicenseDefaults(currentLicense);
+
         System.out.println("\n=== 许可证状态信息 ===");
         System.out.println("许可证ID: " + currentLicense.getLicenseId());
         System.out.println("客户名称: " + currentLicense.getCustomerName());
-        System.out.println("最大设备数: " + currentLicense.getMaxDevices());
-        System.out.println("已授权设备: " + currentLicense.getActiveDeviceCount() + "/" + currentLicense.getMaxDevices());
+        System.out.println("许可证类型: " + currentLicense.getLicenseType());
+        if (currentLicense.isUnlimitedDevices()) {
+            System.out.println("已授权设备: " + currentLicense.getActiveDeviceCount());
+        } else {
+            System.out.println("最大设备数: " + currentLicense.getMaxDevices());
+            System.out.println("已授权设备: " + currentLicense.getActiveDeviceCount() + "/" + currentLicense.getMaxDevices());
+        }
 
-        // 显示有效期信息
-        if (currentLicense.getValidDays() == 0) {
+        if (currentLicense.getValidDays() == 0 || currentLicense.getExpiryDate() == null) {
             System.out.println("有效期: 永久有效");
         } else {
             long remainingDays = getRemainingDays();
@@ -350,10 +367,8 @@ public class LicenseService {
             System.out.println("剩余天数: " + remainingDays + " 天");
         }
 
-        // 显示设备绑定信息
         System.out.println("\n=== 已绑定设备信息 ===");
         String currentFingerprint = HardwareFingerprint.generateFingerprint();
-
         for (DeviceBinding binding : currentLicense.getDeviceBindings()) {
             if (binding.isActive()) {
                 boolean isCurrentDevice = binding.getDeviceFingerprint().equals(currentFingerprint);
@@ -366,5 +381,126 @@ public class LicenseService {
         }
 
         System.out.println("========================\n");
+    }
+
+    public synchronized void updateFromRemote(JSONObject licenseData) {
+        if (licenseData == null) {
+            logger.warn("云端许可证数据为空，跳过同步");
+            return;
+        }
+
+        try {
+            LicenseInfo remoteInfo = convertRemoteLicense(licenseData);
+            ensureLicenseDefaults(remoteInfo);
+            this.currentLicense = remoteInfo;
+            saveLicense();
+
+            boolean bound = remoteInfo.isActive() && !remoteInfo.isExpired()
+                    && remoteInfo.isDeviceBound(HardwareFingerprint.generateFingerprint());
+            this.isLicensed = bound;
+            if (bound) {
+                logger.info("云端许可证同步成功，当前设备已获得授权");
+            } else {
+                logger.warn("云端许可证同步成功，但当前设备不在授权列表中");
+            }
+        } catch (Exception e) {
+            logger.error("同步云端许可证数据失败", e);
+        }
+    }
+
+    private LicenseInfo convertRemoteLicense(JSONObject licenseData) {
+        String licenseId = licenseData.optString("licenseId", currentLicense != null ? currentLicense.getLicenseId() : "");
+        String customerName = licenseData.optString("customerName", "未知客户");
+        String typeValue = licenseData.optString("licenseType", LicenseType.CUSTOMER_LIMITED.name());
+        LicenseType licenseType;
+        try {
+            licenseType = LicenseType.valueOf(typeValue);
+        } catch (IllegalArgumentException ex) {
+            licenseType = LicenseType.fromTierCode(typeValue);
+        }
+        boolean unlimited = licenseData.optBoolean("unlimited", licenseType.isUnlimitedDevices());
+        int maxDevices = unlimited ? Integer.MAX_VALUE : licenseData.optInt("maxDevices", licenseType.getDefaultMaxDevices());
+        int validDays = licenseData.optInt("validDays", 0);
+
+        LicenseInfo info = new LicenseInfo(licenseId, customerName, maxDevices, validDays, licenseType);
+        info.setActive("active".equalsIgnoreCase(licenseData.optString("status", "active")));
+        String uuid = licenseData.optString("uuid", "");
+        if (!uuid.isBlank()) {
+            info.setUuid(uuid);
+        }
+
+        LocalDateTime createdAt = parseRemoteDate(licenseData.optString("createdAt", null));
+        if (createdAt != null) {
+            info.setCreatedAt(createdAt);
+        }
+        LocalDateTime expiresAt = parseRemoteDate(licenseData.optString("expiryDate", null));
+        if (expiresAt != null) {
+            info.setExpiresAt(expiresAt);
+        }
+
+        JSONArray boundDevices = licenseData.optJSONArray("boundDevices");
+        if (boundDevices != null) {
+            List<DeviceBinding> bindings = new ArrayList<>();
+            for (int i = 0; i < boundDevices.length(); i++) {
+                JSONObject device = boundDevices.getJSONObject(i);
+                String fingerprint = device.optString("deviceFingerprint");
+                String deviceName = device.optString("deviceName", "未命名设备");
+                LocalDateTime boundAt = parseRemoteDate(device.optString("bindTime", null));
+                LocalDateTime lastUsedAt = parseRemoteDate(device.optString("lastUsedTime", null));
+                boolean active = device.optBoolean("active", true);
+
+                DeviceBinding binding = new DeviceBinding(
+                        fingerprint,
+                        deviceName,
+                        boundAt != null ? boundAt : LocalDateTime.now(),
+                        lastUsedAt != null ? lastUsedAt : LocalDateTime.now(),
+                        active);
+                bindings.add(binding);
+            }
+            info.setBoundDevices(bindings);
+        } else {
+            info.setBoundDevices(new ArrayList<>());
+        }
+
+        return info;
+    }
+
+    private LocalDateTime parseRemoteDate(String value) {
+        if (value == null || value.isBlank() || "null".equalsIgnoreCase(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.ofInstant(Instant.parse(value), ZoneId.systemDefault());
+        } catch (Exception e) {
+            logger.debug("解析远端时间失败: {}", value, e);
+            return null;
+        }
+    }
+
+    private void ensureLicenseDefaults(LicenseInfo license) {
+        if (license == null) {
+            return;
+        }
+
+        if (license.getLicenseType() == null) {
+            license.setLicenseType(LicenseType.CUSTOMER_LIMITED);
+        } else {
+            license.setLicenseType(license.getLicenseType());
+        }
+
+        if (license.getBoundDevices() == null) {
+            license.setBoundDevices(new ArrayList<>());
+        }
+    }
+
+    private LicenseInfo mergeWithExisting(LicenseInfo parsedInfo) {
+        if (this.currentLicense != null && parsedInfo.getLicenseId().equals(this.currentLicense.getLicenseId())) {
+            LicenseInfo existing = this.currentLicense;
+            existing.setLicenseType(parsedInfo.getLicenseType());
+            existing.setMaxDevices(parsedInfo.getMaxDevices());
+            ensureLicenseDefaults(existing);
+            return existing;
+        }
+        return parsedInfo;
     }
 }

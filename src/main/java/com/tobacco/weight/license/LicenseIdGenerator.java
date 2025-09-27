@@ -4,8 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -13,128 +11,120 @@ import java.util.UUID;
 
 /**
  * 动态绑定许可证ID生成器
- * 生成类似Typora的许可证密钥，支持动态设备绑定
+ * 生成类似Typora的许可证密钥，支持不同授权类型
  */
 public class LicenseIdGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(LicenseIdGenerator.class);
 
-    // 许可证前缀
     private static final String LICENSE_PREFIX = "YC-TWW";
+    private static final String CUSTOMER_TIER_CODE = LicenseType.CUSTOMER_LIMITED.getTierCode();
+    private static final String DEVELOPER_TIER_CODE = LicenseType.DEVELOPER_UNLIMITED.getTierCode();
+    private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    // 许可证版本
-    private static final String LICENSE_VERSION = "2025";
+    private LicenseIdGenerator() {
+        // 工具类不需要实例化
+    }
 
     /**
-     * 生成新的许可证ID
-     * 格式: YC-TWW-2025-XXXX-XXXX-XXXX
-     * 
-     * @param customerName 客户名称（可选）
-     * @param maxDevices   最大设备数量
-     * @param validDays    有效天数（0表示永久有效）
-     * @return 生成的许可证ID
+     * 根据最大设备数量推断许可证类型并生成ID
      */
     public static String generateLicenseId(String customerName, int maxDevices, int validDays) {
+        LicenseType licenseType = (maxDevices <= 0 || maxDevices >= Integer.MAX_VALUE)
+                ? LicenseType.DEVELOPER_UNLIMITED
+                : LicenseType.CUSTOMER_LIMITED;
+        return generateLicenseId(customerName, licenseType, validDays);
+    }
+
+    /**
+     * 指定许可证类型生成ID
+     */
+    public static String generateLicenseId(String customerName, LicenseType licenseType, int validDays) {
+        int resolvedMaxDevices = licenseType.isUnlimitedDevices()
+                ? Integer.MAX_VALUE
+                : licenseType.getDefaultMaxDevices();
+        return generateLicenseId(customerName, licenseType, resolvedMaxDevices, validDays);
+    }
+
+    private static String generateLicenseId(String customerName, LicenseType licenseType, int maxDevices, int validDays) {
         try {
-            // 生成唯一标识符
             String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
 
-            // 生成时间戳
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-
-            // 构建许可证数据
-            String licenseData = String.format("%s|%s|%d|%d|%s",
+            String licenseData = String.format("%s|%s|%s|%d|%d|%s",
                     customerName != null ? customerName : "DEFAULT",
+                    licenseType.name(),
                     timestamp,
                     maxDevices,
                     validDays,
                     uuid);
 
-            // 生成校验码
             String checksum = generateChecksum(licenseData);
+            String tierCode = licenseType == LicenseType.DEVELOPER_UNLIMITED ? DEVELOPER_TIER_CODE : CUSTOMER_TIER_CODE;
 
-            // 格式化许可证ID
             String licenseId = String.format("%s-%s-%s-%s-%s",
                     LICENSE_PREFIX,
-                    LICENSE_VERSION,
+                    tierCode,
                     uuid.substring(0, 4),
                     uuid.substring(4, 8),
                     checksum.substring(0, 4).toUpperCase());
 
-            logger.info("生成许可证ID: {}, 客户: {}, 最大设备数: {}, 有效期: {}天",
-                    licenseId, customerName, maxDevices, validDays > 0 ? validDays : "永久");
+            logger.info("生成许可证ID: {}, 客户: {}, 类型: {}, 最大设备数: {}, 有效期: {}",
+                    licenseId,
+                    customerName,
+                    licenseType,
+                    licenseType.isUnlimitedDevices() ? "不限制" : maxDevices,
+                    validDays > 0 ? validDays + "天" : "永久");
 
             return licenseId;
-
         } catch (Exception e) {
             logger.error("生成许可证ID失败", e);
             throw new RuntimeException("生成许可证ID失败", e);
         }
     }
 
-    /**
-     * 验证许可证ID格式
-     * 
-     * @param licenseId 许可证ID
-     * @return 是否为有效格式
-     */
     public static boolean isValidFormat(String licenseId) {
         if (licenseId == null || licenseId.trim().isEmpty()) {
             return false;
         }
-
-        // 检查格式: YC-TWW-2025-XXXX-XXXX-XXXX
-        String pattern = "^YC-TWW-2025-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$";
-        return licenseId.matches(pattern);
+        return licenseId.toUpperCase().matches("^YC-TWW-(2025|DEV0)-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$");
     }
 
-    /**
-     * 验证许可证ID
-     * 
-     * @param licenseId 许可证ID
-     * @return 是否有效
-     */
     public static boolean validateLicenseId(String licenseId) {
         return isValidFormat(licenseId);
     }
 
-    /**
-     * 解析许可证ID中的信息
-     * 
-     * @param licenseId 许可证ID
-     * @return 许可证信息，如果解析失败返回null
-     */
     public static LicenseInfo parseLicenseId(String licenseId) {
         if (!isValidFormat(licenseId)) {
             return null;
         }
 
         try {
-            // 提取UUID部分
             String[] parts = licenseId.split("-");
-            String uuid = parts[3] + parts[4].substring(0, 4); // 前8位是UUID，后4位是校验码
+            String tierCode = parts[2];
+            String uuid = parts[3] + parts[4].substring(0, 4);
 
-            // 为测试许可证设置默认值
-            LicenseInfo info = new LicenseInfo();
-            info.setLicenseId(licenseId);
+            LicenseType licenseType = LicenseType.fromTierCode(tierCode);
+            int resolvedMaxDevices = licenseType.isUnlimitedDevices()
+                    ? Integer.MAX_VALUE
+                    : licenseType.getDefaultMaxDevices();
+
+            LicenseInfo info = new LicenseInfo(licenseId,
+                    licenseType == LicenseType.DEVELOPER_UNLIMITED ? "开发者授权" : "甲方授权",
+                    resolvedMaxDevices,
+                    0,
+                    licenseType);
             info.setUuid(uuid);
-            info.setCustomerName("测试客户");
-            info.setMaxDevices(2); // 设置最大设备数为2
-            info.setValidDays(0); // 永久有效
             info.setCreatedAt(LocalDateTime.now());
             info.setActive(true);
 
             return info;
-
         } catch (Exception e) {
             logger.error("解析许可证ID失败: {}", licenseId, e);
             return null;
         }
     }
 
-    /**
-     * 生成校验码
-     */
     private static String generateChecksum(String data) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -145,26 +135,22 @@ public class LicenseIdGenerator {
         }
     }
 
-    /**
-     * 生成用于测试的许可证ID
-     */
     public static String generateTestLicenseId() {
-        return generateLicenseId("TEST_CUSTOMER", 2, 0);
+        return generateLicenseId("TEST_CUSTOMER", LicenseType.CUSTOMER_LIMITED, 0);
     }
 
-    /**
-     * 命令行工具入口
-     */
     public static void main(String[] args) {
         if (args.length == 0) {
             System.out.println("动态绑定许可证ID生成器");
             System.out.println("用法:");
             System.out.println("  --generate <客户名称> <最大设备数> <有效天数>");
+            System.out.println("  --generate-dev <客户名称> <有效天数>");
             System.out.println("  --test  生成测试许可证");
             System.out.println("  --validate <许可证ID>  验证许可证格式");
             System.out.println();
             System.out.println("示例:");
             System.out.println("  java LicenseIdGenerator --generate \"甲方公司\" 2 365");
+            System.out.println("  java LicenseIdGenerator --generate-dev \"开发者团队\" 0");
             System.out.println("  java LicenseIdGenerator --test");
             return;
         }
@@ -184,9 +170,19 @@ public class LicenseIdGenerator {
                 }
                 break;
 
+            case "--generate-dev":
+                if (args.length >= 3) {
+                    String customerName = args[1];
+                    int validDays = Integer.parseInt(args[2]);
+                    String licenseId = generateLicenseId(customerName, LicenseType.DEVELOPER_UNLIMITED, validDays);
+                    System.out.println("生成的开发者许可证ID: " + licenseId);
+                } else {
+                    System.out.println("参数不足，需要: 客户名称 有效天数");
+                }
+                break;
+
             case "--test":
-                String testLicenseId = generateTestLicenseId();
-                System.out.println("测试许可证ID: " + testLicenseId);
+                System.out.println("测试许可证ID: " + generateTestLicenseId());
                 break;
 
             case "--validate":
@@ -199,7 +195,8 @@ public class LicenseIdGenerator {
                     if (valid) {
                         LicenseInfo info = parseLicenseId(licenseId);
                         if (info != null) {
-                            System.out.println("UUID: " + info.getUuid());
+                            System.out.println("类型: " + info.getLicenseType());
+                            System.out.println("最大设备数: " + (info.isUnlimitedDevices() ? "不限制" : info.getMaxDevices()));
                         }
                     }
                 } else {
